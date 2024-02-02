@@ -38,6 +38,7 @@
 #include "dcmtk/dcmseg/segdef.h"   //for definitions
 #include "dcmtk/dcmseg/segment.h"  // for DcmSegment class
 #include "dcmtk/dcmseg/segtypes.h" // for segmentation data types
+#include "dcmtk/ofstd/ofcond.h"
 #include "dcmtk/ofstd/ofvector.h"  // for OFVector class
 #include <map>                     // for map class (TODO: replace with OFMap, needs reverse iterators)
 
@@ -47,7 +48,7 @@ class FGDerivationImage;
 /** Class representing an object of the "Segmentation SOP Class".
  */
 
-class DCMTK_DCMSEG_EXPORT DcmSegmentation : public DcmIODImage<IODImagePixelModule<Uint8>>
+class DCMTK_DCMSEG_EXPORT DcmSegmentation : public DcmIODImage<IODImagePixelModule<Uint16>, IODImagePixelModule<Uint8>>
 {
 
 public:
@@ -476,10 +477,12 @@ public:
     virtual OFCondition importFromSourceImage(const OFString& filename, const OFBool takeOverCharset = OFTrue);
 
 protected:
+
     /** Protected default constructor. Library users should the factory create..()
      *  method in order to create an object from scratch
      */
-    DcmSegmentation();
+     template <typename ImagePixel>
+    DcmSegmentation(OFin_place_type_t(ImagePixel));
 
     /** Overwrites DcmIODImage::read()
      *  @param  dataset The dataset to read from
@@ -516,13 +519,13 @@ protected:
                                     const Uint16 rows,
                                     const Uint16 columns,
                                     const IODGeneralEquipmentModule::EquipmentInfo& equipmentInfo,
-                                    const ContentIdentificationMacro& contentIdentification);
+                                    const ContentIdentificationMacro& contentIdentification,
+                                    const Uint16 bitsAllocated);
 
-    /** Hide same function from IODImage since do not want the user to access
-     *  the image pixel module manually.
-     *  @return The Image Pixel Module
-     */
-    IODImagePixelModule<Uint8>& getImagePixel();
+    static OFCondition createRequiredBitDepth(DcmItem& item, DcmSegmentation*& segmentation);
+
+    static OFCondition createRequiredBitDepth(const Uint16 bitsAllocated, DcmSegmentation*& segmentation);
+
 
     /** Initialize IOD rules
      */
@@ -637,6 +640,10 @@ protected:
     // virtual OFCondition addFrame(Uint16* pixData);
 
 private:
+
+    struct SetRowsAndCols;
+    struct SetImagePixelModuleVisitor;
+
     // Modules supported:
     //
     // Patient Module (through DcmIODImage)

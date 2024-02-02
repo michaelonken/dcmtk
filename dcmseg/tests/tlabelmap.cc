@@ -75,6 +75,10 @@ OFTEST(dcmseg_labelmaproundtrip)
         ds_dump = oss.str().c_str();
         checkCreatedObject(ds_dump);
     }
+    // deregister RLE codec
+    DcmRLEEncoderRegistration::cleanup();
+    DcmRLEDecoderRegistration::cleanup();
+
 }
 
 static void checkCreatedObject(const OFString& ds_dump)

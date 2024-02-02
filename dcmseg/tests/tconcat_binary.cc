@@ -51,10 +51,12 @@ OFTEST(dcmseg_concat_binary)
     {
         ConcatenationCreator cc;
         result = cc.setCfgFramesPerInstance(NUM_FRAMES_PER_CONCAT);
+        OFCHECK_MSG(result.good(), "Could not configure Concatenation Frames per Instance");
         if (result.good())
         {
             seg->setCheckFGOnWrite(OFFalse);
             result = seg->writeConcatenation(cc);
+            OFCHECK_MSG(result.good(), "Could not write Concatenation");
             if (result.good())
             {
                 size_t n = 0;
