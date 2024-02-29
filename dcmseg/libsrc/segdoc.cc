@@ -33,8 +33,6 @@
 #include "dcmtk/dcmseg/segment.h"
 #include "dcmtk/dcmseg/segutils.h"
 #include "dcmtk/ofstd/ofutil.h"
-#include <cstddef>
-#include <utility>
 
 // default constructor (protected, instance creation via create() function)
 
