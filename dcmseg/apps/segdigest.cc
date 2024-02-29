@@ -21,9 +21,13 @@
 
 #include "dcmtk/config/osconfig.h"    /* make sure OS specific configuration is included first */
 #include "dcmtk/ofstd/ofconapp.h"
+#include "dcmtk/dcmdata/cmdlnarg.h"
 #include "dcmtk/dcmdata/dcrledrg.h"
 #include "dcmtk/dcmdata/dcrleerg.h"
+#include "dcmtk/dcmdata/dcuid.h"
+#include "dcmtk/dcmdata/dcdict.h"
 #include "dcmtk/dcmseg/segdoc.h"
+
 
 #ifdef WITH_ZLIB
 #include <zlib.h>      /* for zlibVersion() */

@@ -22,12 +22,10 @@
 #include "dcmtk/config/osconfig.h"
 
 #include "dcmtk/dcmdata/dcdatutl.h"
-#include "dcmtk/dcmdata/dcdeftag.h"
 #include "dcmtk/dcmdata/dcitem.h"
 #include "dcmtk/dcmdata/dcfilefo.h"
 #include "dcmtk/dcmfg/fgderimg.h"
 #include "dcmtk/dcmiod/iodutil.h"
-#include "dcmtk/dcmiod/modbase.h"
 
 FGDerivationImage::FGDerivationImage()
     : FGBase(DcmFGTypes::EFG_DERIVATIONIMAGE)

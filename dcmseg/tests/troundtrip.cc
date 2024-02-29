@@ -36,7 +36,7 @@
 #include "dcmtk/ofstd/ofmem.h"
 #include "dcmtk/ofstd/oftempf.h"
 #include "dcmtk/ofstd/oftest.h"
-#include <iostream>
+//#include <iostream>
 
 static const Uint8 NUM_ROWS             = 10;
 static const Uint8 NUM_COLS             = 10;

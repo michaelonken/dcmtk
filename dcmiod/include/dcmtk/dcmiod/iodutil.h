@@ -33,7 +33,6 @@
 #include "dcmtk/ofstd/ofstring.h"
 #include "dcmtk/ofstd/oftime.h"
 #include "dcmtk/ofstd/oftraits.h" // for OFremove_pointer
-#include <map>
 
 /** Class with helper functions used within the dcmiod module (and beyond)
  */

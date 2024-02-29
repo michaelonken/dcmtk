@@ -24,6 +24,7 @@
 #include "dcmtk/dcmdata/dcxfer.h"
 #include "dcmtk/dcmseg/segdoc.h"
 #include "dcmtk/dcmdata/dcfilefo.h"
+#include "dcmtk/dcmdata/dcdict.h"
 #include "dcmtk/ofstd/ofcond.h"
 #include "dcmtk/ofstd/ofconsol.h"
 #include "dcmtk/ofstd/oftest.h"

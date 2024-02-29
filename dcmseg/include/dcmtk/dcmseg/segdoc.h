@@ -38,7 +38,6 @@
 #include "dcmtk/dcmseg/segdef.h"   //for definitions
 #include "dcmtk/dcmseg/segment.h"  // for DcmSegment class
 #include "dcmtk/dcmseg/segtypes.h" // for segmentation data types
-#include "dcmtk/ofstd/ofcond.h"
 #include "dcmtk/ofstd/ofvector.h"  // for OFVector class
 #include <map>                     // for map class (TODO: replace with OFMap, needs reverse iterators)
 
