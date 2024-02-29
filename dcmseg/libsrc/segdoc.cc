@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2015-2023, Open Connections GmbH
+ *  Copyright (C) 2015-2024, Open Connections GmbH
  *
  *  All rights reserved.  See COPYRIGHT file for details.
  *
@@ -27,11 +27,6 @@
 #include "dcmtk/dcmdata/dcxfer.h"
 #include "dcmtk/dcmfg/concatenationcreator.h"
 #include "dcmtk/dcmfg/fgderimg.h"
-#include "dcmtk/dcmiod/iodimage.h"
-#include "dcmtk/dcmiod/iodtypes.h"
-#include "dcmtk/dcmseg/segtypes.h"
-#include "dcmtk/ofstd/ofcond.h"
-#include "dcmtk/ofstd/oftypes.h"
 #include "dcmtk/dcmfg/fgseg.h"
 #include "dcmtk/dcmiod/iodutil.h"
 #include "dcmtk/dcmseg/segdoc.h"

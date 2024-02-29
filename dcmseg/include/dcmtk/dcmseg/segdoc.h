@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2015-2022, Open Connections GmbH
+ *  Copyright (C) 2015-2024, Open Connections GmbH
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation are maintained by
@@ -24,7 +24,7 @@
 
 #include "dcmtk/config/osconfig.h" // include OS configuration first
 
-
+#include "dcmtk/dcmdata/dcfilefo.h"
 #include "dcmtk/dcmfg/concatenationcreator.h" // for writing concatenations
 #include "dcmtk/dcmfg/concatenationloader.h"  // for loading concatenations
 #include "dcmtk/dcmfg/fginterface.h"          // for multi-frame functional group interface
@@ -44,6 +44,7 @@
 
 class FGSegmentation;
 class FGDerivationImage;
+class DcmFileFormat;
 
 /** Class representing an object of the "Segmentation SOP Class".
  */
