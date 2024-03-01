@@ -1200,11 +1200,11 @@ OFCondition DcmSegmentation::readFrames(DcmItem& dataset)
 
     /* Get pixel data values */
     size_t pixelsPerFrame = OFstatic_cast(size_t, rows) * cols;
-    result                = readPixelData(pixelData, numberOfFrames, pixelsPerFrame);
+    result                = readPixelData(pixelData, numberOfFrames, pixelsPerFrame, allocated);
     return result;
 }
 
-OFCondition DcmSegmentation::readPixelData(DcmElement* pixelData, const size_t numFrames, const size_t pixelsPerFrame)
+OFCondition DcmSegmentation::readPixelData(DcmElement* pixelData, const size_t numFrames, const size_t pixelsPerFrame, const Uint8 bitsAlloc)
 {
     Uint8* pixels      = NULL;
     OFCondition result = pixelData->getUint8Array(pixels);
@@ -1223,17 +1223,24 @@ OFCondition DcmSegmentation::readPixelData(DcmElement* pixelData, const size_t n
         case DcmSegTypes::ST_LABELMAP:
             for (size_t count = 0; count < numFrames; count++)
             {
-                DcmIODTypes::Frame<Uint8>* frame = new DcmIODTypes::Frame<Uint8>(pixelsPerFrame);
-                if (!frame || !frame->pixData)
+                DcmIODTypes::FrameBase* frame = NULL;
+                if (bitsAlloc == 8)
+                {
+                    frame = new DcmIODTypes::Frame<Uint8>(pixelsPerFrame);
+                }
+                else if (bitsAlloc == 16)
+                {
+                    frame = new DcmIODTypes::Frame<Uint16>(pixelsPerFrame);
+                }
+                if (!frame || !frame->getPixelData())
                 {
                     delete frame;
                     result = EC_MemoryExhausted;
                     break;
                 }
-                memcpy(frame->pixData, pixels + count * pixelsPerFrame, pixelsPerFrame);
+                memcpy(frame->getPixelData(), pixels + count * pixelsPerFrame * (bitsAlloc % 2), pixelsPerFrame);
                 // print frame->pixData to cout
-                frame->print();
-
+                // frame->print();
                 m_Frames.push_back(frame);
             }
             break;

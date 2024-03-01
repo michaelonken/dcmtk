@@ -583,7 +583,7 @@ protected:
      */
     virtual OFCondition readFrames(DcmItem& dataset);
 
-    virtual OFCondition readPixelData(DcmElement* pixelData, const size_t numFrames, const size_t pixelsPerFrame);
+    virtual OFCondition readPixelData(DcmElement* pixelData, const size_t numFrames, const size_t pixelsPerFrame, const Uint8 bitsAlloc);
 
     /** Get Image Pixel module attributes and perform some basic checking
      *  @param  dataset Item to read from, usually main dataset level
