@@ -11,7 +11,7 @@
  *    D-26121 Oldenburg, Germany
  *
  *
- *  Module:  dcmect
+ *  Module:  dcmiod
  *
  *  Author:  Michael Onken
  *

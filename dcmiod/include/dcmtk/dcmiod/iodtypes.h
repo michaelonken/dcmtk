@@ -59,6 +59,7 @@ extern DCMTK_DCMIOD_EXPORT const OFConditionConst IOD_EC_InvalidLaterality;
 extern DCMTK_DCMIOD_EXPORT const OFConditionConst IOD_EC_InvalidElementValue;
 extern DCMTK_DCMIOD_EXPORT const OFConditionConst IOD_EC_InvalidReference;
 extern DCMTK_DCMIOD_EXPORT const OFConditionConst IOD_EC_ReferencesOmitted;
+extern DCMTK_DCMIOD_EXPORT const OFConditionConst IOD_EC_InvalidColorPalette;
 
 /** Class that wraps some constant definitions in the context of IODs
  */

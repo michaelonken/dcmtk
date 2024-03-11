@@ -46,7 +46,7 @@ makeOFConditionConst(IOD_EC_InvalidElementValue, OFM_dcmiod, 11, OF_error, "Valu
 makeOFConditionConst(IOD_EC_InvalidReference, OFM_dcmiod, 12, OF_error, "One or more invalid SOP references");
 makeOFConditionConst(
     IOD_EC_ReferencesOmitted, OFM_dcmiod, 13, OF_error, "One or more SOP references have been omitted");
-
+makeOFConditionConst(IOD_EC_InvalidColorPalette, OFM_dcmiod, 14, OF_error, "Invalid Color Palette LUT");
 
 
 template <>

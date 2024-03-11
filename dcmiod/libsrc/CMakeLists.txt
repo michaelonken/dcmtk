@@ -25,6 +25,7 @@ DCMTK_ADD_LIBRARY(dcmiod
   modimagepixelbase.cc
   modmultiframefg.cc
   modmultiframedimension.cc
+  modpalettecolorlut.cc
   modpatient.cc
   modpatientstudy.cc
   modsegmentationseries.cc
@@ -33,5 +34,5 @@ DCMTK_ADD_LIBRARY(dcmiod
   modusfor.cc
 )
 
-DCMTK_TARGET_LINK_MODULES(dcmiod dcmdata ofstd oflog)
+DCMTK_TARGET_LINK_MODULES(dcmiod dcmimgle dcmdata ofstd oflog)
 

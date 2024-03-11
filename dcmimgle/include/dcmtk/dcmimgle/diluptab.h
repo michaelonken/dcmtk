@@ -26,6 +26,7 @@
 #include "dcmtk/config/osconfig.h"
 #include "dcmtk/dcmdata/dctagkey.h"
 
+#include "dcmtk/dcmdata/dcvrobow.h"
 #include "dcmtk/dcmimgle/dibaslut.h"
 #include "dcmtk/dcmimgle/diobjcou.h"
 
@@ -106,6 +107,42 @@ class DCMTK_DCMIMGLE_EXPORT DiLookupTable
                   const EL_BitsPerTableEntry descripMode = ELM_UseValue,
                   const signed long first = -1,
                   EI_Status *status = NULL);
+
+
+    /** constructor
+     *
+     ** @param  data         element containing the LUT data (must be OW)
+     *  @param  descriptor   element containing the LUT descriptor
+     *  @param  explanation  element containing the LUT explanation (optional)
+     *  @param  descripMode  mode specifying the use of the bits per table entry value
+     *  @param  first        expected value for "first input value mapped" (optional)
+     *  @param  status       pointer to image status variable (optional)
+     */
+    DiLookupTable(const DcmOtherByteOtherWord &data,
+                  const DcmUnsignedShort &descriptor,
+                  const DcmLongString *explanation = NULL,
+                  const EL_BitsPerTableEntry descripMode = ELM_UseValue,
+                  const signed long first = -1,
+                  EI_Status *status = NULL);
+
+    /** constructor
+     *
+     ** @param  data         array containing the LUT data
+     *  @param  count        number entries in LUT data array
+     *  @param  descriptor   element containing the LUT descriptor
+     *  @param  explanation  element containing the LUT explanation (optional)
+     *  @param  descripMode  mode specifying the use of the bits per table entry value
+     *  @param  first        expected value for "first input value mapped" (optional)
+     *  @param  status       pointer to image status variable (optional)
+     */
+    DiLookupTable(const Uint16* data,
+                  const unsigned long& count,
+                  const DcmUnsignedShort &descriptor,
+                  const DcmLongString *explanation = NULL,
+                  const EL_BitsPerTableEntry descripMode = ELM_UseValue,
+                  const signed long first = -1,
+                  EI_Status *status = NULL);
+
 
     /** constructor
      *
