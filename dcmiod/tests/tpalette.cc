@@ -77,9 +77,9 @@ static T* makePixelData()
 
 static void createNonSegmentedPaletteModule(IODPaletteColorLUTModule& mod, OFBool makeSigned, Uint8 bits)
 {
-    Uint16 NUM_ENTRIES_16_BIT = 1000;
-    Uint16 *data = new Uint16[1000];
-    for (int i = 0; i < NUM_ENTRIES_16_BIT; i++)
+    Uint16 NUM_ENTRIES_16_BIT = 65535;
+    Uint16 *data = new Uint16[NUM_ENTRIES_16_BIT];
+    for (Uint16 i = 0; i < NUM_ENTRIES_16_BIT; i++)
     {
         data[i] = i;
     }

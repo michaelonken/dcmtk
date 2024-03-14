@@ -94,7 +94,7 @@ DiLookupTable::DiLookupTable(const DcmUnsignedShort &data,
     OriginalData(NULL)
 {
     unsigned long count = DiDocument::getElemValue(OFreinterpret_cast(const DcmElement *, &data), Data);
-    DiLookupTable(Data, count, descriptor, explanation, descripMode, first, status);
+    Init(Data, count, descriptor, explanation, descripMode, first, status);
 }
 
 
@@ -115,20 +115,17 @@ DiLookupTable::DiLookupTable(const DcmOtherByteOtherWord &data,
         *status = EIS_InvalidImage;
     }
     unsigned long count = DiDocument::getElemValue(OFreinterpret_cast(const DcmElement *, &data), Data);
-    DiLookupTable(Data, count, descriptor, explanation, descripMode, first, status);
+    Init(Data, count, descriptor, explanation, descripMode, first, status);
 }
 
 
-DiLookupTable::DiLookupTable(const Uint16* data,
-                             const unsigned long& count,
-                             const DcmUnsignedShort &descriptor,
-                             const DcmLongString *explanation,
-                             const EL_BitsPerTableEntry descripMode,
-                             const signed long first,
-                             EI_Status *status)
-  : DiBaseLUT(),
-    OriginalBitsAllocated(16),
-    OriginalData(NULL)
+void DiLookupTable::Init(const Uint16* data,
+                         const unsigned long& count,
+                         const DcmUnsignedShort &descriptor,
+                         const DcmLongString *explanation,
+                         const EL_BitsPerTableEntry descripMode,
+                         const signed long first,
+                         EI_Status *status)
 {
     Data = data;
     Uint16 us = 0;

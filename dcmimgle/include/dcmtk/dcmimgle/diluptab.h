@@ -127,25 +127,6 @@ class DCMTK_DCMIMGLE_EXPORT DiLookupTable
 
     /** constructor
      *
-     ** @param  data         array containing the LUT data
-     *  @param  count        number entries in LUT data array
-     *  @param  descriptor   element containing the LUT descriptor
-     *  @param  explanation  element containing the LUT explanation (optional)
-     *  @param  descripMode  mode specifying the use of the bits per table entry value
-     *  @param  first        expected value for "first input value mapped" (optional)
-     *  @param  status       pointer to image status variable (optional)
-     */
-    DiLookupTable(const Uint16* data,
-                  const unsigned long& count,
-                  const DcmUnsignedShort &descriptor,
-                  const DcmLongString *explanation = NULL,
-                  const EL_BitsPerTableEntry descripMode = ELM_UseValue,
-                  const signed long first = -1,
-                  EI_Status *status = NULL);
-
-
-    /** constructor
-     *
      ** @param  buffer  pointer to array with LUT entries
      *  @param  count   number of LUT entries
      *  @param  bits    number of bits per entry
@@ -225,6 +206,24 @@ class DCMTK_DCMIMGLE_EXPORT DiLookupTable
 
 
  protected:
+
+    /** initialize lookup table
+     *
+     ** @param  data         array containing the LUT data
+     *  @param  count        number entries in LUT data array
+     *  @param  descriptor   element containing the LUT descriptor
+     *  @param  explanation  element containing the LUT explanation (optional)
+     *  @param  descripMode  mode specifying the use of the bits per table entry value
+     *  @param  first        expected value for "first input value mapped" (optional)
+     *  @param  status       pointer to image status variable (optional)
+     */
+    void Init(const Uint16* data,
+                  const unsigned long& count,
+                  const DcmUnsignedShort &descriptor,
+                  const DcmLongString *explanation = NULL,
+                  const EL_BitsPerTableEntry descripMode = ELM_UseValue,
+                  const signed long first = -1,
+                  EI_Status *status = NULL);
 
     /** initialize lookup table
      *
