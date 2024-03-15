@@ -83,7 +83,7 @@ public:
      *  An attribute is considered belonging to the module if there are rules
      *  marked as belonging to this module via the rule's module name.
      */
-    void clearData();
+    virtual void clearData();
 
     /** Set missing values by inventing "default values". Automatically
      *  called during write() in IODComponent. In this bas class implementation,

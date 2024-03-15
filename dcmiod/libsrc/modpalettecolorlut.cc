@@ -25,6 +25,7 @@
 #include "dcmtk/dcmdata/dcvrobow.h"
 #include "dcmtk/dcmdata/dcvrui.h"
 #include "dcmtk/dcmiod/iodtypes.h"
+#include "dcmtk/dcmiod/modbase.h"
 #include "dcmtk/dcmiod/modpalettecolorlut.h"
 #include "dcmtk/ofstd/ofcond.h"
 #include "dcmtk/dcmdata/dcdeftag.h"
@@ -77,6 +78,12 @@ void IODPaletteColorLUTModule::resetRules()
         OFTrue);
     m_Rules->addRule(
         new IODRule(DCM_SegmentedBluePaletteColorLookupTableData, "1", "1C", getName(), DcmIODTypes::IE_IMAGE), OFTrue);
+}
+
+void IODPaletteColorLUTModule::clearData()
+{
+    IODModule::clearData();
+    m_IsSigned = OFFalse;
 }
 
 OFString IODPaletteColorLUTModule::getName() const
@@ -139,34 +146,34 @@ OFCondition IODPaletteColorLUTModule::getPaletteColorLookupTableUID(OFString& va
     return DcmIODUtil::getStringValueFromItem(DCM_PaletteColorLookupTableUID, *m_Item, value, pos);
 }
 
-OFCondition IODPaletteColorLUTModule::getRedPaletteColorLookupTableData(const Uint16*& data, size_t& numEntries)
+OFCondition IODPaletteColorLUTModule::getRedPaletteColorLookupTableData(const Uint16*& data, unsigned long& numEntries)
 {
-    return m_Item->findAndGetUint16Array(DCM_RedPaletteColorLookupTableData, data, NULL, OFFalse);
+    return m_Item->findAndGetUint16Array(DCM_RedPaletteColorLookupTableData, data, &numEntries, OFFalse);
 }
 
-OFCondition IODPaletteColorLUTModule::getGreenPaletteColorLookupTableData(const Uint16*& data, size_t& numEntries)
+OFCondition IODPaletteColorLUTModule::getGreenPaletteColorLookupTableData(const Uint16*& data, unsigned long& numEntries)
 {
-    return m_Item->findAndGetUint16Array(DCM_GreenPaletteColorLookupTableData, data, NULL, OFFalse);
+    return m_Item->findAndGetUint16Array(DCM_GreenPaletteColorLookupTableData, data, &numEntries, OFFalse);
 }
 
-OFCondition IODPaletteColorLUTModule::getBluePaletteColorLookupTableData(const Uint16*& data, size_t& numEntries)
+OFCondition IODPaletteColorLUTModule::getBluePaletteColorLookupTableData(const Uint16*& data, unsigned long& numEntries)
 {
-    return m_Item->findAndGetUint16Array(DCM_BluePaletteColorLookupTableData, data, NULL, OFFalse);
+    return m_Item->findAndGetUint16Array(DCM_BluePaletteColorLookupTableData, data, &numEntries, OFFalse);
 }
 
-OFCondition IODPaletteColorLUTModule::getSegmentedRedPaletteColorLookupTableData(const Uint16*& data, size_t& numEntries)
+OFCondition IODPaletteColorLUTModule::getSegmentedRedPaletteColorLookupTableData(const Uint16*& data, unsigned long& numEntries)
 {
-    return m_Item->findAndGetUint16Array(DCM_SegmentedRedPaletteColorLookupTableData, data, NULL, OFFalse);
+    return m_Item->findAndGetUint16Array(DCM_SegmentedRedPaletteColorLookupTableData, data, &numEntries, OFFalse);
 }
 
-OFCondition IODPaletteColorLUTModule::getSegmentedGreenPaletteColorLookupTableData(const Uint16*& data, size_t& numEntries)
+OFCondition IODPaletteColorLUTModule::getSegmentedGreenPaletteColorLookupTableData(const Uint16*& data, unsigned long& numEntries)
 {
-    return m_Item->findAndGetUint16Array(DCM_SegmentedGreenPaletteColorLookupTableData, data, NULL, OFFalse);
+    return m_Item->findAndGetUint16Array(DCM_SegmentedGreenPaletteColorLookupTableData, data, &numEntries, OFFalse);
 }
 
-OFCondition IODPaletteColorLUTModule::getSegmentedBluePaletteColorLookupTableData(const Uint16*& data, size_t& numEntries)
+OFCondition IODPaletteColorLUTModule::getSegmentedBluePaletteColorLookupTableData(const Uint16*& data, unsigned long& numEntries)
 {
-    return m_Item->findAndGetUint16Array(DCM_SegmentedBluePaletteColorLookupTableData, data, NULL, OFFalse);
+    return m_Item->findAndGetUint16Array(DCM_SegmentedBluePaletteColorLookupTableData, data, &numEntries, OFFalse);
 }
 
 // -------------------- set() --------------------

@@ -62,6 +62,12 @@ public:
      */
     virtual ~IODPaletteColorLUTModule();
 
+    /** Clear all attributes from the data that are handled by this module.
+     *  An attribute is considered belonging to the module if there are rules
+     *  marked as belonging to this module via the rule's module name.
+     */
+    virtual void clearData();
+
     /** Resets rules to their original values
      */
     virtual void resetRules();
@@ -130,42 +136,42 @@ public:
      *  @param  numEntries Number of entries in the lookup table
      *  @return EC_Normal if successful, an error code otherwise
      */
-    virtual OFCondition getRedPaletteColorLookupTableData(const Uint16*& value, size_t& num_entries);
+    virtual OFCondition getRedPaletteColorLookupTableData(const Uint16*& value, unsigned long& num_entries);
 
     /** Get the Green Palette Color Lookup Table​ Data​
      *  @param  value Reference to variable in which the value should be stored
      *  @param  numEntries Number of entries in the lookup table
      *  @return EC_Normal if successful, an error code otherwise
      */
-    virtual OFCondition getGreenPaletteColorLookupTableData(const Uint16*& value, size_t& num_entries);
+    virtual OFCondition getGreenPaletteColorLookupTableData(const Uint16*& value, unsigned long& num_entries);
 
     /** Get the Blue Palette Color Lookup Table​ Data​
      *  @param  value Reference to variable in which the value should be stored
      *  @param  numEntries Number of entries in the lookup table
      *  @return EC_Normal if successful, an error code otherwise
      */
-    virtual OFCondition getBluePaletteColorLookupTableData(const Uint16*& value, size_t& num_entries);
+    virtual OFCondition getBluePaletteColorLookupTableData(const Uint16*& value, unsigned long& num_entries);
 
     /** Get the Segmented Red Palette Color Lookup Table​ Data​
      *  @param  value Reference to variable in which the value should be stored
      *  @param  numEntries Number of entries in the lookup table
      *  @return EC_Normal if successful, an error code otherwise
      */
-    virtual OFCondition getSegmentedRedPaletteColorLookupTableData(const Uint16*& value, size_t& num_entries);
+    virtual OFCondition getSegmentedRedPaletteColorLookupTableData(const Uint16*& value, unsigned long& num_entries);
 
     /** Get the Segmented Green Palette Color Lookup Table​ Data​
      *  @param  value Reference to variable in which the value should be stored
      *  @param  numEntries Number of entries in the lookup table
      *  @return EC_Normal if successful, an error code otherwise
      */
-    virtual OFCondition getSegmentedGreenPaletteColorLookupTableData(const Uint16*& value, size_t& num_entries);
+    virtual OFCondition getSegmentedGreenPaletteColorLookupTableData(const Uint16*& value, unsigned long& num_entries);
 
     /** Get the Segmented Blue Palette Color Lookup Table​ Data​
      *  @param  value Reference to variable in which the value should be stored
      *  @param  numEntries Number of entries in the lookup table
      *  @return EC_Normal if successful, an error code otherwise
      */
-    virtual OFCondition getSegmentedBluePaletteColorLookupTableData(const Uint16*& value, size_t& num_entries);
+    virtual OFCondition getSegmentedBluePaletteColorLookupTableData(const Uint16*& value, unsigned long& num_entries);
 
     // ---------------- Setters -----------------------------
 
