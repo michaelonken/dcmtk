@@ -38,7 +38,6 @@ const OFString IODPaletteColorLUTModule::m_ModuleName = "PaletteColorLookupTable
 
 IODPaletteColorLUTModule::IODPaletteColorLUTModule(OFshared_ptr<DcmItem> item, OFshared_ptr<IODRules> rules)
     : IODModule(item, rules)
-    , m_IsSigned(OFFalse)
 {
     // reset element rules
     resetRules();
@@ -83,7 +82,6 @@ void IODPaletteColorLUTModule::resetRules()
 void IODPaletteColorLUTModule::clearData()
 {
     IODModule::clearData();
-    m_IsSigned = OFFalse;
 }
 
 OFString IODPaletteColorLUTModule::getName() const
@@ -116,6 +114,8 @@ OFCondition IODPaletteColorLUTModule::write(DcmItem& destination)
     if (!valid)
         return IOD_EC_InvalidColorPalette;
     valid = checkDescriptorConsistency(OFTrue /* report as errors */);
+    if (!valid)
+        return IOD_EC_InvalidColorPalette;
     return IODComponent::write(destination);
 }
 
@@ -146,34 +146,78 @@ OFCondition IODPaletteColorLUTModule::getPaletteColorLookupTableUID(OFString& va
     return DcmIODUtil::getStringValueFromItem(DCM_PaletteColorLookupTableUID, *m_Item, value, pos);
 }
 
-OFCondition IODPaletteColorLUTModule::getRedPaletteColorLookupTableData(const Uint16*& data, unsigned long& numEntries)
+template <>
+OFCondition IODPaletteColorLUTModule::getRedPaletteColorLookupTableData(const Uint16*& dataCopy, unsigned long& numEntries)
 {
-    return m_Item->findAndGetUint16Array(DCM_RedPaletteColorLookupTableData, data, &numEntries, OFFalse);
+    return getUint16DataCopy(DCM_RedPaletteColorLookupTableData, dataCopy, numEntries);
 }
 
-OFCondition IODPaletteColorLUTModule::getGreenPaletteColorLookupTableData(const Uint16*& data, unsigned long& numEntries)
+template<>
+OFCondition IODPaletteColorLUTModule::getGreenPaletteColorLookupTableData(const Uint16*& dataCopy, unsigned long& numEntries)
 {
-    return m_Item->findAndGetUint16Array(DCM_GreenPaletteColorLookupTableData, data, &numEntries, OFFalse);
+    return getUint16DataCopy(DCM_GreenPaletteColorLookupTableData, dataCopy, numEntries);
 }
 
-OFCondition IODPaletteColorLUTModule::getBluePaletteColorLookupTableData(const Uint16*& data, unsigned long& numEntries)
+template<>
+OFCondition IODPaletteColorLUTModule::getBluePaletteColorLookupTableData(const Uint16*& dataCopy, unsigned long& numEntries)
 {
-    return m_Item->findAndGetUint16Array(DCM_BluePaletteColorLookupTableData, data, &numEntries, OFFalse);
+    return getUint16DataCopy(DCM_BluePaletteColorLookupTableData, dataCopy, numEntries);
 }
 
-OFCondition IODPaletteColorLUTModule::getSegmentedRedPaletteColorLookupTableData(const Uint16*& data, unsigned long& numEntries)
+template<>
+OFCondition IODPaletteColorLUTModule::getSegmentedRedPaletteColorLookupTableData(const Uint16*& dataCopy, unsigned long& numEntries)
 {
-    return m_Item->findAndGetUint16Array(DCM_SegmentedRedPaletteColorLookupTableData, data, &numEntries, OFFalse);
+    return getUint16DataCopy(DCM_SegmentedRedPaletteColorLookupTableData, dataCopy, numEntries);
 }
 
-OFCondition IODPaletteColorLUTModule::getSegmentedGreenPaletteColorLookupTableData(const Uint16*& data, unsigned long& numEntries)
+template<>
+OFCondition IODPaletteColorLUTModule::getSegmentedGreenPaletteColorLookupTableData(const Uint16*& dataCopy, unsigned long& numEntries)
 {
-    return m_Item->findAndGetUint16Array(DCM_SegmentedGreenPaletteColorLookupTableData, data, &numEntries, OFFalse);
+    return getUint16DataCopy(DCM_SegmentedGreenPaletteColorLookupTableData, dataCopy, numEntries);
 }
 
-OFCondition IODPaletteColorLUTModule::getSegmentedBluePaletteColorLookupTableData(const Uint16*& data, unsigned long& numEntries)
+template<>
+OFCondition IODPaletteColorLUTModule::getSegmentedBluePaletteColorLookupTableData(const Uint16*& dataCopy, unsigned long& numEntries)
 {
-    return m_Item->findAndGetUint16Array(DCM_SegmentedBluePaletteColorLookupTableData, data, &numEntries, OFFalse);
+    return getUint16DataCopy(DCM_SegmentedBluePaletteColorLookupTableData, dataCopy, numEntries);
+}
+
+// 8 bit versions for LUT data access
+
+template<>
+OFCondition IODPaletteColorLUTModule::getRedPaletteColorLookupTableData(const Uint8*& dataCopy, unsigned long& numEntries)
+{
+    return getUint8DataCopy(DCM_RedPaletteColorLookupTableData, dataCopy, numEntries);
+}
+
+template<>
+OFCondition IODPaletteColorLUTModule::getGreenPaletteColorLookupTableData(const Uint8*& dataCopy, unsigned long& numEntries)
+{
+    return getUint8DataCopy(DCM_GreenPaletteColorLookupTableData, dataCopy, numEntries);
+}
+
+template<>
+OFCondition IODPaletteColorLUTModule::getBluePaletteColorLookupTableData(const Uint8*& dataCopy, unsigned long& numEntries)
+{
+    return getUint8DataCopy(DCM_BluePaletteColorLookupTableData, dataCopy, numEntries);
+}
+
+template<>
+OFCondition IODPaletteColorLUTModule::getSegmentedRedPaletteColorLookupTableData(const Uint8*& dataCopy, unsigned long& numEntries)
+{
+    return getUint8DataCopy(DCM_SegmentedRedPaletteColorLookupTableData, dataCopy, numEntries);
+}
+
+template<>
+OFCondition IODPaletteColorLUTModule::getSegmentedGreenPaletteColorLookupTableData(const Uint8*& dataCopy, unsigned long& numEntries)
+{
+    return getUint8DataCopy(DCM_BluePaletteColorLookupTableData, dataCopy, numEntries);
+}
+
+template<>
+OFCondition IODPaletteColorLUTModule::getSegmentedBluePaletteColorLookupTableData(const Uint8*& dataCopy, unsigned long& numEntries)
+{
+    return getUint8DataCopy(DCM_BluePaletteColorLookupTableData, dataCopy, numEntries);
 }
 
 // -------------------- set() --------------------
@@ -183,72 +227,22 @@ OFCondition IODPaletteColorLUTModule::setRedPaletteColorLookupTableDescriptor(co
                                                                               const unsigned long pos)
 {
     OFCondition result = m_Item->putAndInsertUint16(DCM_RedPaletteColorLookupTableDescriptor, value, pos);
-    if (result.good())
-    {
-        m_IsSigned = OFFalse;
-    }
     return result;
 }
 
-template <>
-OFCondition IODPaletteColorLUTModule::setRedPaletteColorLookupTableDescriptor(const Sint16& value,
-                                                                              const unsigned long pos)
-{
-    OFCondition result = m_Item->putAndInsertSint16(DCM_RedPaletteColorLookupTableDescriptor, value, pos);
-    if (result.good())
-    {
-        m_IsSigned = OFTrue;
-    }
-    return result;
-}
 
 template <>
 OFCondition IODPaletteColorLUTModule::setGreenPaletteColorLookupTableDescriptor(const Uint16& value,
                                                                                 const unsigned long pos)
 {
-    OFCondition result = m_Item->putAndInsertUint16(DCM_GreenPaletteColorLookupTableDescriptor, value, pos);
-    if (result.good())
-    {
-        m_IsSigned = OFFalse;
-    }
-    return result;
+    return m_Item->putAndInsertUint16(DCM_GreenPaletteColorLookupTableDescriptor, value, pos);
 }
-
-template <>
-OFCondition IODPaletteColorLUTModule::setGreenPaletteColorLookupTableDescriptor(const Sint16& value,
-                                                                                const unsigned long pos)
-{
-    OFCondition result = m_Item->putAndInsertSint16(DCM_GreenPaletteColorLookupTableDescriptor, value, pos);
-    if (result.good())
-    {
-        m_IsSigned = OFTrue;
-    }
-    return result;
-}
-
 
 template <>
 OFCondition IODPaletteColorLUTModule::setBluePaletteColorLookupTableDescriptor(const Uint16& value,
                                                                                const unsigned long pos)
 {
-    OFCondition result = m_Item->putAndInsertUint16(DCM_BluePaletteColorLookupTableDescriptor, value, pos);
-    if (result.good())
-    {
-        m_IsSigned = OFFalse;
-    }
-    return result;
-}
-
-template <>
-OFCondition IODPaletteColorLUTModule::setBluePaletteColorLookupTableDescriptor(const Sint16& value,
-                                                                               const unsigned long pos)
-{
-    OFCondition result = m_Item->putAndInsertSint16(DCM_BluePaletteColorLookupTableDescriptor, value, pos);
-    if (result.good())
-    {
-        m_IsSigned = OFTrue;
-    }
-    return result;
+    return m_Item->putAndInsertUint16(DCM_BluePaletteColorLookupTableDescriptor, value, pos);
 }
 
 
@@ -259,6 +253,7 @@ OFCondition IODPaletteColorLUTModule::setPaletteColorLookupTableUID(const OFStri
     return result;
 }
 
+template<>
 OFCondition IODPaletteColorLUTModule::setRedPaletteColorLookupTableData(const Uint16* data,
                                                                         const size_t numEntries,
                                                                         const OFBool)
@@ -266,6 +261,7 @@ OFCondition IODPaletteColorLUTModule::setRedPaletteColorLookupTableData(const Ui
     return m_Item->putAndInsertUint16Array(DCM_RedPaletteColorLookupTableData, data, numEntries);
 }
 
+template<>
 OFCondition IODPaletteColorLUTModule::setGreenPaletteColorLookupTableData(const Uint16* data,
                                                                           const size_t numEntries,
                                                                           const OFBool)
@@ -273,6 +269,7 @@ OFCondition IODPaletteColorLUTModule::setGreenPaletteColorLookupTableData(const 
     return m_Item->putAndInsertUint16Array(DCM_GreenPaletteColorLookupTableData, data, numEntries);
 }
 
+template<>
 OFCondition IODPaletteColorLUTModule::setBluePaletteColorLookupTableData(const Uint16* data,
                                                                          const size_t numEntries,
                                                                          const OFBool)
@@ -280,6 +277,31 @@ OFCondition IODPaletteColorLUTModule::setBluePaletteColorLookupTableData(const U
     return m_Item->putAndInsertUint16Array(DCM_BluePaletteColorLookupTableData, data, numEntries);
 }
 
+template<>
+OFCondition IODPaletteColorLUTModule::setRedPaletteColorLookupTableData(const Uint8* data,
+                                                                        const size_t numEntries,
+                                                                        const OFBool)
+{
+    return putUint8Data(DCM_RedPaletteColorLookupTableData, data, numEntries);
+}
+
+template<>
+OFCondition IODPaletteColorLUTModule::setGreenPaletteColorLookupTableData(const Uint8* data,
+                                                                          const size_t numEntries,
+                                                                          const OFBool)
+{
+    return putUint8Data(DCM_GreenPaletteColorLookupTableData, data, numEntries);
+}
+
+template<>
+OFCondition IODPaletteColorLUTModule::setBluePaletteColorLookupTableData(const Uint8* data,
+                                                                         const size_t numEntries,
+                                                                         const OFBool)
+{
+    return putUint8Data(DCM_BluePaletteColorLookupTableData, data, numEntries);
+}
+
+template<>
 OFCondition IODPaletteColorLUTModule::setSegmentedRedPaletteColorLookupTableData(const Uint16* data,
                                                                                  const size_t numEntries,
                                                                                  const OFBool)
@@ -287,6 +309,7 @@ OFCondition IODPaletteColorLUTModule::setSegmentedRedPaletteColorLookupTableData
     return m_Item->putAndInsertUint16Array(DCM_SegmentedRedPaletteColorLookupTableData, data, numEntries);
 }
 
+template<>
 OFCondition IODPaletteColorLUTModule::setSegmentedGreenPaletteColorLookupTableData(const Uint16* data,
                                                                                    const size_t numEntries,
                                                                                    const OFBool)
@@ -294,6 +317,7 @@ OFCondition IODPaletteColorLUTModule::setSegmentedGreenPaletteColorLookupTableDa
     return m_Item->putAndInsertUint16Array(DCM_SegmentedGreenPaletteColorLookupTableData, data, numEntries);
 }
 
+template<>
 OFCondition IODPaletteColorLUTModule::setSegmentedBluePaletteColorLookupTableData(const Uint16* data,
                                                                                   const size_t numEntries,
                                                                                   const OFBool)
@@ -301,38 +325,55 @@ OFCondition IODPaletteColorLUTModule::setSegmentedBluePaletteColorLookupTableDat
     return m_Item->putAndInsertUint16Array(DCM_SegmentedBluePaletteColorLookupTableData, data, numEntries);
 }
 
+template<>
+OFCondition IODPaletteColorLUTModule::setSegmentedRedPaletteColorLookupTableData(const Uint8* data,
+                                                                                 const size_t numEntries,
+                                                                                 const OFBool)
+{
+    return putUint8Data(DCM_SegmentedRedPaletteColorLookupTableData, data, numEntries);
+}
 
-OFCondition IODPaletteColorLUTModule::setPaletteColorLookupTableData(const Uint16* redData,
-                                                                     const Uint16* greenData,
-                                                                     const Uint16* blueData,
+template<>
+OFCondition IODPaletteColorLUTModule::setSegmentedGreenPaletteColorLookupTableData(const Uint8* data,
+                                                                                   const size_t numEntries,
+                                                                                   const OFBool)
+{
+    return putUint8Data(DCM_SegmentedGreenPaletteColorLookupTableData, data, numEntries);
+}
+
+template<>
+OFCondition IODPaletteColorLUTModule::setSegmentedBluePaletteColorLookupTableData(const Uint8* data,
+                                                                                  const size_t numEntries,
+                                                                                  const OFBool)
+{
+    return putUint8Data(DCM_SegmentedBluePaletteColorLookupTableData, data, numEntries);
+}
+
+
+template<typename T>
+OFCondition IODPaletteColorLUTModule::setPaletteColorLookupTableData(const T* copyRedData,
+                                                                     const T* copyGreenData,
+                                                                     const T* copyBlueData,
                                                                      const size_t numEntries,
                                                                      const OFBool checkValue)
 {
-    OFCondition result = setRedPaletteColorLookupTableData(redData, numEntries, checkValue);
-    if (result.good()) result = setGreenPaletteColorLookupTableData(greenData, numEntries, checkValue);
-    if (result.good()) result = setBluePaletteColorLookupTableData(blueData, numEntries, checkValue);
-    if (result.good())
-    {
-        m_IsSigned = OFFalse;
-    }
+    OFCondition result = setRedPaletteColorLookupTableData(copyRedData, numEntries, checkValue);
+    if (result.good()) result = setGreenPaletteColorLookupTableData(copyGreenData, numEntries, checkValue);
+    if (result.good()) result = setBluePaletteColorLookupTableData(copyBlueData, numEntries, checkValue);
     return result;
 }
 
-OFCondition IODPaletteColorLUTModule::setSegmentedPaletteColorLookupTableData(const Uint16* redData,
-                                                                              const Uint16* greenData,
-                                                                              const Uint16* blueData,
+template<typename T>
+OFCondition IODPaletteColorLUTModule::setSegmentedPaletteColorLookupTableData(const T* redData,
+                                                                              const T* greenData,
+                                                                              const T* blueData,
                                                                               const size_t numEntries,
                                                                               const OFBool checkValue)
 {
     OFCondition result = setSegmentedRedPaletteColorLookupTableData(redData, numEntries, checkValue);
     if (result.good()) result = setSegmentedGreenPaletteColorLookupTableData(greenData, numEntries, checkValue);
     if (result.good()) result = setSegmentedBluePaletteColorLookupTableData(blueData, numEntries, checkValue);
-    if (result.good())
-    {
-        m_IsSigned = OFFalse;
-    }
     return result;
-
 }
 
 template <>
@@ -347,12 +388,7 @@ OFCondition IODPaletteColorLUTModule::setRedPaletteColorLookupTableDescriptor(co
     values[1] = firstMapped;
     values[2] = bitsPerEntry;
 
-    result = m_Item->putAndInsertUint16Array(DCM_RedPaletteColorLookupTableDescriptor, values, 3);
-    if (result.good())
-    {
-        m_IsSigned = OFFalse;
-    }
-    return result;
+    return m_Item->putAndInsertUint16Array(DCM_RedPaletteColorLookupTableDescriptor, values, 3);
 }
 
 template <>
@@ -368,10 +404,6 @@ OFCondition IODPaletteColorLUTModule::setRedPaletteColorLookupTableDescriptor(co
     values[2] = bitsPerEntry;
 
     result = m_Item->putAndInsertUint16Array(DCM_RedPaletteColorLookupTableDescriptor, values, 3);
-    if (result.good())
-    {
-        m_IsSigned = OFFalse;
-    }
     return result;
 }
 
@@ -387,11 +419,7 @@ OFCondition IODPaletteColorLUTModule::setGreenPaletteColorLookupTableDescriptor(
     values[0] = numEntries;
     values[1] = firstMapped;
     values[2] = bitsPerEntry;
-    result = m_Item->putAndInsertUint16Array(DCM_GreenPaletteColorLookupTableDescriptor, values, 3);
-    if (result.good())
-    {
-        m_IsSigned = OFFalse;
-    }
+    return m_Item->putAndInsertUint16Array(DCM_GreenPaletteColorLookupTableDescriptor, values, 3);
     return result;
 }
 
@@ -406,12 +434,7 @@ OFCondition IODPaletteColorLUTModule::setGreenPaletteColorLookupTableDescriptor(
     values[0] = numEntries;
     values[1] = firstMapped;
     values[2] = bitsPerEntry;
-    result = m_Item->putAndInsertUint16Array(DCM_GreenPaletteColorLookupTableDescriptor, values, 3);
-    if (result.good())
-    {
-        m_IsSigned = OFFalse;
-    }
-    return result;
+    return m_Item->putAndInsertUint16Array(DCM_GreenPaletteColorLookupTableDescriptor, values, 3);
 }
 
 
@@ -426,12 +449,7 @@ OFCondition IODPaletteColorLUTModule::setBluePaletteColorLookupTableDescriptor(c
     values[1] = firstMapped;
     values[2] = bitsPerEntry;
 
-    result = m_Item->putAndInsertUint16Array(DCM_BluePaletteColorLookupTableDescriptor, values, 3);
-    if (result.good())
-    {
-        m_IsSigned = OFFalse;
-    }
-    return result;
+    return m_Item->putAndInsertUint16Array(DCM_BluePaletteColorLookupTableDescriptor, values, 3);
 }
 
 template <>
@@ -444,12 +462,7 @@ OFCondition IODPaletteColorLUTModule::setBluePaletteColorLookupTableDescriptor(c
     values[0] = numEntries;
     values[1] = firstMapped;
     values[2] = bitsPerEntry;
-    result = m_Item->putAndInsertUint16Array(DCM_BluePaletteColorLookupTableDescriptor, values, 3);
-    if (result.good())
-    {
-        m_IsSigned = OFFalse;
-    }
-    return result;
+    return m_Item->putAndInsertUint16Array(DCM_BluePaletteColorLookupTableDescriptor, values, 3);
 }
 
 
@@ -460,6 +473,11 @@ OFBool IODPaletteColorLUTModule::checkLUT(const DcmTagKey& descriptorTag,
     DcmElement* descriptor = NULL;
     m_Item->findAndGetElement(dataTag, data);
     m_Item->findAndGetElement(descriptorTag, descriptor);
+    if (!data || !descriptor)
+    {
+        reportLUTError(descriptorTag, "Palette Color LUT Data or Descriptor missing", OFFalse /* warning */);
+        return OFFalse;
+    }
     // LUT Data always OW in this module, LUT Descriptor is always US or SS
     if ( (data->getTag().getEVR() != EVR_OW) || ( (descriptor->getTag().getEVR() != EVR_US) && (descriptor->getTag().getEVR() != EVR_SS)) )
     {
@@ -491,12 +509,6 @@ void IODPaletteColorLUTModule::reportLUTError(const DcmTagKey& tag, const OFStri
         DCMIOD_ERROR(color << " " << message);
 }
 
-OFBool IODPaletteColorLUTModule::isSigned() const
-{
-    return m_IsSigned;
-}
-
-
 Uint8 IODPaletteColorLUTModule::numBits()
 {
     OFCondition result;
@@ -510,11 +522,10 @@ Uint8 IODPaletteColorLUTModule::numBits()
             DCMIOD_WARN("Bits per entry in Red, Green and Blue Palette Color LUT Descriptor are not equal");
             return 0;
         }
-
     }
     else
     {
-        DCMIOD_WARN("Could not read bits per  entry in Red, Green or Blue Palette Color LUT Descriptor");
+        DCMIOD_WARN("Could not read bits per entry in Red, Green or Blue Palette Color LUT Descriptor");
         return 0;
     }
     if ((numBitsR != 8) && (numBitsR != 16))
@@ -523,22 +534,6 @@ Uint8 IODPaletteColorLUTModule::numBits()
         return 0;
     }
     return OFstatic_cast(Uint8, numBitsR);
-}
-
-
-OFBool IODPaletteColorLUTModule::isSigned(const DcmTagKey& descriptorTag)
-{
-    OFBool isSigned = OFFalse;
-    DcmElement* descriptor = NULL;
-    m_Item->findAndGetElement(descriptorTag, descriptor);
-    if (descriptor)
-    {
-        if (descriptor->getTag().getEVR() == EVR_SS)
-        {
-            isSigned = OFTrue;
-        }
-    }
-    return isSigned;
 }
 
 
@@ -556,30 +551,9 @@ OFBool IODPaletteColorLUTModule::checkDescriptorConsistency(const OFBool& isErro
         {
             if (getBluePaletteColorLookupTableDescriptor(blueFirstMapped, 1).good())
             {
-                if (isSigned(DCM_RedPaletteColorLookupTableDescriptor))
-                {
-                    r = OFstatic_cast(Sint16, redFirstMapped);
-                }
-                else
-                {
-                    r = redFirstMapped;
-                }
-                if (isSigned(DCM_GreenPaletteColorLookupTableDescriptor))
-                {
-                    g = OFstatic_cast(Sint16, greenFirstMapped);
-                }
-                else
-                {
-                    g = greenFirstMapped;
-                }
-                if (isSigned(DCM_BluePaletteColorLookupTableDescriptor))
-                {
-                    b = OFstatic_cast(Sint16, blueFirstMapped);
-                }
-                else
-                {
-                    b = blueFirstMapped;
-                }
+                r = redFirstMapped;
+                g = greenFirstMapped;
+                b = blueFirstMapped;
                 if ( (r != g) || (r != b) || (g != b) )
                 {
                     if (isError)
@@ -664,4 +638,145 @@ OFBool IODPaletteColorLUTModule::checkSegmentConditions(const OFBool& isError)
         return OFFalse;
     }
     return OFTrue;
+}
+
+
+OFCondition IODPaletteColorLUTModule::getUint8DataCopy(const DcmTagKey& dataTag, const Uint8*& lutData, unsigned long& num8BitEntries)
+{
+    OFCondition result = EC_Normal;
+    num8BitEntries = 0;
+
+    const Uint16* data = NULL;
+    unsigned long num16BitEntries = 0;
+    // check first whether we actually have 8 bit data by checking third descriptor value
+    if (numBits() != 8)
+    {
+        DCMIOD_ERROR("Cannot convert 16 bit data to 8 bit data: Descriptor does not indicate 8 bit data");
+        return EC_IllegalParameter;
+    }
+    if (dataTag == DCM_RedPaletteColorLookupTableData)
+    {
+        result = getRedPaletteColorLookupTableData(data, num16BitEntries);
+    }
+    else if (dataTag == DCM_GreenPaletteColorLookupTableData)
+    {
+        result = getGreenPaletteColorLookupTableData(data, num8BitEntries);
+    }
+    else if (dataTag == DCM_BluePaletteColorLookupTableData)
+    {
+        result = getBluePaletteColorLookupTableData(data, num8BitEntries);
+    }
+    if (result.good())
+    {
+        // get number of entries according to first value of descriptor
+        num8BitEntries = numEntriesForLUTData(dataTag);
+        if (num8BitEntries == 0)
+        {
+            DCMIOD_ERROR("Could not determine number of 8 bit entries for " << dataTag);
+            return EC_IllegalParameter;
+        }
+        Uint8* newData = new Uint8[num8BitEntries];
+        for (unsigned long i = 0; i < num16BitEntries-1; i++)
+        {
+            // extract lower and higher byte of 16 bit entry
+            newData[i*2] = OFstatic_cast(Uint8, data[i] >> 8);
+            newData[i*2+1] = OFstatic_cast(Uint8, data[i] & 0x00FF);
+        }
+        if (num8BitEntries % 2)
+        {
+            // if odd number of 16 bit entries, only extract lower byte of last entry
+            newData[num8BitEntries-1] = OFstatic_cast(Uint8, data[num16BitEntries-1] >> 8);
+
+        }
+        lutData = newData;
+    }
+    return result;
+}
+
+OFCondition IODPaletteColorLUTModule::getUint16DataCopy(const DcmTagKey& dataTag, const Uint16*& lutData, unsigned long& numEntries)
+{
+    OFCondition result = EC_Normal;
+
+    const Uint16* data = NULL;
+    // check first whether we actually have 8 bit data by checking third descriptor value
+    if (numBits() != 16)
+    {
+        DCMIOD_ERROR("Cannot convert 16 bit data to 8 bit data: Descriptor does not indicate 8 bit data");
+        return EC_IllegalParameter;
+    }
+    if (dataTag == DCM_RedPaletteColorLookupTableData)
+    {
+        result = m_Item->findAndGetUint16Array(DCM_RedPaletteColorLookupTableData, data, &numEntries, OFFalse);
+    }
+    else if (dataTag == DCM_GreenPaletteColorLookupTableData)
+    {
+        result = m_Item->findAndGetUint16Array(DCM_GreenPaletteColorLookupTableData, data, &numEntries, OFFalse);
+    }
+    else if (dataTag == DCM_BluePaletteColorLookupTableData)
+    {
+        result = m_Item->findAndGetUint16Array(DCM_BluePaletteColorLookupTableData, data, &numEntries, OFFalse);
+    }
+    if (result.good())
+    {
+        Uint16* newData = new Uint16[numEntries];
+        // copy data
+        for (unsigned long i = 0; i < numEntries; i++)
+        {
+            newData[i] = data[i];
+        }
+        lutData = newData;
+    }
+    return result;
+}
+
+
+OFCondition IODPaletteColorLUTModule::putUint8Data(const DcmTagKey& dataTag, const Uint8* lutData, const unsigned long num8BitEntries)
+{
+    if (numBits() != 8)
+    {
+        DCMIOD_ERROR("Cannot convert 8 bit data to 16 bit data: Descriptor does not indicate 8 bit data");
+        return EC_IllegalParameter;
+    }
+    OFCondition result;
+    unsigned long num16BitEntries = num8BitEntries / 2 + (num8BitEntries % 2);
+    // put 16 bit data together by combining two 8 bit entries into one 16 bit entry
+    Uint16 newData[num16BitEntries];
+    for (unsigned long i = 0; i < num16BitEntries; i++)
+    {
+        if (i != num16BitEntries-1)
+        {
+            newData[i] = OFstatic_cast(Uint16, lutData[i*2] << 8) | lutData[i*2+1];
+        }
+        else
+        {
+            // if odd number of 8 bit entries, only use lower byte of last entry
+            newData[i] = OFstatic_cast(Uint16, lutData[i*2] << 8);
+        }
+    }
+    // Reset last entry (second part of 16 bit word) to 0 if odd number of 8 bit entries
+    if (num8BitEntries % 2)
+    {
+        newData[num16BitEntries-1] &= 0xFF00;
+    }
+    result = m_Item->putAndInsertUint16Array(dataTag, newData, num16BitEntries);
+    return result;
+}
+
+
+Uint16 IODPaletteColorLUTModule::numEntriesForLUTData(const DcmTagKey& dataTag)
+{
+    Uint16 numEntries = 0;
+    if (dataTag == DCM_RedPaletteColorLookupTableData)
+    {
+        getRedPaletteColorLookupTableDescriptor(numEntries, 0);
+    }
+    else if (dataTag == DCM_GreenPaletteColorLookupTableData)
+    {
+        getGreenPaletteColorLookupTableDescriptor(numEntries, 0);
+    }
+    else if (dataTag == DCM_BluePaletteColorLookupTableData)
+    {
+        getBluePaletteColorLookupTableDescriptor(numEntries, 0);
+    }
+    return numEntries;
 }
