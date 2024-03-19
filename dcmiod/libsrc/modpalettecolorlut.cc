@@ -656,15 +656,15 @@ OFCondition IODPaletteColorLUTModule::getUint8DataCopy(const DcmTagKey& dataTag,
     }
     if (dataTag == DCM_RedPaletteColorLookupTableData)
     {
-        result = getRedPaletteColorLookupTableData(data, num16BitEntries);
+        result = m_Item->findAndGetUint16Array(DCM_RedPaletteColorLookupTableData, data, &num16BitEntries);
     }
     else if (dataTag == DCM_GreenPaletteColorLookupTableData)
     {
-        result = getGreenPaletteColorLookupTableData(data, num8BitEntries);
+        result = m_Item->findAndGetUint16Array(DCM_GreenPaletteColorLookupTableData, data, &num16BitEntries);
     }
     else if (dataTag == DCM_BluePaletteColorLookupTableData)
     {
-        result = getBluePaletteColorLookupTableData(data, num8BitEntries);
+        result = m_Item->findAndGetUint16Array(DCM_BluePaletteColorLookupTableData, data, &num16BitEntries);
     }
     if (result.good())
     {
@@ -693,17 +693,11 @@ OFCondition IODPaletteColorLUTModule::getUint8DataCopy(const DcmTagKey& dataTag,
     return result;
 }
 
-OFCondition IODPaletteColorLUTModule::getUint16DataCopy(const DcmTagKey& dataTag, const Uint16*& lutData, unsigned long& numEntries)
-{
-    OFCondition result = EC_Normal;
 
+OFCondition IODPaletteColorLUTModule::getUint16Data(const DcmTagKey& dataTag, const Uint16*& lutData, unsigned long& numEntries)
+{
+    OFCondition result;
     const Uint16* data = NULL;
-    // check first whether we actually have 8 bit data by checking third descriptor value
-    if (numBits() != 16)
-    {
-        DCMIOD_ERROR("Cannot convert 16 bit data to 8 bit data: Descriptor does not indicate 8 bit data");
-        return EC_IllegalParameter;
-    }
     if (dataTag == DCM_RedPaletteColorLookupTableData)
     {
         result = m_Item->findAndGetUint16Array(DCM_RedPaletteColorLookupTableData, data, &numEntries, OFFalse);
@@ -718,11 +712,22 @@ OFCondition IODPaletteColorLUTModule::getUint16DataCopy(const DcmTagKey& dataTag
     }
     if (result.good())
     {
+        lutData = data;
+    }
+    return result;
+}
+
+OFCondition IODPaletteColorLUTModule::getUint16DataCopy(const DcmTagKey& dataTag, const Uint16*& lutData, unsigned long& numEntries)
+{
+    const Uint16* buffer;
+    OFCondition result = getUint16Data(dataTag, buffer, numEntries);
+    if (result.good())
+    {
         Uint16* newData = new Uint16[numEntries];
         // copy data
         for (unsigned long i = 0; i < numEntries; i++)
         {
-            newData[i] = data[i];
+            newData[i] = buffer[i];
         }
         lutData = newData;
     }

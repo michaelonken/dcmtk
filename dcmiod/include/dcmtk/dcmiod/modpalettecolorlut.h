@@ -331,6 +331,8 @@ protected:
 
     virtual OFCondition getUint16DataCopy(const DcmTagKey& dataTag, const Uint16*& lutData, unsigned long& numEntries);
 
+    virtual OFCondition getUint16Data(const DcmTagKey& dataTag, const Uint16*& lutData, unsigned long& numEntries);
+
 
 
     virtual OFBool checkLUT(const DcmTagKey& descriptorTag,
