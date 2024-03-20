@@ -77,6 +77,12 @@ OFTEST(dcmiod_palette_color_lut_module)
     delete[] data8bit;
 }
 
+OFTEST(dcmiod_palette_color_lut_module_extra_checks)
+{
+    // 16 bit data with 8 bit descriptor
+
+}
+
 template<typename T>
 static T* makePixelData(unsigned long& num_entries)
 {
@@ -138,24 +144,64 @@ static void checkNonSegmentedPaletteModule(IODPaletteColorLUTModule& mod, OFBool
     DcmItem item;
     OFString uid;
     size_t entriesFound = 0;
+    Uint16 d1,d2,d3;
+    d1 = d2 = d3 = 1; // not used in test data
     OFCHECK_MSG(mod.write(item).good(), "Cannot write Palette Color Lookup Table Module to DcmItem");
+    item.print(std::cout);
     OFCHECK_MSG(mod.numBits() == bits, "getBits() returns wrong value for Palette Color Lookup Table Module");
     OFCHECK_MSG(mod.getPaletteColorLookupTableUID(uid).good(), "Cannot get Palette Color Lookup Table UID");
+    OFCHECK(mod.getRedPaletteColorLookupTableDescriptor(d1, 0).good());
+    OFCHECK(mod.getRedPaletteColorLookupTableDescriptor(d2, 1).good());
+    OFCHECK(mod.getRedPaletteColorLookupTableDescriptor(d3, 2).good());
+    OFCHECK(d1 == numEntries);
+    OFCHECK(d2 == 0);
+    OFCHECK(d3 == bits);
+    d1 = d2 = d3 = 1; // not used in test data
+    OFCHECK(mod.getGreenPaletteColorLookupTableDescriptor(d1, 0).good());
+    OFCHECK(mod.getGreenPaletteColorLookupTableDescriptor(d2, 1).good());
+    OFCHECK(mod.getGreenPaletteColorLookupTableDescriptor(d3, 2).good());
+    OFCHECK(d1 == numEntries);
+    OFCHECK(d2 == 0);
+    OFCHECK(d3 == bits);
+    d1 = d2 = d3 = 1; // not used in test data
+    OFCHECK(mod.getBluePaletteColorLookupTableDescriptor(d1, 0).good());
+    OFCHECK(mod.getBluePaletteColorLookupTableDescriptor(d2, 1).good());
+    OFCHECK(mod.getBluePaletteColorLookupTableDescriptor(d3, 2).good());
+    OFCHECK(d1 == numEntries);
+    OFCHECK(d2 == 0);
+    OFCHECK(d3 == bits);
+
     OFCHECK(uid == "1.2.3.4");
-    // Uint16 / Sint16
+    // 16 bit data
     if (bits == 16)
     {
         const Uint16 *dataFound16 = NULL;
         OFCHECK(mod.getRedPaletteColorLookupTableData(dataFound16, entriesFound).good());
         OFCHECK(entriesFound == numEntries);
         OFCHECK(verifyPixelData(dataFound16, (const Uint16*)data, numEntries));
+        delete[] dataFound16; dataFound16 = NULL;
+        OFCHECK(mod.getGreenPaletteColorLookupTableData(dataFound16, entriesFound).good());
+        OFCHECK(entriesFound == numEntries);
+        OFCHECK(verifyPixelData(dataFound16, (const Uint16*)data, numEntries));
+        delete[] dataFound16; dataFound16 = NULL;
+        OFCHECK(mod.getBluePaletteColorLookupTableData(dataFound16, entriesFound).good());
+        OFCHECK(entriesFound == numEntries);
+        OFCHECK(verifyPixelData(dataFound16, (const Uint16*)data, numEntries));
         delete[] dataFound16;
     }
-    // Uint8 / Sint8
+    // 8 bit data
     else if (bits == 8)
     {
         const Uint8 *dataFound8 = NULL;
         OFCHECK(mod.getRedPaletteColorLookupTableData(dataFound8, entriesFound).good());
+        OFCHECK(entriesFound == numEntries);
+        OFCHECK(verifyPixelData(dataFound8, (const Uint8*)data, numEntries));
+        delete[] dataFound8; dataFound8 = NULL;
+        OFCHECK(mod.getGreenPaletteColorLookupTableData(dataFound8, entriesFound).good());
+        OFCHECK(entriesFound == numEntries);
+        OFCHECK(verifyPixelData(dataFound8, (const Uint8*)data, numEntries));
+        delete[] dataFound8; dataFound8 = NULL;
+        OFCHECK(mod.getBluePaletteColorLookupTableData(dataFound8, entriesFound).good());
         OFCHECK(entriesFound == numEntries);
         OFCHECK(verifyPixelData(dataFound8, (const Uint8*)data, numEntries));
         delete[] dataFound8;

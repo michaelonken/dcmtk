@@ -102,24 +102,21 @@ public:
      *  @param  pos The position of the value to be retrieved (0..2)
      *  @return EC_Normal if value is found, an error code otherwise
      */
-    template <typename T>
-    OFCondition getRedPaletteColorLookupTableDescriptor(T& value, const unsigned long pos = 0) const;
+    virtual OFCondition getRedPaletteColorLookupTableDescriptor(Uint16& value, const unsigned long pos = 0) const;
 
     /** Get the Green Palette Color Lookup Table​ Descriptor
      *  @param  value The value of Green Palette Color Lookup Table​ Descriptor
      *  @param  pos The position of the value to be retrieved (0..2)
      *  @return EC_Normal if value is found, an error code otherwise
      */
-    template <typename T>
-    OFCondition getGreenPaletteColorLookupTableDescriptor(T& value, const unsigned long pos = 0) const;
+    virtual OFCondition getGreenPaletteColorLookupTableDescriptor(Uint16& value, const unsigned long pos = 0) const;
 
     /** Get the Blue Palette Color Lookup Table​ Descriptor
      *  @param  value The value of Blue Palette Color Lookup Table​ Descriptor
      *  @param  pos The position of the value to be retrieved (0..2)
      *  @return EC_Normal if value is found, an error code otherwise
      */
-    template <typename T>
-    OFCondition getBluePaletteColorLookupTableDescriptor(T& value, const unsigned long pos = 0) const;
+    virtual OFCondition getBluePaletteColorLookupTableDescriptor(Uint16& value, const unsigned long pos = 0) const;
 
     /** Get the Palette Color Lookup Table UID
      *  @param  value Reference to variable in which the value should be stored
@@ -133,48 +130,90 @@ public:
      *  @param  numEntries Number of entries in the lookup table
      *  @return EC_Normal if successful, an error code otherwise
      */
-     template <typename T>
-    OFCondition getRedPaletteColorLookupTableData(const T*& dataCopy, unsigned long& numEntries);
+    virtual OFCondition getRedPaletteColorLookupTableData(const Uint16*& dataCopy, unsigned long& numEntries);
+
+    /** Get the Red Palette Color Lookup Table​ Data​
+     *  @param  value Reference to variable in which the value should be stored
+     *  @param  numEntries Number of entries in the lookup table
+     *  @return EC_Normal if successful, an error code otherwise
+     */
+    virtual OFCondition getRedPaletteColorLookupTableData(const Uint8*& dataCopy, unsigned long& numEntries);
 
     /** Get the Green Palette Color Lookup Table​ Data​
      *  @param  value Reference to variable in which the value should be stored
      *  @param  numEntries Number of entries in the lookup table
      *  @return EC_Normal if successful, an error code otherwise
      */
-    template <typename T>
-    OFCondition getGreenPaletteColorLookupTableData(const T*& dataCopy, unsigned long& numEntries);
+    virtual
+    OFCondition getGreenPaletteColorLookupTableData(const Uint16*& dataCopy, unsigned long& numEntries);
+
+/** Get the Green Palette Color Lookup Table​ Data​
+     *  @param  value Reference to variable in which the value should be stored
+     *  @param  numEntries Number of entries in the lookup table
+     *  @return EC_Normal if successful, an error code otherwise
+     */
+    virtual
+    OFCondition getGreenPaletteColorLookupTableData(const Uint8*& dataCopy, unsigned long& numEntries);
 
     /** Get the Blue Palette Color Lookup Table​ Data​
      *  @param  value Reference to variable in which the value should be stored
      *  @param  numEntries Number of entries in the lookup table
      *  @return EC_Normal if successful, an error code otherwise
      */
-    template <typename T>
-    OFCondition getBluePaletteColorLookupTableData(const T*& dataCopy, unsigned long& numEntries);
+    virtual
+    OFCondition getBluePaletteColorLookupTableData(const Uint16*& dataCopy, unsigned long& numEntries);
+
+
+    /** Get the Blue Palette Color Lookup Table​ Data​
+     *  @param  value Reference to variable in which the value should be stored
+     *  @param  numEntries Number of entries in the lookup table
+     *  @return EC_Normal if successful, an error code otherwise
+     */
+    virtual
+    OFCondition getBluePaletteColorLookupTableData(const Uint8*& dataCopy, unsigned long& numEntries);
+
 
     /** Get the Segmented Red Palette Color Lookup Table​ Data​
      *  @param  value Reference to variable in which the value should be stored
      *  @param  numEntries Number of entries in the lookup table
      *  @return EC_Normal if successful, an error code otherwise
      */
-    template <typename T>
-    OFCondition getSegmentedRedPaletteColorLookupTableData(const T*& dataCopy, unsigned long& numEntries);
+    virtual OFCondition getSegmentedRedPaletteColorLookupTableData(const Uint16*& dataCopy, unsigned long& numEntries);
+
+    /** Get the Segmented Red Palette Color Lookup Table​ Data​
+     *  @param  value Reference to variable in which the value should be stored
+     *  @param  numEntries Number of entries in the lookup table
+     *  @return EC_Normal if successful, an error code otherwise
+     */
+    virtual OFCondition getSegmentedRedPaletteColorLookupTableData(const Uint8*& dataCopy, unsigned long& numEntries);
 
     /** Get the Segmented Green Palette Color Lookup Table​ Data​
      *  @param  value Reference to variable in which the value should be stored
      *  @param  numEntries Number of entries in the lookup table
      *  @return EC_Normal if successful, an error code otherwise
      */
-    template <typename T>
-    OFCondition getSegmentedGreenPaletteColorLookupTableData(const T*& dataCopy, unsigned long& numEntries);
+    virtual OFCondition getSegmentedGreenPaletteColorLookupTableData(const Uint16*& dataCopy, unsigned long& numEntries);
+
+    /** Get the Segmented Green Palette Color Lookup Table​ Data​
+     *  @param  value Reference to variable in which the value should be stored
+     *  @param  numEntries Number of entries in the lookup table
+     *  @return EC_Normal if successful, an error code otherwise
+     */
+    virtual OFCondition getSegmentedGreenPaletteColorLookupTableData(const Uint8*& dataCopy, unsigned long& numEntries);
 
     /** Get the Segmented Blue Palette Color Lookup Table​ Data​
      *  @param  value Reference to variable in which the value should be stored
      *  @param  numEntries Number of entries in the lookup table
      *  @return EC_Normal if successful, an error code otherwise
      */
-    template <typename T>
-    OFCondition getSegmentedBluePaletteColorLookupTableData(const T*& dataCopy, unsigned long& numEntries);
+    virtual OFCondition getSegmentedBluePaletteColorLookupTableData(const Uint16*& dataCopy, unsigned long& numEntries);
+
+    /** Get the Segmented Blue Palette Color Lookup Table​ Data​
+     *  @param  value Reference to variable in which the value should be stored
+     *  @param  numEntries Number of entries in the lookup table
+     *  @return EC_Normal if successful, an error code otherwise
+     */
+    virtual OFCondition getSegmentedBluePaletteColorLookupTableData(const Uint8*& dataCopy, unsigned long& numEntries);
 
     // ---------------- Setters -----------------------------
 
@@ -183,19 +222,16 @@ public:
      *  @param  pos The position of the value to be set (0..2)
      *  @return EC_Normal if value is set, an error code otherwise
      */
-    template <typename T>
-    OFCondition setRedPaletteColorLookupTableDescriptor(const T& value, const unsigned long pos = 0);
+    virtual OFCondition setRedPaletteColorLookupTableDescriptor(const Uint16& value, const unsigned long pos = 0);
 
     /** Set the Green Palette Color Lookup Table​ Descriptor
      *  @param  value The value of Green Palette Color Lookup Table​ Descriptor
      *  @param  pos The position of the value to be set (0..2)
      *  @return EC_Normal if value is set, an error code otherwise
      */
-    template <typename T>
-    OFCondition setGreenPaletteColorLookupTableDescriptor(const T& value, const unsigned long pos = 0);
+    virtual OFCondition setGreenPaletteColorLookupTableDescriptor(const Uint16& value, const unsigned long pos = 0);
 
-    template <typename T>
-    OFCondition setBluePaletteColorLookupTableDescriptor(const T& value, const unsigned long pos = 0);
+    virtual OFCondition setBluePaletteColorLookupTableDescriptor(const Uint16& value, const unsigned long pos = 0);
 
     /** Set the Palette Color Lookup Table UID
      *  @param  value The value of Palette Color Lookup Table UID
@@ -210,9 +246,18 @@ public:
      *  @param  checkValue Check value for conformance with VR (OW) and VM (1-n) if OFTrue
      *  @return EC_Normal if value is set, an error code otherwise
      */
-    template <typename T>
-    OFCondition
-    setRedPaletteColorLookupTableData(const T* value, const size_t numEntries, const OFBool checkValue = OFTrue);
+    virtual OFCondition
+    setRedPaletteColorLookupTableData(const Uint16* value, const size_t numEntries, const OFBool checkValue = OFTrue);
+
+    /** Set the Red Palette Color Lookup Table​ Data​
+     *  @param  value The value of Red Palette Color Lookup Table​ Data​
+     *  @param  numEntries Number of entries in the lookup table
+     *  @param  checkValue Check value for conformance with VR (OW) and VM (1-n) if OFTrue
+     *  @return EC_Normal if value is set, an error code otherwise
+     */
+    virtual OFCondition
+    setRedPaletteColorLookupTableData(const Uint8* value, const size_t numEntries, const OFBool checkValue = OFTrue);
+
 
     /** Set the Green Palette Color Lookup Table​ Data​
      *  @param  value The value of Red Palette Color Lookup Table​ Data​
@@ -220,9 +265,19 @@ public:
      *  @param  checkValue Check value for conformance with VR (OW) and VM (1-n) if OFTrue
      *  @return EC_Normal if value is set, an error code otherwise
      */
-    template <typename T>
-    OFCondition
-    setGreenPaletteColorLookupTableData(const T* value, const size_t numEntries, const OFBool checkValue = OFTrue);
+
+    virtual OFCondition
+    setGreenPaletteColorLookupTableData(const Uint16* value, const size_t numEntries, const OFBool checkValue = OFTrue);
+
+    /** Set the Green Palette Color Lookup Table​ Data​
+     *  @param  value The value of Red Palette Color Lookup Table​ Data​
+     *  @param  numEntries Number of entries in the lookup table
+     *  @param  checkValue Check value for conformance with VR (OW) and VM (1-n) if OFTrue
+     *  @return EC_Normal if value is set, an error code otherwise
+     */
+
+    virtual OFCondition
+    setGreenPaletteColorLookupTableData(const Uint8* value, const size_t numEntries, const OFBool checkValue = OFTrue);
 
     /** Set the Blue Palette Color Lookup Table​ Data​
      *  @param  value The value of Red Palette Color Lookup Table​ Data​
@@ -230,8 +285,17 @@ public:
      *  @param  checkValue Check value for conformance with VR (OW) and VM (1-n) if OFTrue
      *  @return EC_Normal if value is set, an error code otherwise
      */
-    template <typename T> OFCondition
-    setBluePaletteColorLookupTableData(const T* value, const size_t numEntries, const OFBool checkValue = OFTrue);
+    virtual OFCondition
+    setBluePaletteColorLookupTableData(const Uint16* value, const size_t numEntries, const OFBool checkValue = OFTrue);
+
+    /** Set the Blue Palette Color Lookup Table​ Data​
+     *  @param  value The value of Red Palette Color Lookup Table​ Data​
+     *  @param  numEntries Number of entries in the lookup table
+     *  @param  checkValue Check value for conformance with VR (OW) and VM (1-n) if OFTrue
+     *  @return EC_Normal if value is set, an error code otherwise
+     */
+    virtual OFCondition
+    setBluePaletteColorLookupTableData(const Uint8* value, const size_t numEntries, const OFBool checkValue = OFTrue);
 
     /** Set the Segmented Red Palette Color Lookup Table​ Data​
      *  @param  value The value of Red Palette Color Lookup Table​ Data​
@@ -239,7 +303,17 @@ public:
      *  @param  checkValue Check value for conformance with VR (OW) and VM (1-n) if OFTrue
      *  @return EC_Normal if value is set, an error code otherwise
      */
-    template <typename T> OFCondition setSegmentedRedPaletteColorLookupTableData(const T* value,
+    virtual OFCondition setSegmentedRedPaletteColorLookupTableData(const Uint16* value,
+                                                           const size_t numEntries,
+                                                           const OFBool checkValue = OFTrue);
+
+    /** Set the Segmented Red Palette Color Lookup Table​ Data​
+     *  @param  value The value of Red Palette Color Lookup Table​ Data​
+     *  @param  numEntries Number of entries in the lookup table
+     *  @param  checkValue Check value for conformance with VR (OW) and VM (1-n) if OFTrue
+     *  @return EC_Normal if value is set, an error code otherwise
+     */
+    virtual OFCondition setSegmentedRedPaletteColorLookupTableData(const Uint8* value,
                                                            const size_t numEntries,
                                                            const OFBool checkValue = OFTrue);
 
@@ -249,7 +323,17 @@ public:
      *  @param  checkValue Check value for conformance with VR (OW) and VM (1-n) if OFTrue
      *  @return EC_Normal if value is set, an error code otherwise
      */
-    template <typename T> OFCondition setSegmentedGreenPaletteColorLookupTableData(const T* value,
+    virtual OFCondition setSegmentedGreenPaletteColorLookupTableData(const Uint16* value,
+                                                             const size_t numEntries,
+                                                             const OFBool checkValue = OFTrue);
+
+    /** Set the Segmented Green Palette Color Lookup Table​ Data​
+     *  @param  value The value of Red Palette Color Lookup Table​ Data​
+     *  @param  numEntries Number of entries in the lookup table
+     *  @param  checkValue Check value for conformance with VR (OW) and VM (1-n) if OFTrue
+     *  @return EC_Normal if value is set, an error code otherwise
+     */
+    virtual OFCondition setSegmentedGreenPaletteColorLookupTableData(const Uint8* value,
                                                              const size_t numEntries,
                                                              const OFBool checkValue = OFTrue);
 
@@ -259,7 +343,17 @@ public:
      *  @param  checkValue Check value for conformance with VR (OW) and VM (1-n) if OFTrue
      *  @return EC_Normal if value is set, an error code otherwise
      */
-    template <typename T> OFCondition setSegmentedBluePaletteColorLookupTableData(const T* value,
+    virtual OFCondition setSegmentedBluePaletteColorLookupTableData(const Uint16* value,
+                                                            const size_t numEntries,
+                                                            const OFBool checkValue = OFTrue);
+
+    /** Set the Segmented Blue Palette Color Lookup Table​ Data​
+     *  @param  value The value of Red Palette Color Lookup Table​ Data​
+     *  @param  numEntries Number of entries in the lookup table
+     *  @param  checkValue Check value for conformance with VR (OW) and VM (1-n) if OFTrue
+     *  @return EC_Normal if value is set, an error code otherwise
+     */
+    virtual OFCondition setSegmentedBluePaletteColorLookupTableData(const Uint8* value,
                                                             const size_t numEntries,
                                                             const OFBool checkValue = OFTrue);
 
@@ -292,9 +386,8 @@ public:
      *
      * @return EC_Normal if value is set, an error code otherwise
      */
-    template <typename T>
-    OFCondition setRedPaletteColorLookupTableDescriptor(const Uint16 numEntries,
-                                                        const T firstValueMapped,
+     virtual OFCondition setRedPaletteColorLookupTableDescriptor(const Uint16 numEntries,
+                                                        const Uint16 firstValueMapped,
                                                         const Uint8 numBitsPerEntry);
 
     /**
@@ -305,9 +398,8 @@ public:
      *
      * @return EC_Normal if value is set, an error code otherwise
      */
-    template <typename T>
-    OFCondition setGreenPaletteColorLookupTableDescriptor(const Uint16 numEntries,
-                                                          const T firstValueMapped,
+    virtual OFCondition setGreenPaletteColorLookupTableDescriptor(const Uint16 numEntries,
+                                                          const Uint16 firstValueMapped,
                                                           const Uint8 numBitsPerEntry);
 
     /**
@@ -318,9 +410,8 @@ public:
      *
      * @return EC_Normal if value is set, an error code otherwise
      */
-    template <typename T>
-    OFCondition setBluePaletteColorLookupTableDescriptor(const Uint16 numEntries,
-                                                         const T firstValueMapped,
+    virtual OFCondition setBluePaletteColorLookupTableDescriptor(const Uint16 numEntries,
+                                                         const Uint16 firstValueMapped,
                                                          const Uint8 numBitsPerEntry);
 
 protected:
