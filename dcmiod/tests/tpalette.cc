@@ -29,8 +29,13 @@
 
 template<typename T> static T* makePixelData(unsigned long& num_entries);
 template<typename T> static OFBool verifyPixelData(T* dataFound, T* data, const unsigned long& num_entries);
-template<typename T> static void checkNonSegmentedPaletteModule(IODPaletteColorLUTModule& mod, Uint8 bits, const Uint16 numEntries, const T*& data);
 template<typename T> static void createNonSegmentedPaletteModule(IODPaletteColorLUTModule& mod, Uint8 bits, const Uint16 numEntries, const T*& data);
+template<typename T> static void checkNonSegmentedPaletteModule(IODPaletteColorLUTModule& mod, Uint8 bits, const Uint16 numEntries, const T*& data);
+
+template<typename T> static void createSegmentedPaletteModule(IODPaletteColorLUTModule& mod, Uint8 bits, const Uint16 numEntries, const T*& data);
+template<typename T> static void checkSegmentedPaletteModule(IODPaletteColorLUTModule& mod, Uint8 bits, const Uint16 numEntries, const T*& data);
+
+
 
 static void clear(IODPaletteColorLUTModule& mod);
 
@@ -90,6 +95,48 @@ OFTEST(dcmiod_palette_color_lut_module)
     const Uint8* data8bitMax = makePixelData<Uint8>(num_entries);
     createNonSegmentedPaletteModule(mod, num_bits, 0, data8bitMax);
     checkNonSegmentedPaletteModule(mod, num_bits, 0, data8bitMax);
+    clear(mod);
+    delete[] data8bitMax;
+}
+
+OFTEST(dcmiod_palette_color_lut_module_segmented)
+{
+    OFCHECK(checkDictionary());
+    IODPaletteColorLUTModule mod;
+
+    // 16 Bit data
+    unsigned long num_entries = 65535;
+    Uint8 num_bits = 16;
+    const Uint16* data16bit = makePixelData<Uint16>(num_entries);
+    createSegmentedPaletteModule(mod, num_bits, num_entries, data16bit);
+    checkSegmentedPaletteModule(mod, num_bits, num_entries, data16bit);
+    clear(mod);
+    delete[] data16bit;
+
+    // 16 bit max entries
+    num_entries = 65536;
+    num_bits = 16;
+    const Uint16* data16bitMax = makePixelData<Uint16>(num_entries);
+    createSegmentedPaletteModule(mod, num_bits, 0, data16bitMax);
+    checkSegmentedPaletteModule(mod, num_bits, 0, data16bitMax);
+    clear(mod);
+    delete[] data16bitMax;
+
+    // 8 bit data
+    num_entries = 255;
+    num_bits = 8;
+    const Uint8* data8bit = makePixelData<Uint8>(num_entries);
+    createSegmentedPaletteModule(mod, num_bits, num_entries, data8bit);
+    checkSegmentedPaletteModule(mod, num_bits, num_entries, data8bit);
+    clear(mod);
+    delete[] data8bit;
+
+    // 8 bit max entries
+    num_entries = 256;
+    num_bits = 8;
+    const Uint8* data8bitMax = makePixelData<Uint8>(num_entries);
+    createSegmentedPaletteModule(mod, num_bits, 0, data8bitMax);
+    checkSegmentedPaletteModule(mod, num_bits, 0, data8bitMax);
     clear(mod);
     delete[] data8bitMax;
 }
@@ -195,6 +242,19 @@ static void createNonSegmentedPaletteModule(IODPaletteColorLUTModule& mod, Uint8
     OFCHECK_MSG(mod.setBluePaletteColorLookupTableData(data, numEntries).good(), "Cannot set Blue Palette Color Lookup Table Data");
 }
 
+template<typename T>
+static void createSegmentedPaletteModule(IODPaletteColorLUTModule& mod, Uint8 bits, const Uint16 numEntries, const T*& data)
+{
+    OFCHECK_MSG(mod.setRedPaletteColorLookupTableDescriptor(numEntries, 0, bits).good(), "Cannot set Red Palette Color Lookup Table Descriptor");
+    OFCHECK_MSG(mod.setGreenPaletteColorLookupTableDescriptor(numEntries, 0, bits).good(), "Cannot set Green Palette Color Lookup Table Descriptor");
+    OFCHECK_MSG(mod.setBluePaletteColorLookupTableDescriptor(numEntries, 0, bits).good(), "Cannot set Blue Palette Color Lookup Table Descriptor");
+    OFCHECK_MSG(mod.setPaletteColorLookupTableUID("1.2.3.4").good(), "Cannot set Palette Color Lookup Table UID (1.2.3.4)");
+
+    OFCHECK_MSG(mod.setSegmentedRedPaletteColorLookupTableData(data, numEntries).good(), "Cannot set Segmented Red Palette Color Lookup Table Data");
+    OFCHECK_MSG(mod.setSegmentedGreenPaletteColorLookupTableData(data, numEntries).good(), "Cannot set Segmented Green Palette Color Lookup Table Data");
+    OFCHECK_MSG(mod.setSegmentedBluePaletteColorLookupTableData(data, numEntries).good(), "Cannot set Segmented Blue Palette Color Lookup Table Data");
+}
+
 
 template<typename T>
 static void checkNonSegmentedPaletteModule(IODPaletteColorLUTModule& mod, Uint8 bits, const Uint16 numEntries, const T*& data)
@@ -259,6 +319,80 @@ static void checkNonSegmentedPaletteModule(IODPaletteColorLUTModule& mod, Uint8 
         OFCHECK(verifyPixelData(dataFound8, (const Uint8*)data, numEntries));
         delete[] dataFound8; dataFound8 = NULL;
         OFCHECK(mod.getBluePaletteColorLookupTableData(dataFound8, entriesFound).good());
+        OFCHECK(entriesFound == ((numEntries == 0) ? 256 : numEntries));
+        OFCHECK(verifyPixelData(dataFound8, (const Uint8*)data, numEntries));
+        delete[] dataFound8;
+    }
+    else
+    {
+        OFCHECK_FAIL("Unsupported bit depth");
+    }
+}
+
+
+template<typename T>
+static void checkSegmentedPaletteModule(IODPaletteColorLUTModule& mod, Uint8 bits, const Uint16 numEntries, const T*& data)
+{
+    DcmItem item;
+    OFString uid;
+    size_t entriesFound = 0;
+    Uint16 d1,d2,d3;
+    d1 = d2 = d3 = 1; // not used in test data
+    OFCHECK_MSG(mod.write(item).good(), "Cannot write (segmented) Palette Color Lookup Table Module to DcmItem");
+    OFCHECK_MSG(mod.numBits() == bits, "getBits() returns wrong value for Palette Color Lookup Table Module");
+    OFCHECK_MSG(mod.getPaletteColorLookupTableUID(uid).good(), "Cannot get Palette Color Lookup Table UID");
+    OFCHECK(mod.getRedPaletteColorLookupTableDescriptor(d1, 0).good());
+    OFCHECK(mod.getRedPaletteColorLookupTableDescriptor(d2, 1).good());
+    OFCHECK(mod.getRedPaletteColorLookupTableDescriptor(d3, 2).good());
+    OFCHECK(d1 == numEntries);
+    OFCHECK(d2 == 0);
+    OFCHECK(d3 == bits);
+    d1 = d2 = d3 = 1; // not used in test data
+    OFCHECK(mod.getGreenPaletteColorLookupTableDescriptor(d1, 0).good());
+    OFCHECK(mod.getGreenPaletteColorLookupTableDescriptor(d2, 1).good());
+    OFCHECK(mod.getGreenPaletteColorLookupTableDescriptor(d3, 2).good());
+    OFCHECK(d1 == numEntries);
+    OFCHECK(d2 == 0);
+    OFCHECK(d3 == bits);
+    d1 = d2 = d3 = 1; // not used in test data
+    OFCHECK(mod.getBluePaletteColorLookupTableDescriptor(d1, 0).good());
+    OFCHECK(mod.getBluePaletteColorLookupTableDescriptor(d2, 1).good());
+    OFCHECK(mod.getBluePaletteColorLookupTableDescriptor(d3, 2).good());
+    OFCHECK(d1 == numEntries);
+    OFCHECK(d2 == 0);
+    OFCHECK(d3 == bits);
+
+    OFCHECK(uid == "1.2.3.4");
+    // 16 bit data
+    if (bits == 16)
+    {
+        const Uint16 *dataFound16 = NULL;
+        OFCHECK(mod.getSegmentedRedPaletteColorLookupTableData(dataFound16, entriesFound).good());
+        OFCHECK(entriesFound == ((numEntries == 0) ? 65536 : numEntries));
+        OFCHECK(verifyPixelData(dataFound16, (const Uint16*)data, numEntries));
+        delete[] dataFound16; dataFound16 = NULL;
+        OFCHECK(mod.getSegmentedGreenPaletteColorLookupTableData(dataFound16, entriesFound).good());
+        OFCHECK(entriesFound == ((numEntries == 0) ? 65536 : numEntries));
+        OFCHECK(verifyPixelData(dataFound16, (const Uint16*)data, numEntries));
+        delete[] dataFound16; dataFound16 = NULL;
+        OFCHECK(mod.getSegmentedBluePaletteColorLookupTableData(dataFound16, entriesFound).good());
+        OFCHECK(entriesFound == ((numEntries == 0) ? 65536 : numEntries));
+        OFCHECK(verifyPixelData(dataFound16, (const Uint16*)data, numEntries));
+        delete[] dataFound16;
+    }
+    // 8 bit data
+    else if (bits == 8)
+    {
+        const Uint8 *dataFound8 = NULL;
+        OFCHECK(mod.getSegmentedRedPaletteColorLookupTableData(dataFound8, entriesFound).good());
+        OFCHECK(entriesFound == ((numEntries == 0) ? 256 : numEntries));
+        OFCHECK(verifyPixelData(dataFound8, (const Uint8*)data, numEntries));
+        delete[] dataFound8; dataFound8 = NULL;
+        OFCHECK(mod.getSegmentedGreenPaletteColorLookupTableData(dataFound8, entriesFound).good());
+        OFCHECK(entriesFound == ((numEntries == 0) ? 256 : numEntries));
+        OFCHECK(verifyPixelData(dataFound8, (const Uint8*)data, numEntries));
+        delete[] dataFound8; dataFound8 = NULL;
+        OFCHECK(mod.getSegmentedBluePaletteColorLookupTableData(dataFound8, entriesFound).good());
         OFCHECK(entriesFound == ((numEntries == 0) ? 256 : numEntries));
         OFCHECK(verifyPixelData(dataFound8, (const Uint8*)data, numEntries));
         delete[] dataFound8;

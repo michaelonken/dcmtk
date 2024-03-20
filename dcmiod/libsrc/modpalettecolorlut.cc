@@ -224,12 +224,12 @@ OFCondition IODPaletteColorLUTModule::getSegmentedRedPaletteColorLookupTableData
 
 OFCondition IODPaletteColorLUTModule::getSegmentedGreenPaletteColorLookupTableData(const Uint8*& dataCopy, unsigned long& numEntries)
 {
-    return getUint8DataCopy(DCM_BluePaletteColorLookupTableData, dataCopy, numEntries);
+    return getUint8DataCopy(DCM_SegmentedGreenPaletteColorLookupTableData, dataCopy, numEntries);
 }
 
 OFCondition IODPaletteColorLUTModule::getSegmentedBluePaletteColorLookupTableData(const Uint8*& dataCopy, unsigned long& numEntries)
 {
-    return getUint8DataCopy(DCM_BluePaletteColorLookupTableData, dataCopy, numEntries);
+    return getUint8DataCopy(DCM_SegmentedBluePaletteColorLookupTableData, dataCopy, numEntries);
 }
 
 // -------------------- set() --------------------
@@ -829,18 +829,7 @@ OFCondition IODPaletteColorLUTModule::getUint8DataCopy(const DcmTagKey& dataTag,
         DCMIOD_ERROR("Cannot convert 16 bit data to 8 bit data: Descriptor does not indicate 8 bit data");
         return EC_IllegalParameter;
     }
-    if (dataTag == DCM_RedPaletteColorLookupTableData)
-    {
-        result = m_Item->findAndGetUint16Array(DCM_RedPaletteColorLookupTableData, data, &num16BitEntries);
-    }
-    else if (dataTag == DCM_GreenPaletteColorLookupTableData)
-    {
-        result = m_Item->findAndGetUint16Array(DCM_GreenPaletteColorLookupTableData, data, &num16BitEntries);
-    }
-    else if (dataTag == DCM_BluePaletteColorLookupTableData)
-    {
-        result = m_Item->findAndGetUint16Array(DCM_BluePaletteColorLookupTableData, data, &num16BitEntries);
-    }
+    result = m_Item->findAndGetUint16Array(dataTag, data, &num16BitEntries);
     if (result.good())
     {
         Uint16 numDescriptor = 0;
@@ -886,18 +875,8 @@ OFCondition IODPaletteColorLUTModule::getUint16Data(const DcmTagKey& dataTag, co
 {
     OFCondition result;
     const Uint16* data = NULL;
-    if (dataTag == DCM_RedPaletteColorLookupTableData)
-    {
-        result = m_Item->findAndGetUint16Array(DCM_RedPaletteColorLookupTableData, data, &numEntries, OFFalse);
-    }
-    else if (dataTag == DCM_GreenPaletteColorLookupTableData)
-    {
-        result = m_Item->findAndGetUint16Array(DCM_GreenPaletteColorLookupTableData, data, &numEntries, OFFalse);
-    }
-    else if (dataTag == DCM_BluePaletteColorLookupTableData)
-    {
-        result = m_Item->findAndGetUint16Array(DCM_BluePaletteColorLookupTableData, data, &numEntries, OFFalse);
-    }
+
+    result = m_Item->findAndGetUint16Array(dataTag, data, &numEntries, OFFalse);
     if (result.good())
     {
         lutData = data;
@@ -972,7 +951,20 @@ OFCondition IODPaletteColorLUTModule::numEntriesForData(const DcmTagKey& dataTag
     {
         cond = getBluePaletteColorLookupTableDescriptor(result, 0);
     }
-    else {
+    else if (dataTag == DCM_SegmentedRedPaletteColorLookupTableData)
+    {
+        cond = getRedPaletteColorLookupTableDescriptor(result, 0);
+    }
+    else if (dataTag == DCM_SegmentedGreenPaletteColorLookupTableData)
+    {
+        cond = getGreenPaletteColorLookupTableDescriptor(result, 0);
+    }
+    else if (dataTag == DCM_SegmentedBluePaletteColorLookupTableData)
+    {
+        cond = getBluePaletteColorLookupTableDescriptor(result, 0);
+    }
+    else
+    {
         return EC_InvalidTag;
     }
     return cond;
