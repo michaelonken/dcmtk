@@ -100,30 +100,47 @@ OFCondition IODPaletteColorLUTModule::read(DcmItem& source, const OFBool clearOl
         clearData();
 
     IODComponent::read(source, OFFalse /* data already cleared */);
-    checkLUT(DCM_RedPaletteColorLookupTableDescriptor, DCM_RedPaletteColorLookupTableData);
-    checkLUT(DCM_GreenPaletteColorLookupTableDescriptor, DCM_GreenPaletteColorLookupTableData);
-    checkLUT(DCM_BluePaletteColorLookupTableDescriptor, DCM_BluePaletteColorLookupTableData);
-    checkDescriptorConsistency(OFFalse /* only warn */);
-    checkDataConsistency(OFFalse /* only warn */);
-    checkSegmentConditions(OFFalse);
+    OFBool isSegmented;
+    checkSegmentConsistency(OFFalse, isSegmented);
+    if (!isSegmented)
+    {
+        checkLUT(DCM_RedPaletteColorLookupTableDescriptor, DCM_RedPaletteColorLookupTableData);
+        checkLUT(DCM_GreenPaletteColorLookupTableDescriptor, DCM_GreenPaletteColorLookupTableData);
+        checkLUT(DCM_BluePaletteColorLookupTableDescriptor, DCM_BluePaletteColorLookupTableData);
+        checkDescriptorConsistency(OFFalse /* only warn */);
+        checkDataConsistency(OFFalse /* only warn */);
+    }
     return EC_Normal;
 }
 
 OFCondition IODPaletteColorLUTModule::write(DcmItem& destination)
 {
-    OFBool valid(OFTrue);
-    valid = checkLUT(DCM_RedPaletteColorLookupTableDescriptor, DCM_RedPaletteColorLookupTableData);
-    if (valid)
-        valid = checkLUT(DCM_GreenPaletteColorLookupTableDescriptor, DCM_GreenPaletteColorLookupTableData);
-    if (valid)
-        valid = checkLUT(DCM_BluePaletteColorLookupTableDescriptor, DCM_BluePaletteColorLookupTableData);
-    if (!valid)
-        return IOD_EC_InvalidColorPalette;
-    valid = checkDescriptorConsistency(OFTrue /* report as errors */);
-    if (!valid)
-        return IOD_EC_InvalidColorPalette;
-    valid = checkDataConsistency(OFTrue /* report as errors */);
-    return IODComponent::write(destination);
+    OFBool valid, isSegmented;
+    checkSegmentConsistency(OFFalse, isSegmented);
+    if (!isSegmented)
+    {
+        valid = checkLUT(DCM_RedPaletteColorLookupTableDescriptor, DCM_RedPaletteColorLookupTableData);
+        if (valid)
+            valid = checkLUT(DCM_GreenPaletteColorLookupTableDescriptor, DCM_GreenPaletteColorLookupTableData);
+        if (valid)
+            valid = checkLUT(DCM_BluePaletteColorLookupTableDescriptor, DCM_BluePaletteColorLookupTableData);
+        if (valid)
+            valid = checkDescriptorConsistency(OFTrue /* report as errors */);
+        if (valid)
+            valid = checkDataConsistency(OFTrue /* report as errors */);
+        if (valid)
+        {
+            return IODComponent::write(destination);
+        }
+        else
+        {
+            return IOD_EC_InvalidColorPalette;
+        }
+    }
+    else
+    {
+        return IODComponent::write(destination);
+    }
 }
 
 OFCondition IODPaletteColorLUTModule::getRedPaletteColorLookupTableDescriptor(Uint16& value,
@@ -750,41 +767,48 @@ OFBool IODPaletteColorLUTModule::checkDataConsistency(const OFBool& isError)
 }
 
 
-OFBool IODPaletteColorLUTModule::checkSegmentConditions(const OFBool& isError)
+OFBool IODPaletteColorLUTModule::checkSegmentConsistency(const OFBool& isError, OFBool& isSegmented)
 {
     // Check that unsegmented LUTs are used together with segmented LUTs
-    OFBool hasSegmentedLUTs = OFFalse;
-    OFBool hasUnsegmentedLUTs = OFFalse;
+    isSegmented = OFFalse;
+    OFBool hasNonSegmentedLUTs = OFFalse;
+    OFString msg;
     // Check for segmented LUT descriptors
-    if (m_Item->tagExists(DCM_SegmentedRedPaletteColorLookupTableData) || m_Item->tagExists(DCM_SegmentedGreenPaletteColorLookupTableData) || m_Item->tagExists(DCM_SegmentedBluePaletteColorLookupTableData))
+    if (m_Item->tagExists(DCM_SegmentedRedPaletteColorLookupTableData) && m_Item->tagExists(DCM_SegmentedGreenPaletteColorLookupTableData) && m_Item->tagExists(DCM_SegmentedBluePaletteColorLookupTableData))
     {
-        hasSegmentedLUTs = OFTrue;
-    }
-    // Also check for segmented LUT data
-    if (m_Item->tagExists(DCM_SegmentedRedPaletteColorLookupTableData) || m_Item->tagExists(DCM_SegmentedGreenPaletteColorLookupTableData) || m_Item->tagExists(DCM_SegmentedBluePaletteColorLookupTableData))
-    {
-        hasSegmentedLUTs = OFTrue;
+        // Also check for segmented LUT data
+        if (m_Item->tagExists(DCM_SegmentedRedPaletteColorLookupTableData) && m_Item->tagExists(DCM_SegmentedGreenPaletteColorLookupTableData) && m_Item->tagExists(DCM_SegmentedBluePaletteColorLookupTableData))
+        {
+            isSegmented = OFTrue;
+        }
     }
     // Check for unsegmented LUT descriptors
     if (m_Item->tagExists(DCM_RedPaletteColorLookupTableDescriptor) || m_Item->tagExists(DCM_GreenPaletteColorLookupTableDescriptor) || m_Item->tagExists(DCM_BluePaletteColorLookupTableDescriptor))
     {
-        hasUnsegmentedLUTs = OFTrue;
-    }
-    // Check for unsegmented LUT data
-    if (m_Item->tagExists(DCM_RedPaletteColorLookupTableData) || m_Item->tagExists(DCM_GreenPaletteColorLookupTableData) || m_Item->tagExists(DCM_BluePaletteColorLookupTableData))
-    {
-        hasUnsegmentedLUTs = OFTrue;
+        // Check for unsegmented LUT data
+        if (m_Item->tagExists(DCM_RedPaletteColorLookupTableData) || m_Item->tagExists(DCM_GreenPaletteColorLookupTableData) || m_Item->tagExists(DCM_BluePaletteColorLookupTableData))
+        {
+            hasNonSegmentedLUTs = OFTrue;
+        }
     }
     // Check that both are not used together
-    if (hasSegmentedLUTs && hasUnsegmentedLUTs)
+    if (isSegmented && hasNonSegmentedLUTs)
+    {
+        msg = "Segmented Palette LUT attributes are used together with Unsegmented LUT attributes";
+    }
+    if (!isSegmented && !hasNonSegmentedLUTs)
+    {
+        msg = "No or incomplete Palette LUT attributes found";
+    }
+    if (msg.length() > 0)
     {
         if (isError)
         {
-            DCMIOD_ERROR("Segmented LUT attributes are used together with Unsegmented LUT Data");
+            DCMIOD_ERROR(msg);
         }
         else
         {
-            DCMIOD_WARN("Segmented LUT attributes are used together with Unsegmented LUT Data");
+            DCMIOD_WARN(msg);
         }
         return OFFalse;
     }

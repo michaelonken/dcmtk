@@ -433,7 +433,7 @@ protected:
 
     virtual OFBool checkDataConsistency(const OFBool& isError);
 
-    virtual OFBool checkSegmentConditions(const OFBool& isError);
+    virtual OFBool checkSegmentConsistency(const OFBool& isError, OFBool& isSegmented);
 
     virtual void reportLUTError(const DcmTagKey& descriptorTag,
                         const OFString& message,

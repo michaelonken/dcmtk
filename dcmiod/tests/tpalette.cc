@@ -25,12 +25,12 @@
 #include "dcmtk/dcmiod/modpalettecolorlut.h"
 #include "dcmtk/ofstd/oftest.h"
 #include "dcmtk/ofstd/oflimits.h"
-#include <iostream>
+
 
 template<typename T> static T* makePixelData(unsigned long& num_entries);
 template<typename T> static OFBool verifyPixelData(T* dataFound, T* data, const unsigned long& num_entries);
-template<typename T> static void checkNonSegmentedPaletteModule(IODPaletteColorLUTModule& mod, OFBool makeSigned, Uint8 bits, const Uint16 numEntries, const T*& data);
-template<typename T> static void createNonSegmentedPaletteModule(IODPaletteColorLUTModule& mod, OFBool makeSigned, Uint8 bits, const Uint16 numEntries, const T*& data);
+template<typename T> static void checkNonSegmentedPaletteModule(IODPaletteColorLUTModule& mod, Uint8 bits, const Uint16 numEntries, const T*& data);
+template<typename T> static void createNonSegmentedPaletteModule(IODPaletteColorLUTModule& mod, Uint8 bits, const Uint16 numEntries, const T*& data);
 
 static void clear(IODPaletteColorLUTModule& mod);
 
@@ -61,8 +61,8 @@ OFTEST(dcmiod_palette_color_lut_module)
     unsigned long num_entries = 65535;
     Uint8 num_bits = 16;
     const Uint16* data16bit = makePixelData<Uint16>(num_entries);
-    createNonSegmentedPaletteModule(mod, OFFalse, num_bits, num_entries, data16bit);
-    checkNonSegmentedPaletteModule(mod, OFFalse, num_bits, num_entries, data16bit);
+    createNonSegmentedPaletteModule(mod, num_bits, num_entries, data16bit);
+    checkNonSegmentedPaletteModule(mod, num_bits, num_entries, data16bit);
     clear(mod);
     delete[] data16bit;
 
@@ -70,8 +70,8 @@ OFTEST(dcmiod_palette_color_lut_module)
     num_entries = 65536;
     num_bits = 16;
     const Uint16* data16bitMax = makePixelData<Uint16>(num_entries);
-    createNonSegmentedPaletteModule(mod, OFFalse, num_bits, 0, data16bitMax);
-    checkNonSegmentedPaletteModule(mod, OFFalse, num_bits, 0, data16bitMax);
+    createNonSegmentedPaletteModule(mod, num_bits, 0, data16bitMax);
+    checkNonSegmentedPaletteModule(mod, num_bits, 0, data16bitMax);
     clear(mod);
     delete[] data16bitMax;
 
@@ -79,8 +79,8 @@ OFTEST(dcmiod_palette_color_lut_module)
     num_entries = 255;
     num_bits = 8;
     const Uint8* data8bit = makePixelData<Uint8>(num_entries);
-    createNonSegmentedPaletteModule(mod, OFFalse, num_bits, num_entries, data8bit);
-    checkNonSegmentedPaletteModule(mod, OFFalse, num_bits, num_entries, data8bit);
+    createNonSegmentedPaletteModule(mod, num_bits, num_entries, data8bit);
+    checkNonSegmentedPaletteModule(mod, num_bits, num_entries, data8bit);
     clear(mod);
     delete[] data8bit;
 
@@ -88,8 +88,8 @@ OFTEST(dcmiod_palette_color_lut_module)
     num_entries = 256;
     num_bits = 8;
     const Uint8* data8bitMax = makePixelData<Uint8>(num_entries);
-    createNonSegmentedPaletteModule(mod, OFFalse, num_bits, 0, data8bitMax);
-    checkNonSegmentedPaletteModule(mod, OFFalse, num_bits, 0, data8bitMax);
+    createNonSegmentedPaletteModule(mod, num_bits, 0, data8bitMax);
+    checkNonSegmentedPaletteModule(mod, num_bits, 0, data8bitMax);
     clear(mod);
     delete[] data8bitMax;
 }
@@ -121,6 +121,24 @@ OFTEST(dcmiod_palette_color_lut_module_extra_checks)
     OFCHECK(mod.setGreenPaletteColorLookupTableData(data8bit, num_entries).bad());
     OFCHECK(mod.setBluePaletteColorLookupTableData(data8bit, num_entries).bad());
     delete[] data8bit;
+
+    // mix of segment and non segment data fails
+    num_entries = 65535;
+    DcmItem item;
+    data16bit = makePixelData<Uint16>(num_entries);
+    OFCHECK(mod.setRedPaletteColorLookupTableDescriptor(num_entries, 0, 16).good());
+    OFCHECK(mod.setGreenPaletteColorLookupTableDescriptor(num_entries, 0, 16).good());
+    OFCHECK(mod.setBluePaletteColorLookupTableDescriptor(num_entries, 0, 16).good());
+    OFCHECK(mod.setSegmentedRedPaletteColorLookupTableData(data16bit, num_entries).good());
+    OFCHECK(mod.setSegmentedGreenPaletteColorLookupTableData(data16bit, num_entries).good());
+    OFCHECK(mod.setSegmentedBluePaletteColorLookupTableData(data16bit, num_entries).good());
+    // this does not make sense:
+    OFCHECK(mod.setSegmentedRedPaletteColorLookupTableData(data16bit, num_entries).good());
+    OFCHECK(mod.setSegmentedGreenPaletteColorLookupTableData(data16bit, num_entries).good());
+    OFCHECK(mod.setSegmentedBluePaletteColorLookupTableData(data16bit, num_entries).good());
+    OFCHECK(mod.write(item).bad());
+    delete[] data16bit;
+
 }
 
 
@@ -165,7 +183,7 @@ static void clear(IODPaletteColorLUTModule& mod)
 
 
 template<typename T>
-static void createNonSegmentedPaletteModule(IODPaletteColorLUTModule& mod, OFBool makeSigned, Uint8 bits, const Uint16 numEntries, const T*& data)
+static void createNonSegmentedPaletteModule(IODPaletteColorLUTModule& mod, Uint8 bits, const Uint16 numEntries, const T*& data)
 {
     OFCHECK_MSG(mod.setRedPaletteColorLookupTableDescriptor(numEntries, 0, bits).good(), "Cannot set Red Palette Color Lookup Table Descriptor");
     OFCHECK_MSG(mod.setGreenPaletteColorLookupTableDescriptor(numEntries, 0, bits).good(), "Cannot set Green Palette Color Lookup Table Descriptor");
@@ -179,16 +197,14 @@ static void createNonSegmentedPaletteModule(IODPaletteColorLUTModule& mod, OFBoo
 
 
 template<typename T>
-static void checkNonSegmentedPaletteModule(IODPaletteColorLUTModule& mod, OFBool isSigned, Uint8 bits, const Uint16 numEntries, const T*& data)
+static void checkNonSegmentedPaletteModule(IODPaletteColorLUTModule& mod, Uint8 bits, const Uint16 numEntries, const T*& data)
 {
-    OFLOG_DEBUG(tLog, "Checking non-segmented palette color with " << (isSigned ? "signed" : "unsigned") << " " << (Uint16)bits << " bit data and " << numEntries << " entries.");
     DcmItem item;
     OFString uid;
     size_t entriesFound = 0;
     Uint16 d1,d2,d3;
     d1 = d2 = d3 = 1; // not used in test data
     OFCHECK_MSG(mod.write(item).good(), "Cannot write Palette Color Lookup Table Module to DcmItem");
-    item.print(std::cout);
     OFCHECK_MSG(mod.numBits() == bits, "getBits() returns wrong value for Palette Color Lookup Table Module");
     OFCHECK_MSG(mod.getPaletteColorLookupTableUID(uid).good(), "Cannot get Palette Color Lookup Table UID");
     OFCHECK(mod.getRedPaletteColorLookupTableDescriptor(d1, 0).good());
