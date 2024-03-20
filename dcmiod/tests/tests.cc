@@ -31,4 +31,5 @@ OFTEST_REGISTER(dcmiod_codes);
 OFTEST_REGISTER(dcmiod_imagepixel);
 OFTEST_REGISTER(dcmiod_tcielabutil);
 OFTEST_REGISTER(dcmiod_palette_color_lut_module);
+OFTEST_REGISTER(dcmiod_palette_color_lut_module_extra_checks);
 OFTEST_MAIN("dcmiod")
