@@ -329,7 +329,7 @@ public:
     virtual OFCondition setIrradiationEventUID(const OFString& value, const OFBool checkValue = OFTrue);
 
 private:
-    /// The module's name ("GeneralIamgeModule")
+    /// The module's name ("GeneralImageModule")
     static const OFString m_ModuleName;
 };
 
