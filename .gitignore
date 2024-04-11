@@ -23,6 +23,9 @@ config/autom4te.cache/
 *.log
 *.*~
 
+# Ignore caches
+.cache
+
 # Patch files
 *.patch
 
