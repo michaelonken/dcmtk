@@ -522,8 +522,18 @@ protected:
                                     const ContentIdentificationMacro& contentIdentification,
                                     const Uint16 bitsAllocated);
 
+    /** Creates segmentation object with pixel data matching required bit depths (as defined by Bits Allocated)
+     *  @param item The item to read Bits Allocated from (1, 8 or 16 bits permitted)
+     *  @param segmentation The segmentation object to create
+     *  @return EC_Normal if creation was successful, error otherwise
+     */
     static OFCondition createRequiredBitDepth(DcmItem& item, DcmSegmentation*& segmentation);
 
+    /** Creates segmentation object with pixel data matching given bit depths
+     *  @param bitsAllocated The Bits Allocated value to use (1, 8 or 16 permitted)
+     *  @param segmentation The segmentation object to create
+     *  @return EC_Normal if creation was successful, error otherwise
+     */
     static OFCondition createRequiredBitDepth(const Uint16 bitsAllocated, DcmSegmentation*& segmentation);
 
 
@@ -715,11 +725,12 @@ private:
      *  @param  pixelData The Pixel Data element
      *  @param  rows Number of rows
      *  @param  cols Number of columns
+     *  @param  bytesPerPixel Bytes per pixel (1 for 1 or 8 bit data, or 2 for 16 bit data)
      *  @param  numberOfFrames Number of frames
      *  @result OFTrue if length is valid, OFFalse otherwise
      */
     OFBool
-    checkPixDataLength(DcmElement* pixelData, const Uint16 rows, const Uint16 cols, const Uint32& numberOfFrames);
+    checkPixDataLength(DcmElement* pixelData, const Uint16 rows, const Uint16 cols, const Uint16 bytesPerPixel, const Uint32& numberOfFrames);
 
     /** Loads file
      *  @param  dcmff The file format to load into
@@ -735,6 +746,7 @@ private:
      *  size_t type is not able to hold the result of intermediate computations.
      *  @param  rows Number of rows of a frame
      *  @param  cols Number of cols of a frame
+     *  @param  bytesPerPixel Bytes per pixel (use 1 for 1 or 8 bit data, or 2 for 16 bit data)
      *  @param  numberOfFrames The number of frames of the object
      *  @param  bytesRequired Will hold the result of the computation,
      *          if successful. Does not any padding into account.
@@ -742,7 +754,7 @@ private:
      *          otherwise.
      */
     OFCondition
-    getTotalBytesRequired(const Uint16& rows, const Uint16& cols, const Uint32& numberOfFrames, size_t& bytesRequired);
+    getTotalBytesRequired(const Uint16& rows, const Uint16& cols, const Uint16& bytesPerPixel, const Uint32& numberOfFrames, size_t& bytesRequired);
 
     /** Read Fractional Type of segmentation.
      *  @param  item The item to read from

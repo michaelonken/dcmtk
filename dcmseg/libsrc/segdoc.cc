@@ -533,11 +533,16 @@ OFCondition DcmSegmentation::writeWithSeparatePixelData(DcmItem& dataset, Uint8*
     {
         Uint32 numFrames = DcmIODUtil::limitMaxFrames(
             m_Frames.size(), "More than 2147483647 frames provided, will only write 2147483647");
-        Uint16 rows, cols;
-        rows = cols = 0;
+        Uint16 rows, cols, bytesPerPixel;
+        rows = cols = bytesPerPixel = 0;
         DcmSegmentation::getImagePixel().getRows(rows);
         DcmSegmentation::getImagePixel().getColumns(cols);
-        result = getTotalBytesRequired(rows, cols, numFrames, pixDataLength);
+        DcmSegmentation::getImagePixel().getBitsAllocated(bytesPerPixel);
+        if (bytesPerPixel >= 8) // 8 or 16
+        {
+            bytesPerPixel = bytesPerPixel / 8;
+        }
+        result = getTotalBytesRequired(rows, cols, bytesPerPixel, numFrames, pixDataLength);
         if (result.bad())
             return result;
 
@@ -627,11 +632,16 @@ OFCondition DcmSegmentation::writeWithSeparatePixelData(DcmItem& dataset, Uint16
     {
         Uint32 numFrames = DcmIODUtil::limitMaxFrames(
             m_Frames.size(), "More than 2147483647 frames provided, will only write 2147483647");
-        Uint16 rows, cols;
-        rows = cols = 0;
+        Uint16 rows, cols, bytesPerPixel;
+        rows = cols = bytesPerPixel = 0;
         getImagePixel().getRows(rows);
         getImagePixel().getColumns(cols);
-        result = getTotalBytesRequired(rows, cols, numFrames, pixDataLength);
+        getImagePixel().getBitsAllocated(bytesPerPixel);
+        if (bytesPerPixel >= 8) // 8 or 16
+        {
+            bytesPerPixel = bytesPerPixel / 8;
+        }
+        result = getTotalBytesRequired(rows, cols, bytesPerPixel, numFrames, pixDataLength);
         if (result.bad())
             return result;
 
@@ -1195,7 +1205,8 @@ OFCondition DcmSegmentation::readFrames(DcmItem& dataset)
     DcmElement* pixelData = NULL;
     if (dataset.findAndGetElement(DCM_PixelData, pixelData).bad())
         return IOD_EC_InvalidPixelData;
-    if (!checkPixDataLength(pixelData, rows, cols, numberOfFrames))
+    Uint16 bytesPerPixel = (allocated >= 8) ? allocated / 8 : 1;
+    if (!checkPixDataLength(pixelData, rows, cols, bytesPerPixel, numberOfFrames))
         return IOD_EC_InvalidPixelData;
 
     /* Get pixel data values */
@@ -1206,8 +1217,22 @@ OFCondition DcmSegmentation::readFrames(DcmItem& dataset)
 
 OFCondition DcmSegmentation::readPixelData(DcmElement* pixelData, const size_t numFrames, const size_t pixelsPerFrame, const Uint8 bitsAlloc)
 {
-    Uint8* pixels      = NULL;
-    OFCondition result = pixelData->getUint8Array(pixels);
+    Uint8*  pixels8    = NULL;
+    Uint16* pixels16   = NULL;
+    OFCondition result;
+    if (( bitsAlloc == 1) || (bitsAlloc == 8))
+    {
+        result = pixelData->getUint8Array(pixels8);
+    }
+    else if (bitsAlloc == 16)
+    {
+        result = pixelData->getUint16Array(pixels16);
+    }
+    else
+    {
+        DCMSEG_ERROR("Cannot read pixel data: Bits Allocated is neither 1, 8 nor 16");
+        return IOD_EC_InvalidPixelData;
+    }
     if (result.bad())
     {
         DCMSEG_ERROR("Cannot read pixel data");
@@ -1217,7 +1242,7 @@ OFCondition DcmSegmentation::readPixelData(DcmElement* pixelData, const size_t n
     switch (m_SegmentationType)
     {
         case DcmSegTypes::ST_BINARY:
-            result = DcmIODUtil::extractBinaryFrames(pixels, numFrames, pixelsPerFrame, m_Frames);
+            result = DcmIODUtil::extractBinaryFrames(pixels8, numFrames, pixelsPerFrame, m_Frames);
             break;
         case DcmSegTypes::ST_FRACTIONAL:
         case DcmSegTypes::ST_LABELMAP:
@@ -1238,7 +1263,14 @@ OFCondition DcmSegmentation::readPixelData(DcmElement* pixelData, const size_t n
                     result = EC_MemoryExhausted;
                     break;
                 }
-                memcpy(frame->getPixelData(), pixels + count * pixelsPerFrame * (bitsAlloc % 2), pixelsPerFrame);
+                if (bitsAlloc == 8)
+                {
+                    memcpy(frame->getPixelData(), pixels8 + count * pixelsPerFrame, pixelsPerFrame);
+                }
+                else // 16
+                {
+                    memcpy(frame->getPixelData(), pixels16 + count * pixelsPerFrame * 2, pixelsPerFrame * 2);
+                }
                 // print frame->pixData to cout
                 // frame->print();
                 m_Frames.push_back(frame);
@@ -1387,23 +1419,39 @@ OFCondition DcmSegmentation::getAndCheckImagePixelAttributes(DcmItem& dataset,
 
 OFCondition DcmSegmentation::writeDataset(DcmItem& dataset)
 {
-    Uint8* pixData = NULL;
-    size_t pixDataLength;
-    OFCondition result = writeWithSeparatePixelData(dataset, pixData, pixDataLength);
+    Uint8* pixData8 = NULL;
+    Uint16* pixData16 = NULL;
+    size_t pixDataLength = 0;
+    OFCondition result;
+    if (has16BitPixelData())
+    {
+        result = writeWithSeparatePixelData(dataset, pixData16, pixDataLength);
+    }
+    else
+    {
+       result = writeWithSeparatePixelData(dataset, pixData8, pixDataLength);
+    }
     if (result.good())
     {
         // Check whether pixel data length exceeds maximum number of bytes for uncompressed pixel data,
         // enforced by length field of Pixel Data attribute VR OB/OW if written in explicit VR transfer syntax.
         if (pixDataLength <= 4294967294UL)
         {
-            result
-                = dataset.putAndInsertUint8Array(DCM_PixelData, pixData, OFstatic_cast(unsigned long, pixDataLength));
+            if (has16BitPixelData())
+            {
+                result = dataset.putAndInsertUint16Array(DCM_PixelData, pixData16, OFstatic_cast(unsigned long, pixDataLength));
+            }
+            else
+            {
+                result = dataset.putAndInsertUint8Array(DCM_PixelData, pixData8, OFstatic_cast(unsigned long, pixDataLength));
+            }
         }
         else
         {
             result = FG_EC_PixelDataTooLarge;
         }
-        delete[] pixData;
+        delete[] pixData8;
+        delete[] pixData16;
     }
     return result;
 }
@@ -1611,6 +1659,7 @@ void DcmSegmentation::clearData()
 OFBool DcmSegmentation::checkPixDataLength(DcmElement* pixelData,
                                            const Uint16 rows,
                                            const Uint16 cols,
+                                           const Uint16 bytesPerPixel,
                                            const Uint32& numberOfFrames)
 {
     // Get actual length of pixel data in bytes
@@ -1618,7 +1667,7 @@ OFBool DcmSegmentation::checkPixDataLength(DcmElement* pixelData,
 
     // Find out how many bytes are needed
     size_t bytesRequired = 0;
-    OFCondition result   = getTotalBytesRequired(rows, cols, numberOfFrames, bytesRequired);
+    OFCondition result   = getTotalBytesRequired(rows, cols, bytesPerPixel, numberOfFrames, bytesRequired);
     if (result.bad())
         return OFFalse;
     // Length found in Pixel Data element is always even
@@ -1646,19 +1695,18 @@ OFBool DcmSegmentation::checkPixDataLength(DcmElement* pixelData,
 
 OFCondition DcmSegmentation::getTotalBytesRequired(const Uint16& rows,
                                                    const Uint16& cols,
+                                                   const Uint16& bytesPerPixel,
                                                    const Uint32& numberOfFrames,
                                                    size_t& bytesRequired)
 {
-    Uint16 bitsAllocated = 0;
-    OFCondition result   = getImagePixel().getBitsAllocated(bitsAllocated);
     // Compute space needed for all frames, first assume 1 byte per pixel (we adapt later for binary segmentations)
     // Rows * Cols = num pixels per frame
     OFBool ok = OFStandard::safeMult(OFstatic_cast(size_t, rows), OFstatic_cast(size_t, cols), bytesRequired);
     // Pixels per frame * num frames = total num pixels
     if (ok)
         OFStandard::safeMult(bytesRequired, OFstatic_cast(size_t, numberOfFrames), bytesRequired);
-    // Total num pixels * num bytes per pixel = total num bytes
-    if (ok && (bitsAllocated == 16))
+    // In case of 16 bit pixel data, we need twice as much space
+    if (ok && (bytesPerPixel == 2))
         OFStandard::safeMult(bytesRequired, OFstatic_cast(size_t, 2), bytesRequired);
     if (!ok)
     {

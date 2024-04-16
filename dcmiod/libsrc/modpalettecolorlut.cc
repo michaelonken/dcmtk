@@ -33,11 +33,8 @@
 #include "dcmtk/dcmdata/dcvrus.h"
 #include "dcmtk/dcmiod/iodutil.h"
 #include "dcmtk/dcmimgle/diluptab.h"
-#include "dcmtk/ofstd/oflimits.h"
 #include "dcmtk/ofstd/ofmem.h"
 #include "dcmtk/ofstd/oftypes.h"
-#include <climits>
-#include <unicode/umachine.h>
 
 const OFString IODPaletteColorLUTModule::m_ModuleName = "PaletteColorLookupTableModule";
 
