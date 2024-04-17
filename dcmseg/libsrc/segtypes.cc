@@ -110,6 +110,40 @@ DcmSegTypes::E_SegmentAlgoType DcmSegTypes::OFString2AlgoType(const OFString& al
         return DcmSegTypes::SAT_UNKNOWN;
 }
 
+
+OFString DcmSegTypes::labelmapColorModel2OFString(const DcmSegTypes::E_SegmentationLabelmapColorModel value, const OFString& fallbackValue)
+{
+    OFString result;
+    switch (value)
+    {
+        case DcmSegTypes::SLCM_MONOCHROME2:
+            return "MONOCHROME2";
+        case DcmSegTypes::SLCM_PALETTE:
+            return "PALETTE COLOR";
+        case DcmSegTypes::SLCM_UNKNOWN:
+            result = "UNKNOWN";
+        default:
+            result = "Invalid labelmap color model (internal error)";
+    }
+    if (!fallbackValue.empty())
+    {
+        DCMSEG_WARN("Invalid value for label map color model: " << result << ". Using fallback value: " << fallbackValue);
+        result = fallbackValue;
+    }
+    return result;
+}
+
+
+DcmSegTypes::E_SegmentationLabelmapColorModel DcmSegTypes::OFString2LabelmapColorModel(const OFString& value)
+{
+    if (value == "MONOCHROME2")
+        return DcmSegTypes::SLCM_MONOCHROME2;
+    if (value == "PALETTE COLOR")
+        return DcmSegTypes::SLCM_PALETTE;
+    else
+        return DcmSegTypes::SLCM_UNKNOWN;
+}
+
 SegmentDescriptionMacro::SegmentDescriptionMacro()
     : m_SegmentLabel(DCM_SegmentLabel)
     , m_SegmentDescription(DCM_SegmentDescription)

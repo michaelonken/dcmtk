@@ -33,7 +33,10 @@
 #include "dcmtk/dcmdata/dcrleerg.h"  /* for DcmRLEEncoderRegistration */
 
 
-#define LABELMAP_FILE "/home/michael/data/ownCloud/arbeit/projekte/bwh/labelmaps/objects/highdicom_normalized.dcm"
+
+//#define LABELMAP_FILE "/home/michael/data/dcm/SEG/highdicom_labelmap/labelmap_monochrome8bit.dcm"
+#define LABELMAP_FILE "/home/michael/data/dcm/SEG/highdicom_labelmap/labelmap_palettecolor8bit.dcm"
+
 
 static OFString EXPECTED_DUMP("");
 

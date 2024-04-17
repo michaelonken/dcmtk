@@ -134,6 +134,18 @@ public:
         SFT_OCCUPANCY
     };
 
+    /** Labelmap Segmentation desired color model
+     */
+    enum E_SegmentationLabelmapColorModel
+    {
+        /// Unknown (e.g.\ not initialized)
+        SLCM_UNKNOWN,
+        /// Monochrome 1 Bit
+        SLCM_MONOCHROME2,
+        /// Palette Color
+        SLCM_PALETTE
+    };
+
     // -- helper functions --
 
     /** Return string representation of algorithm type
@@ -168,6 +180,20 @@ public:
      *  @return The fractional type as enum value
      */
     static DcmSegTypes::E_SegmentationFractionalType OFString2FractionalType(const OFString& value);
+
+    /** Returns string representation from labelmap color enum type
+     *  @param  value The labelmap color model as enum value
+     *  @param  fallBackValue The value to use if the enum value is unknown or invalid (not used if empty)
+     *  @return The labelmap color model as a string
+     */
+    static OFString labelmapColorModel2OFString(const DcmSegTypes::E_SegmentationLabelmapColorModel value, const OFString& fallbackValue="");
+
+    /** Return enum representation of photometric interpretation type string as found in
+     *  segmentation objects.
+     *  @param  value The photometric interpretation type as a string
+     *  @return The photometric interpretation type as enum value
+     */
+    static DcmSegTypes::E_SegmentationLabelmapColorModel OFString2LabelmapColorModel(const OFString& value);
 };
 
 /** Class representing the Segmented Property Type Code and Segmented

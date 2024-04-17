@@ -31,6 +31,7 @@
 #include "dcmtk/dcmiod/iodutil.h"
 #include "dcmtk/dcmseg/segdoc.h"
 #include "dcmtk/dcmseg/segment.h"
+#include "dcmtk/dcmseg/segtypes.h"
 #include "dcmtk/dcmseg/segutils.h"
 #include "dcmtk/ofstd/ofutil.h"
 
@@ -123,6 +124,7 @@ DcmSegmentation::DcmSegmentation(OFin_place_type_t(ImagePixel))
     , m_DimensionModule(DcmSegmentation::IODImage::getData(), DcmSegmentation::IODImage::getRules())
     , m_Frames()
     , m_16BitPixelData(OFFalse)
+    , m_LabelmapColorModel(DcmSegTypes::SLCM_UNKNOWN)
     , m_ImageType("DERIVED\\PRIMARY")
     , m_ContentIdentificationMacro()
     , m_SegmentationType(DcmSegTypes::ST_BINARY)
@@ -177,7 +179,6 @@ DcmSegmentation::~DcmSegmentation()
 }
 
 // static method for loading segmentation objects
-
 OFCondition DcmSegmentation::loadFile(const OFString& filename, DcmSegmentation*& segmentation)
 {
     DcmFileFormat dcmff;
@@ -190,7 +191,6 @@ OFCondition DcmSegmentation::loadFile(const OFString& filename, DcmSegmentation*
 }
 
 // static method for loading segmentation objects
-
 OFCondition DcmSegmentation::loadDataset(DcmDataset& dataset, DcmSegmentation*& segmentation)
 {
     segmentation       = NULL;
@@ -274,14 +274,22 @@ OFCondition DcmSegmentation::createLabelmapSegmentation(DcmSegmentation *&segmen
                                                         const Uint16 columns,
                                                         const IODGeneralEquipmentModule::EquipmentInfo &equipmentInfo,
                                                         const ContentIdentificationMacro &contentIdentification,
-                                                        const OFBool use16Bit)
+                                                        const OFBool use16Bit,
+                                                        const DcmSegTypes::E_SegmentationLabelmapColorModel colorModel)
 {
+    if (colorModel == DcmSegTypes::SLCM_UNKNOWN)
+    {
+        DCMSEG_ERROR("Cannot create labelmap segmentation: Color model not set");
+        return EC_IllegalParameter;
+    }
+
     OFCondition result = createCommon(segmentation, rows, columns, equipmentInfo, contentIdentification, use16Bit ? 16 : 8);
     if (result.bad())
         return result;
 
     segmentation->m_SegmentationType = DcmSegTypes::ST_LABELMAP;
     segmentation->m_16BitPixelData = use16Bit;
+    segmentation->m_LabelmapColorModel = colorModel;
     return result;
 }
 
@@ -448,6 +456,8 @@ OFCondition DcmSegmentation::readWithoutPixelData(DcmItem& dataset)
     // Read specific segmentation elements
     DcmIODUtil::getAndCheckElementFromDataset(
         dataset, m_MaximumFractionalValue, DcmSegmentation::IODImage::getRules()->getByTag(DCM_MaximumFractionalValue));
+
+    readAndCheckColorModel();
 
     return EC_Normal;
 }
@@ -870,14 +880,12 @@ DcmSegmentation::addFrame(T* pixData, const Uint16 segmentNumber, const OFVector
         {
             DCMSEG_ERROR("Cannot add frame: Segment number 0 is not permitted for segmentation type "
                          << DcmSegTypes::segtype2OFString(m_SegmentationType));
+            result = SG_EC_NoSuchSegment;
         }
-        else
-        {
-            DCMSEG_ERROR("Cannot add frame: Segment number 0 is reserved for the background");
-        }
-        result = SG_EC_NoSuchSegment;
+        // we ignore the segment number for label maps
     }
-    else if (getSegment(segmentNumber) == NULL)
+    // If this is not a labelmap, check if segment the frame refers to actually exists
+    else if  ((m_SegmentationType != DcmSegTypes::ST_LABELMAP) && (getSegment(segmentNumber) == NULL) )
     {
         DCMSEG_ERROR("Cannot add frame: Segment with given number " << segmentNumber << " does not exist");
         result = SG_EC_NoSuchSegment;
@@ -888,6 +896,14 @@ DcmSegmentation::addFrame(T* pixData, const Uint16 segmentNumber, const OFVector
     OFVector<FGBase*>::const_iterator it = perFrameInformation.begin();
     while (it != perFrameInformation.end())
     {
+        // Labelmap is not permitted to have Segmentation Functional Group, ignore if found
+
+        if ((*it)->getType() == DcmFGTypes::EFG_SEGMENTATION)
+        {
+            DCMSEG_WARN("Ignoring provided Segmentation Functional Group, will be created automatically");
+            it++;
+            continue;
+        }
         result = (*it)->check();
         if (result.bad())
         {
@@ -906,7 +922,7 @@ DcmSegmentation::addFrame(T* pixData, const Uint16 segmentNumber, const OFVector
     }
 
     // Now also add Segmentation Functional Group
-    if (result.good())
+    if (result.good() && (m_SegmentationType != DcmSegTypes::ST_LABELMAP))
     {
         FGSegmentation seg;
         result = seg.setReferencedSegmentNumber(segmentNumber);
@@ -983,7 +999,7 @@ OFCondition DcmSegmentation::saveFile(const OFString& filename, const E_Transfer
             if (writeXfer == EXS_DeflatedLittleEndianExplicit)
             {
                 DCMSEG_ERROR("Cannot write transfer syntax: "
-                             << ts.getXferName() << ": Deflate (ZLIB) support disabled, can only write uncompressed");
+                             << ts.getXferName() << ": Deflate (ZLIB) support disabled");
             }
 #endif
             return EC_CannotChangeRepresentation;
@@ -1401,7 +1417,7 @@ OFCondition DcmSegmentation::getAndCheckImagePixelAttributes(DcmItem& dataset,
     if ((colorModel != "MONOCHROME2")
         && ((colorModel != "PALETTE COLOR") && (m_SegmentationType == DcmSegTypes::ST_LABELMAP)))
     {
-        DCMSEG_WARN("Photometric Interpretation is not set correctly (" << colorModel << "): Must be MONOCHROME2 or PALETTE (only Labelmap segmentations)");
+        DCMSEG_WARN("Photometric Interpretation is not set correctly (" << colorModel << "): Must be MONOCHROME2 or PALETTE COLOR (only Labelmap segmentations)");
         fail = OFTrue;
     }
     if (rows == 0)
@@ -1542,7 +1558,8 @@ OFCondition DcmSegmentation::writeSegmentationImageModule(DcmItem& dataset)
         rows = cols = bitsAlloc = bitsStored = highBit = pixelRep = samplesPixel = 0;
         OFString photometricInterpretation;
         samplesPixel = 1;
-        colorModel = "MONOCHROME2"; // TODO: PALETTE COLOR
+
+        colorModel = determineColorModel();
         pixelRep = 0;
 
         /* Write Bits Allocated/Stored, High Bit, Segmentation Fractional Type,
@@ -1988,4 +2005,47 @@ DcmSegmentation::concatFrames(OFVector<DcmIODTypes::FrameBase*> frames, Uint8* p
         *writePos = (OFstatic_cast(unsigned char, *writePos) >> freeBits) << freeBits;
     }
     return EC_Normal;
+}
+
+
+OFString DcmSegmentation::determineColorModel()
+{
+    OFString colorModel;
+    if (m_SegmentationType == DcmSegTypes::ST_LABELMAP)
+    {
+        colorModel = DcmSegTypes::labelmapColorModel2OFString(m_LabelmapColorModel, "MONOCHROME2");
+    }
+    else
+    {
+        colorModel = "MONOCHROME2";
+    }
+    return colorModel;
+}
+
+
+OFBool DcmSegmentation::readAndCheckColorModel()
+{
+    OFString colorModel;
+    getImagePixel().getPhotometricInterpretation(colorModel);
+    // For labelmaps, MONOCHROME2 and PALETTE is permitted
+    if (m_SegmentationType == DcmSegTypes::ST_LABELMAP)
+    {
+        if ((colorModel != "MONOCHROME2") && (colorModel != "PALETTE COLOR"))
+        {
+            DCMSEG_WARN("Photometric Interpretation is not set correctly (" << colorModel << "): Must be MONOCHROME2 or PALETTE COLOR for labelmaps");
+            m_LabelmapColorModel = DcmSegTypes::SLCM_UNKNOWN;
+            return OFFalse;
+        }
+        m_LabelmapColorModel = DcmSegTypes::OFString2LabelmapColorModel(colorModel);
+    }
+    else
+    {
+        if (colorModel != "MONOCHROME2")
+        {
+            DCMSEG_WARN("Photometric Interpretation is not set correctly (" << colorModel << "): Must be MONOCHROME2 for binary and fractional segmentations");
+            return OFFalse;
+        }
+        m_LabelmapColorModel = DcmSegTypes::SLCM_UNKNOWN; // not used for binary/fractional segmentations
+    }
+    return OFFalse;
 }

@@ -188,6 +188,8 @@ public:
      *          allow for more than 255 segments (labels) in the segmentation
      *          object (up to 65535). If OFTrue, 16 bit pixel data is used,
      *          otherwise 8 bit.
+     *  @param  colorModel The color model to be used for the labelmap. Default
+     *          is MONOCHROME2, alternative is PALETTE.
      *  @return EC_Normal if creation was successful, error otherwise
      */
     static OFCondition createLabelmapSegmentation(DcmSegmentation*& segmentation,
@@ -195,7 +197,8 @@ public:
                                                   const Uint16 columns,
                                                   const IODGeneralEquipmentModule::EquipmentInfo& equipmentInfo,
                                                   const ContentIdentificationMacro& contentIdentification,
-                                                  const OFBool use16Bit);
+                                                  const OFBool use16Bit,
+                                                  const DcmSegTypes::E_SegmentationLabelmapColorModel colorModel = DcmSegTypes::SLCM_MONOCHROME2);
 
     /** Factory method to create a fractional segmentation object from the minimal
      *  set of information required. The actual segments and the frame data is
@@ -381,12 +384,16 @@ public:
 
     /** Add frame to segmentation object
      *  @param  pixData Pixel data to be added. Length must be rows*columns bytes.
-     *          For binary segmentations (bit depth i.e.\ Bits
-     *          Allocated/Stored=1), each byte equal to 0 will be interpreted as
-     *          "not set", while every other value is interpreted as "set". For
-     *          fractional segmentations the full byte is copied as is.
+     *          - For binary segmentations (bit depth i.e.\ Bits
+     *            Allocated/Stored=1), each byte equal to 0 will be interpreted as
+     *            "not set", while every other value is interpreted as "set".
+     *          - For fractional segmentations the full byte is copied as is.
+     *          - For labelmap segmentations, the value of each byte is interpreted
+     *            as the segment number. In that case the segmentNumber parameters
+     *            is ignored.
      *  @param  segmentNumber The logical segment number (>=1) this frame refers to.
      *          The segment identified by the segmentNumber must already exist.
+     *          For labelmap segmentations, this parameter is ignored.
      *  @param  perFrameInformation The functional groups that identify this frame (i.e.
      *          which are planned to be not common for all other frames). The
      *          functional groups are copied, so ownership of each group stays
@@ -642,6 +649,22 @@ protected:
     template <typename T>
     OFCondition addFrame(T* pixData);
 
+    /** Determine color model. The color model is always MONOCHROME2, except for
+     *  labelmaps where PALETTE is permitted. This method checks whether the
+     *  we have a labelmap and if returns the correct string for setting Photometric
+     *  Interpretation based on desired color model setting (m_LabelmapColorModel).
+     *  If unknown color model is requested, MONOCHROME2 and a warning is printed.
+     *  @return The color model string for Photometric Interpretation attribute.
+     */
+    OFString determineColorModel();
+
+    /** Checks whether color model found in Photometric Interpretation is valid,
+     *  i.e. MONOCHROME2, or in case of labelmaps MONOCHROME2 or PALETTE.
+     *  Sets internal flag m_labelmapColorModel (for labelmaps) accordingly.
+     *  @return OFTrue if color model is valid, OFFalse otherwise
+     */
+    OFBool readAndCheckColorModel();
+
 private:
 
     struct SetRowsAndCols;
@@ -682,6 +705,10 @@ private:
 
     /// Denotes whether 16 bit pixel data is used
     OFBool m_16BitPixelData;
+
+    /// Denotes in case of label maps the color model to be used
+    /// (only relevant for label maps, ignored for binary and fractional segmentations)
+    DcmSegTypes::E_SegmentationLabelmapColorModel m_LabelmapColorModel;
 
     /* Image level information */
 
