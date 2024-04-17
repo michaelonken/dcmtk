@@ -35,6 +35,7 @@
 #include "dcmtk/dcmiod/modmultiframedimension.h" // for multi-frame dimension module
 #include "dcmtk/dcmiod/modmultiframefg.h"        // for multi-frame functional group module
 #include "dcmtk/dcmiod/modsegmentationseries.h"  // for segmentation series module
+#include "dcmtk/dcmiod/modpalettecolorlut.h"     // for palette color LUT module
 #include "dcmtk/dcmseg/segdef.h"   //for definitions
 #include "dcmtk/dcmseg/segment.h"  // for DcmSegment class
 #include "dcmtk/dcmseg/segtypes.h" // for segmentation data types
@@ -413,6 +414,11 @@ public:
      */
     virtual IODMultiframeDimensionModule& getDimensions();
 
+    /** Return reference to Palette Color Lookup Table module
+     *  @return Reference to Palette Color Lookup Table module
+     */
+    virtual IODPaletteColorLUTModule& getPaletteColorLUT();
+
     /** Set lossy compression flag of the segmentation object to "01". If one of the
      *  source images of this segmentation has undergone lossy compression then
      *  this function should be called.
@@ -699,6 +705,9 @@ private:
 
     /// Multi-frame Dimension Module
     IODMultiframeDimensionModule m_DimensionModule;
+
+    /// Palette Color LUT Module
+    IODPaletteColorLUTModule m_PaletteColorLUTModule;
 
     /// Binary frame data
     OFVector<DcmIODTypes::FrameBase*> m_Frames;

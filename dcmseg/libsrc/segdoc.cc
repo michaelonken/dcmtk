@@ -122,6 +122,7 @@ DcmSegmentation::DcmSegmentation(OFin_place_type_t(ImagePixel))
     , m_EnhancedGeneralEquipmentModule(DcmSegmentation::IODImage::getData(), DcmSegmentation::IODImage::getRules())
     , m_FG(DcmSegmentation::IODImage::getData(), DcmSegmentation::IODImage::getRules())
     , m_DimensionModule(DcmSegmentation::IODImage::getData(), DcmSegmentation::IODImage::getRules())
+    , m_PaletteColorLUTModule(DcmSegmentation::IODImage::getData(), DcmSegmentation::IODImage::getRules())
     , m_Frames()
     , m_16BitPixelData(OFFalse)
     , m_LabelmapColorModel(DcmSegTypes::SLCM_UNKNOWN)
@@ -158,6 +159,8 @@ void DcmSegmentation::initIODRules()
         new IODRule(DCM_LossyImageCompressionMethod, "1-n", "1C", "GeneralImageModule", DcmIODTypes::IE_IMAGE), OFTrue);
     DcmSegmentation::IODImage::getRules()->addRule(
         new IODRule(DCM_LossyImageCompressionRatio, "1-n", "1C", "GeneralImageModule", DcmIODTypes::IE_IMAGE), OFTrue);
+
+    // ------------ Segmentation Series Module -------------
 
     // Override rule from General Series Module
     DcmSegmentation::IODImage::getRules()->addRule(new IODRule(DCM_ReferencedPerformedProcedureStepSequence,
@@ -453,11 +456,13 @@ OFCondition DcmSegmentation::readWithoutPixelData(DcmItem& dataset)
 
     m_ContentIdentificationMacro.read(dataset);
 
+    m_PaletteColorLUTModule.read(dataset);
+
+    readAndCheckColorModel();
+
     // Read specific segmentation elements
     DcmIODUtil::getAndCheckElementFromDataset(
         dataset, m_MaximumFractionalValue, DcmSegmentation::IODImage::getRules()->getByTag(DCM_MaximumFractionalValue));
-
-    readAndCheckColorModel();
 
     return EC_Normal;
 }
@@ -519,6 +524,15 @@ OFCondition DcmSegmentation::writeWithSeparatePixelData(DcmItem& dataset, Uint8*
     // Write Multi-Frame Dimension Module
     if (result.good())
         result = writeMultiFrameDimensionModule(dataset);
+
+    // Write Palette Color Lookup Table Module
+    if (result.good())
+    {
+        if (m_LabelmapColorModel == DcmSegTypes::SLCM_PALETTE)
+        {
+            result = m_PaletteColorLUTModule.write(dataset);
+        }
+    }
 
     // Write segmentation image module and image pixel module
     if (result.good())
@@ -963,6 +977,11 @@ ContentIdentificationMacro& DcmSegmentation::getContentIdentification()
 IODMultiframeDimensionModule& DcmSegmentation::getDimensions()
 {
     return m_DimensionModule;
+}
+
+IODPaletteColorLUTModule& DcmSegmentation::getPaletteColorLUT()
+{
+    return m_PaletteColorLUTModule;
 }
 
 OFCondition
@@ -2046,6 +2065,15 @@ OFBool DcmSegmentation::readAndCheckColorModel()
             return OFFalse;
         }
         m_LabelmapColorModel = DcmSegTypes::SLCM_UNKNOWN; // not used for binary/fractional segmentations
+    }
+    // If we found PALETTE COLOR, check whether the Palette Color Lookup Table is present
+    if (m_LabelmapColorModel == DcmSegTypes::SLCM_PALETTE)
+    {
+        if (getPaletteColorLUT().numBits() == 0) // checks at least basic descriptor availability
+        {
+            DCMSEG_WARN("Photometric Interpretation is set to PALETTE COLOR but no or invalid Palette Color Lookup Table is present");
+            return OFFalse;
+        }
     }
     return OFFalse;
 }

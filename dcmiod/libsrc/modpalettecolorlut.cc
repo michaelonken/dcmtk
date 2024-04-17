@@ -65,7 +65,7 @@ void IODPaletteColorLUTModule::resetRules()
         new IODRule(DCM_GreenPaletteColorLookupTableDescriptor, "3", "1", getName(), DcmIODTypes::IE_IMAGE), OFTrue);
     m_Rules->addRule(new IODRule(DCM_BluePaletteColorLookupTableDescriptor, "3", "1", getName(), DcmIODTypes::IE_IMAGE),
                      OFTrue);
-    m_Rules->addRule(new IODRule(DCM_PaletteColorLookupTableUID, "1", "1", getName(), DcmIODTypes::IE_IMAGE), OFTrue);
+    m_Rules->addRule(new IODRule(DCM_PaletteColorLookupTableUID, "1", "3", getName(), DcmIODTypes::IE_IMAGE), OFTrue);
     m_Rules->addRule(new IODRule(DCM_RedPaletteColorLookupTableData, "1", "1C", getName(), DcmIODTypes::IE_IMAGE),
                      OFTrue);
     m_Rules->addRule(new IODRule(DCM_GreenPaletteColorLookupTableData, "1", "1C", getName(), DcmIODTypes::IE_IMAGE),
