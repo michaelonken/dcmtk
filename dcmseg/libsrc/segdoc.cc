@@ -1318,13 +1318,7 @@ OFCondition DcmSegmentation::readPixelData(DcmElement* pixelData, const size_t n
                 }
                 else // 16
                 {
-                    std::cout << "TODO: Copying " << frame->getLengthInBytes() << " bytes from position " << pixels16 + count * pixelsPerFrame << std::endl;
                     memcpy(frame->getPixelData(), pixels16 + count * pixelsPerFrame, frame->getLengthInBytes());
-                    // TODO: Remove the following lines later: store 16 bit pixel data to file for debugging
-                    std::string fn("/tmp/16bit_pixel_data");
-                    fn += std::to_string(count) + ".data";
-                    std::ofstream file(fn, std::ios::out | std::ios::binary);
-                    file.write(reinterpret_cast<const char*>(frame->getPixelData()), frame->getLengthInBytes());
                 }
                 // print frame->pixData to cout
                 // frame->print();
@@ -1563,17 +1557,8 @@ OFCondition DcmSegmentation::writeByteBasedFrames(T* pixData)
     // Just copy bytes for each frame as is
     for (size_t count = 0; it != m_Frames.end(); count++)
     {
-        std::cout << "TODO: " << "Copying frame " << count << std::endl;
-        std::cout << "TODO: Frame info: length " << (*it)->getLengthInBytes() << " bytes" << " from position " << (*it)->getPixelData() << " to position " << (pixData + count * (*it)->getLengthInBytes() / bytesPerPixel) << std::endl;
         memcpy(pixData + count * (*it)->getLengthInBytes() / bytesPerPixel, (*it)->getPixelData(), (*it)->getLengthInBytes());
-        // TODO: Remove the following lines later: store 16 bit pixel data to file for debugging
-        std::string fn("/tmp/new_16bit_pixel_data");
-        fn += std::to_string(count) + ".data";
-        std::ofstream file(fn, std::ios::out | std::ios::binary);
-        //file.write(reinterpret_cast<const char*>(pixData + count * (*it)->getLength() / bytesPerPixel), (*it)->getLength());
-        file.write(reinterpret_cast<const char*>((*it)->getPixelData()), (*it)->getLengthInBytes());
         it++;
-        std::cout << "Frame written" << std::endl;
     }
     return EC_Normal;
 }

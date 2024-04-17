@@ -97,8 +97,9 @@ public:
             m_pixData = new PixelType[numPixels];
         }
 
-        Frame(PixelType* pixelData, const size_t lengthInBytes) : m_pixData(pixelData), m_numPixels(lengthInBytes), m_releaseMemory(OFTrue)
+        Frame(PixelType* pixelData, const size_t sizeInBytes) : m_pixData(pixelData), m_numPixels(0), m_releaseMemory(OFTrue)
         {
+            m_numPixels = sizeInBytes / sizeof(PixelType);
         }
 
         Frame(const Frame& rhs)
@@ -184,7 +185,7 @@ public:
 
         /// Array for the pixel data bytes
         PixelType* m_pixData;
-        /// Number of pixel data in bytes
+        /// Number of pixels in the frame
         size_t m_numPixels;
         // Denote whether to release memory in destructor
         OFBool m_releaseMemory;

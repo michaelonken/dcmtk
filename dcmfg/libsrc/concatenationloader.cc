@@ -369,7 +369,7 @@ OFCondition ConcatenationLoader::extractFrames(DcmItem& item, Info& info, const 
                 }
                 else if (info.m_BitsAlloc == 16)
                 {
-                    frame = new DcmIODTypes::Frame<Uint16>(bytesPerFrame);
+                    frame = new DcmIODTypes::Frame<Uint16>(bytesPerFrame / 2);
                     if (frame && frame->getPixelData())
                     {
                         // getLength() returns size in bytes, so divide by 2 since we advance by word

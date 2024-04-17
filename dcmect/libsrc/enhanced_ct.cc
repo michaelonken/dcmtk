@@ -276,7 +276,7 @@ struct EctEnhancedCT::ReadVisitor
             {
                 for (Uint32 n = 0; n < numFrames; n++)
                 {
-                    DcmIODTypes::Frame<Uint16>* f = new DcmIODTypes::Frame<Uint16>(numTotalWords);
+                    DcmIODTypes::Frame<Uint16>* f = new DcmIODTypes::Frame<Uint16>(numBytesFrame / 2);
                     if (f)
                     {
                         memcpy(f->m_pixData, pixData + n * numBytesFrame / 2, numBytesFrame);
