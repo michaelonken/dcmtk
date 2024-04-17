@@ -51,14 +51,14 @@ makeOFConditionConst(IOD_EC_InvalidColorPalette, OFM_dcmiod, 14, OF_error, "Inva
 
 template <>
 OFCondition DcmIODTypes::Frame<Uint16>::getUint8AtIndex(Uint8 &byteVal, const size_t index) {
-    if (index >= length) {
+    if (index >= m_numPixels) {
         return EC_IllegalCall;
     }
-    if (pixData[index] > 255) {
+    if (m_pixData[index] > 255) {
         DCMIOD_ERROR("Value in the frame is too large to be cast to 8 bits");
         return EC_IllegalCall;
     }
-    byteVal = static_cast<Uint8>(pixData[index]);
+    byteVal = static_cast<Uint8>(m_pixData[index]);
     return EC_Normal;
 }
 

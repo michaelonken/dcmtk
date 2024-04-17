@@ -110,7 +110,7 @@ struct EctEnhancedCT::WriteVisitor
             return FG_EC_PixelDataTooLarge;
         }
         const size_t numPixelsFrame = OFstatic_cast(size_t, rows) * OFstatic_cast(size_t, cols);
-        const size_t numBytesFrame  = m_CT.m_Frames[0]->getLength();
+        const size_t numBytesFrame  = m_CT.m_Frames[0]->getLengthInBytes();
         if (numBytesFrame != numPixelsFrame * 2)
         {
             DCMECT_ERROR("Invalid number of bytes per frame: Expected " << numPixelsFrame * 2 << " but got "
@@ -186,7 +186,7 @@ struct EctEnhancedCT::WriteVisitorConcatenation
         m_CT.getRows(rows);
         m_CT.getColumns(cols);
         const size_t numFrames     = m_CT.m_Frames.size();
-        const size_t numBytesFrame = m_CT.m_Frames[0]->getLength();
+        const size_t numBytesFrame = m_CT.m_Frames[0]->getLengthInBytes();
         // Creates the correct pixel data element, based on the image pixel module used.
         m_pixDataLength = numBytesFrame * numFrames;
         m_pixData       = new Uint16[m_pixDataLength / 2];
@@ -276,12 +276,10 @@ struct EctEnhancedCT::ReadVisitor
             {
                 for (Uint32 n = 0; n < numFrames; n++)
                 {
-                    DcmIODTypes::Frame<Uint16>* f = new DcmIODTypes::Frame<Uint16>();
+                    DcmIODTypes::Frame<Uint16>* f = new DcmIODTypes::Frame<Uint16>(numTotalWords);
                     if (f)
                     {
-                        f->length  = numBytesFrame;
-                        f->pixData = new Uint16[f->length / 2];
-                        memcpy(f->pixData, pixData + n * numBytesFrame / 2, numBytesFrame);
+                        memcpy(f->m_pixData, pixData + n * numBytesFrame / 2, numBytesFrame);
                         m_CT.m_Frames.push_back(f);
                     }
                     else
@@ -328,12 +326,10 @@ OFCondition EctEnhancedCT::Frames<PixelType>::addFrame(PixelType* data,
     {
         if (!perFrameInformation.empty())
         {
-            OFunique_ptr<DcmIODTypes::Frame<Uint16>> f(new DcmIODTypes::Frame<Uint16>());
+            OFunique_ptr<DcmIODTypes::Frame<Uint16>> f(new DcmIODTypes::Frame<Uint16>(numPixels));
             if (f)
             {
-                f->length  = numPixels * sizeof(PixelType);
-                f->pixData = new Uint16[f->length / 2];
-                memcpy(f->pixData, data, f->length);
+                memcpy(f->m_pixData, data, f->getLengthInBytes());
                 m_CT.m_Frames.push_back(f.release());
                 OFVector<FGBase*>::const_iterator fg = perFrameInformation.begin();
                 while (result.good() && (fg != perFrameInformation.end()))

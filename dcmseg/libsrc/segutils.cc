@@ -39,27 +39,26 @@ DcmIODTypes::Frame<Uint8>* DcmSegUtils::packBinaryFrame(const Uint8* pixelData, 
         DCMSEG_ERROR("Unable to pack binary segmentation frame: No pixel data provided");
         return NULL;
     }
-    DcmIODTypes::Frame<Uint8>* frame = new DcmIODTypes::Frame<Uint8>();
+    DcmIODTypes::Frame<Uint8>* frame = new DcmIODTypes::Frame<Uint8>(getBytesForBinaryFrame(numPixels));
     if (frame == NULL)
     {
         DCMSEG_ERROR("Could not pack binary segmentation frame: Memory exhausted");
         return NULL;
     }
-    frame->length  = getBytesForBinaryFrame(numPixels);
-    frame->pixData = new Uint8[frame->length];
-    if (frame->pixData == 0)
+    frame->m_pixData = new Uint8[frame->getLengthInBytes()];
+    if (frame->m_pixData == 0)
     {
         delete frame;
         return NULL;
     }
-    memset(frame->pixData, 0, frame->length);
+    memset(frame->m_pixData, 0, frame->getLengthInBytes());
 
     size_t bytePos = 0;
     for (size_t count = 0; count < numPixels; count++)
     {
         // Compute byte position
         bytePos = count / 8;
-        frame->pixData[bytePos]
+        frame->m_pixData[bytePos]
             |= (pixelData[count] != 0) /* value to set */ << (count % 8 /* bit position (0-7) within byte */);
     }
     return frame;
@@ -84,23 +83,21 @@ DcmSegUtils::unpackBinaryFrame(const DcmIODTypes::Frame<Uint8>* frame, Uint16 ro
 
     // Create result frame in memory
     size_t numBits                    = OFstatic_cast(size_t, rows) * cols;
-    DcmIODTypes::Frame<Uint8>* result = new DcmIODTypes::Frame<Uint8>();
+    DcmIODTypes::Frame<Uint8>* result = new DcmIODTypes::Frame<Uint8>(numBits);
     if (result)
     {
-        result->pixData = new Uint8[numBits];
-        if (!result->pixData)
+        if (!result->m_pixData)
         {
             delete result;
             return NULL;
         }
-        result->length = numBits;
     }
-    if (!result || !(result->pixData))
+    if (!result || !(result->m_pixData))
     {
         DCMSEG_ERROR("Cannot unpack binary frame, memory exhausted");
         return NULL;
     }
-    memset(result->pixData, 0, result->length);
+    memset(result->m_pixData, 0, result->getLengthInBytes());
 
     // Transform and copy from packed frame to unpacked result frame
     size_t bytePos = 0;
@@ -110,13 +107,13 @@ DcmSegUtils::unpackBinaryFrame(const DcmIODTypes::Frame<Uint8>* frame, Uint16 ro
         bytePos = count / 8;
         // Bit position (0-7) within byte
         Uint8 bitpos = (count % 8);
-        if ((frame->pixData[bytePos] & (1 << bitpos) /* check whether bit at bitpos is set*/))
+        if ((frame->m_pixData[bytePos] & (1 << bitpos) /* check whether bit at bitpos is set*/))
         {
-            result->pixData[count] = 1;
+            result->m_pixData[count] = 1;
         }
         else
         {
-            result->pixData[count] = 0;
+            result->m_pixData[count] = 0;
         }
     }
     return result;

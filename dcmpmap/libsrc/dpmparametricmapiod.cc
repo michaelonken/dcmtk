@@ -152,7 +152,7 @@ struct DPMParametricMapIOD::ReadVisitor
           DcmIODTypes::Frame<T>* f = new DcmIODTypes::Frame<T>(numBytesFrame);
           if (f)
           {
-            memcpy(f->pixData, pixData + n*numBytesFrame/2, numBytesFrame);
+            memcpy(f->m_pixData, pixData + n*numBytesFrame/2, numBytesFrame);
             map.m_Frames.push_back(f);
           }
           else
@@ -190,9 +190,9 @@ struct DPMParametricMapIOD::ReadVisitor
         for (Uint32 n=0; n < numFrames; n++)
         {
           DcmIODTypes::Frame<Float32>* f = new DcmIODTypes::Frame<Float32>(numBytesFrame);
-          if (f && f->pixData)
+          if (f && f->m_pixData)
           {
-            memcpy(f->pixData, pixData + n*numBytesFrame/4, numBytesFrame);
+            memcpy(f->m_pixData, pixData + n*numBytesFrame/4, numBytesFrame);
             map.m_Frames.push_back(f);
           }
           else
@@ -230,9 +230,9 @@ struct DPMParametricMapIOD::ReadVisitor
         for (Uint16 n=0; n < numFrames; n++)
         {
           DcmIODTypes::Frame<Float64>* f = new DcmIODTypes::Frame<Float64>(numBytesFrame);
-          if (f && f->pixData)
+          if (f && f->m_pixData)
           {
-            memcpy(f->pixData, pixData + n*numBytesFrame/8, numBytesFrame);
+            memcpy(f->m_pixData, pixData + n*numBytesFrame/8, numBytesFrame);
             map.m_Frames.push_back(f);
           }
           else
@@ -303,7 +303,7 @@ struct DPMParametricMapIOD::WriteVisitor
     map.getRows(rows);
     map.getColumns(cols);
     const size_t numFrames = map.m_Frames.size();
-    const size_t numBytesFrame = map.m_Frames[0]->getLength();
+    const size_t numBytesFrame = map.m_Frames[0]->getLengthInBytes();
     const size_t numPixelsFrame = rows * cols;
     // Creates the correct pixel data element, based on the image pixel module used.
     // I.e. For integer data, the "Pixel Data" element is used, i.e. the DcmElement type
@@ -588,7 +588,7 @@ OFCondition DPMParametricMapIOD::Frames<PixelType>::addFrame(PixelType* data,
       OFunique_ptr<DcmIODTypes::Frame<PixelType> > f(new DcmIODTypes::Frame<PixelType>(numPixels * sizeof(PixelType)));
       if (f)
       {
-        memcpy(f->pixData, data, f->length);
+        memcpy(f->m_pixData, data, f->getLengthInBytes());
         m_Map.m_Frames.push_back(f.release());
         OFVector<FGBase*>::const_iterator fg = perFrameInformation.begin();
         while ( result.good() && (fg != perFrameInformation.end()) )
@@ -619,7 +619,7 @@ PixelType* DPMParametricMapIOD::Frames<PixelType>::getFrame(const size_t frameNu
     DcmIODTypes::Frame<PixelType> * f = OFstatic_cast(DcmIODTypes::Frame<PixelType>*, m_Map.m_Frames[frameNumber]);
     if (f)
     {
-      return f->pixData;
+      return f->m_pixData;
     }
   }
   return NULL;

@@ -595,7 +595,7 @@ OFCondition DcmSegmentation::writeWithSeparatePixelData(DcmItem& dataset, Uint8*
     return result;
 }
 
-OFCondition DcmSegmentation::writeWithSeparatePixelData(DcmItem& dataset, Uint16*& pixData, size_t& pixDataLength)
+OFCondition DcmSegmentation::writeWithSeparatePixelData(DcmItem& dataset, Uint16*& pixData, size_t& numPixelDataBytes)
 {
     // FGInterface::write() will know whether it has to check FG structure
     // so we do not need to check FG structure here (OFFalse).
@@ -633,6 +633,15 @@ OFCondition DcmSegmentation::writeWithSeparatePixelData(DcmItem& dataset, Uint16
     if (result.good())
         result = writeMultiFrameDimensionModule(dataset);
 
+    // Write Palette Color Lookup Table Module
+    if (result.good())
+    {
+        if (m_LabelmapColorModel == DcmSegTypes::SLCM_PALETTE)
+        {
+            result = m_PaletteColorLUTModule.write(dataset);
+        }
+    }
+
     // Write segmentation image module and image pixel module
     if (result.good())
         result = writeSegmentationImageModule(dataset);
@@ -665,11 +674,11 @@ OFCondition DcmSegmentation::writeWithSeparatePixelData(DcmItem& dataset, Uint16
         {
             bytesPerPixel = bytesPerPixel / 8;
         }
-        result = getTotalBytesRequired(rows, cols, bytesPerPixel, numFrames, pixDataLength);
+        result = getTotalBytesRequired(rows, cols, bytesPerPixel, numFrames, numPixelDataBytes);
         if (result.bad())
             return result;
 
-        pixData = new Uint16[pixDataLength];
+        pixData = new Uint16[numPixelDataBytes / 2]; // 16 bit data
         if (!pixData)
             return EC_MemoryExhausted;
 
@@ -781,13 +790,14 @@ OFCondition DcmSegmentation::addFrame(T* pixData)
             case DcmSegTypes::ST_FRACTIONAL:
             case DcmSegTypes::ST_LABELMAP:
             {
-                frame = new DcmIODTypes::Frame<T>(rows * cols);
+                Uint8 bytesPerPixel = sizeof(T) / 8; // 8 or 16 -> 1 or 2 bytes per pixel
+                frame = new DcmIODTypes::Frame<T>(rows * cols * bytesPerPixel);
 
                 if (frame)
                 {
-                    if (frame->pixData)
+                    if (frame->m_pixData)
                     {
-                        memcpy(frame->pixData, pixData, frame->length);
+                        memcpy(frame->m_pixData, pixData, frame->getLengthInBytes());
                     }
                     else
                     {
@@ -1308,7 +1318,13 @@ OFCondition DcmSegmentation::readPixelData(DcmElement* pixelData, const size_t n
                 }
                 else // 16
                 {
-                    memcpy(frame->getPixelData(), pixels16 + count * pixelsPerFrame * 2, pixelsPerFrame * 2);
+                    std::cout << "TODO: Copying " << frame->getLengthInBytes() << " bytes from position " << pixels16 + count * pixelsPerFrame << std::endl;
+                    memcpy(frame->getPixelData(), pixels16 + count * pixelsPerFrame, frame->getLengthInBytes());
+                    // TODO: Remove the following lines later: store 16 bit pixel data to file for debugging
+                    std::string fn("/tmp/16bit_pixel_data");
+                    fn += std::to_string(count) + ".data";
+                    std::ofstream file(fn, std::ios::out | std::ios::binary);
+                    file.write(reinterpret_cast<const char*>(frame->getPixelData()), frame->getLengthInBytes());
                 }
                 // print frame->pixData to cout
                 // frame->print();
@@ -1478,7 +1494,7 @@ OFCondition DcmSegmentation::writeDataset(DcmItem& dataset)
         {
             if (has16BitPixelData())
             {
-                result = dataset.putAndInsertUint16Array(DCM_PixelData, pixData16, OFstatic_cast(unsigned long, pixDataLength));
+                result = dataset.putAndInsertUint16Array(DCM_PixelData, pixData16, OFstatic_cast(unsigned long, pixDataLength / 2));
             }
             else
             {
@@ -1542,12 +1558,22 @@ OFCondition DcmSegmentation::writeMultiFrameDimensionModule(DcmItem& dataset)
 template <typename T>
 OFCondition DcmSegmentation::writeByteBasedFrames(T* pixData)
 {
+    Uint8 bytesPerPixel = sizeof(T);
     typename OFVector<DcmIODTypes::FrameBase*>::iterator it = m_Frames.begin();
     // Just copy bytes for each frame as is
     for (size_t count = 0; it != m_Frames.end(); count++)
     {
-        memcpy(pixData + count * (*it)->getLength(), (*it)->getPixelData(), (*it)->getLength());
+        std::cout << "TODO: " << "Copying frame " << count << std::endl;
+        std::cout << "TODO: Frame info: length " << (*it)->getLengthInBytes() << " bytes" << " from position " << (*it)->getPixelData() << " to position " << (pixData + count * (*it)->getLengthInBytes() / bytesPerPixel) << std::endl;
+        memcpy(pixData + count * (*it)->getLengthInBytes() / bytesPerPixel, (*it)->getPixelData(), (*it)->getLengthInBytes());
+        // TODO: Remove the following lines later: store 16 bit pixel data to file for debugging
+        std::string fn("/tmp/new_16bit_pixel_data");
+        fn += std::to_string(count) + ".data";
+        std::ofstream file(fn, std::ios::out | std::ios::binary);
+        //file.write(reinterpret_cast<const char*>(pixData + count * (*it)->getLength() / bytesPerPixel), (*it)->getLength());
+        file.write(reinterpret_cast<const char*>((*it)->getPixelData()), (*it)->getLengthInBytes());
         it++;
+        std::cout << "Frame written" << std::endl;
     }
     return EC_Normal;
 }
@@ -1992,13 +2018,13 @@ DcmSegmentation::concatFrames(OFVector<DcmIODTypes::FrameBase*> frames, Uint8* p
         // that the current frame can use to store the its own first bits.
         firstByte                        = OFstatic_cast(unsigned char, (writePos[0] << freeBits)) >> freeBits;
         DcmIODTypes::Frame<Uint8>* frame = OFstatic_cast(DcmIODTypes::Frame<Uint8>*, *baseFrame);
-        memcpy(writePos, (*frame).getPixelDataTyped(), (*frame).getLength());
+        memcpy(writePos, (*frame).getPixelDataTyped(), (*frame).getLengthInBytes());
         // If the previous frame left over some unused bits, shift the current frame
         // that number of bits to the left, and restore the original bits of the
         // previous frame that are overwritten by the shifting operation.
         if (freeBits > 0)
         {
-            DcmSegUtils::alignFrameOnBitPosition(writePos, (*frame).getLength(), 8 - freeBits);
+            DcmSegUtils::alignFrameOnBitPosition(writePos, (*frame).getLengthInBytes(), 8 - freeBits);
             writePos[0] |= firstByte;
         }
         // Compute free bits left over from this frame in the previous byte written
@@ -2008,11 +2034,11 @@ DcmSegmentation::concatFrames(OFVector<DcmIODTypes::FrameBase*> frames, Uint8* p
         // byte.
         if (freeBits > 0)
         {
-            writePos = writePos + (*frame).getLength() - 1;
+            writePos = writePos + (*frame).getLengthInBytes() - 1;
         }
         else
         {
-            writePos = writePos + (*frame).getLength();
+            writePos = writePos + (*frame).getLengthInBytes();
         }
         // Next frame
         baseFrame++;

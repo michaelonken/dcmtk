@@ -75,9 +75,9 @@ public:
         /** Returns pixel data size in bytes
          *  @return Size of pixel data in bytes
          */
-        virtual size_t getLength() = 0;
+        virtual size_t getLengthInBytes() const = 0;
         virtual void* getPixelData() = 0;
-        virtual Uint8 bytesPerPixel() = 0;
+        virtual Uint8 bytesPerPixel() const = 0;
         virtual OFCondition getUint8AtIndex(Uint8 &byteVal, const size_t index) =0;
         virtual OFCondition getUint16AtIndex(Uint16 &shortVal, const size_t index) =0;
         virtual void setReleaseMemory(OFBool release) = 0;
@@ -90,24 +90,24 @@ public:
     template<typename PixelType>
     struct Frame : public FrameBase
     {
-        Frame() : pixData(NULL), length(0), releaseMemory(OFTrue) {}
+        Frame() : m_pixData(NULL), m_numPixels(0), m_releaseMemory(OFTrue) {}
 
-        Frame(const size_t lengthInBytes) : pixData(NULL), length(lengthInBytes), releaseMemory(OFTrue)
+        Frame(const size_t numPixels) : m_pixData(NULL), m_numPixels(numPixels), m_releaseMemory(OFTrue)
         {
-            pixData = new PixelType[lengthInBytes];
+            m_pixData = new PixelType[numPixels];
         }
 
-        Frame(PixelType* pixelData, const size_t lengthInBytes) : pixData(pixelData), length(lengthInBytes), releaseMemory(OFTrue)
+        Frame(PixelType* pixelData, const size_t lengthInBytes) : m_pixData(pixelData), m_numPixels(lengthInBytes), m_releaseMemory(OFTrue)
         {
         }
 
         Frame(const Frame& rhs)
         {
-            delete[] pixData;
-            pixData = new PixelType[rhs.length];
-            memcpy(pixData, rhs.pixData, rhs.length);
-            length = rhs.length;
-            releaseMemory = rhs.releaseMemory;
+            delete[] m_pixData;
+            m_pixData = new PixelType[rhs.m_numPixels];
+            memcpy(m_pixData, rhs.m_pixData, rhs.m_numPixels);
+            m_numPixels = rhs.m_numPixels;
+            m_releaseMemory = rhs.m_releaseMemory;
         };
 
         /// Assignment operator
@@ -115,86 +115,86 @@ public:
         {
             if (this != &rhs)
             {
-                delete[] pixData;
-                pixData = new PixelType[rhs.length];
-                memcpy(pixData, rhs.pixData, rhs.length);
-                length = rhs.length;
-                releaseMemory = rhs.releaseMemory;
+                delete[] m_pixData;
+                m_pixData = new PixelType[rhs.m_numPixels];
+                memcpy(m_pixData, rhs.m_pixData, rhs.m_numPixels);
+                m_numPixels = rhs.m_numPixels;
+                m_releaseMemory = rhs.m_releaseMemory;
             }
             return *this;
         }
 
         virtual void setReleaseMemory(OFBool release)
         {
-            releaseMemory = release;
+            m_releaseMemory = release;
         }
 
         /** Get size of pixel data in bytes
          *  @return Size of pixel data in bytes
          */
-        virtual size_t getLength()
+        virtual size_t getLengthInBytes() const
         {
-            return length;
+            return m_numPixels * bytesPerPixel(); // PixelType is always 1 or 2 bytes
         }
 
         virtual void* getPixelData()
         {
-            return pixData;
+            return m_pixData;
         }
 
         virtual PixelType* getPixelDataTyped()
         {
-            return pixData;
+            return m_pixData;
         }
 
-        virtual Uint8 bytesPerPixel()
+        virtual Uint8 bytesPerPixel() const
         {
             return sizeof(PixelType);
         }
 
         virtual OFCondition getUint8AtIndex(Uint8 &byteVal, const size_t index)
         {
-            if (index >= length) {
+            if (index >= m_numPixels) {
                 return EC_IllegalCall;
             }
-            byteVal = static_cast<Uint8>(pixData[index]);
+            byteVal = static_cast<Uint8>(m_pixData[index]);
             return EC_Normal;
         }
 
         virtual OFCondition getUint16AtIndex(Uint16 &shortVal, const size_t index)
         {
-            if (index >= length) {
+            if (index >= m_numPixels) {
                 return EC_IllegalCall;
             }
-            shortVal = static_cast<Uint16>(pixData[index]);
+            shortVal = static_cast<Uint16>(m_pixData[index]);
             return EC_Normal;
         }
 
         virtual OFString print()
         {
             OFStringStream ss;
-            ss << "Frame with " << length + " bytes:\n";
-            for (size_t i = 0; i < length; i++)
+            ss << "Frame with " << m_numPixels + " bytes:\n";
+            for (size_t i = 0; i < m_numPixels; i++)
             {
-                ss << STD_NAMESPACE hex << (Uint16)pixData[i] + " ";
+                ss << STD_NAMESPACE hex << (Uint16)(m_pixData[i]) + " ";
             }
             ss << "\n";
             return ss.str().c_str();
         }
 
         /// Array for the pixel data bytes
-        PixelType* pixData;
+        PixelType* m_pixData;
         /// Number of pixel data in bytes
-        size_t length;
+        size_t m_numPixels;
         // Denote whether to release memory in destructor
-        OFBool releaseMemory;
+        OFBool m_releaseMemory;
         /// Destructor, frees memory
         ~Frame()
         {
-            if (releaseMemory)
+            if (m_releaseMemory)
             {
-                delete[] pixData;
-                pixData = NULL;
+                delete[] m_pixData;
+                m_pixData = NULL;
             }
         }
     };

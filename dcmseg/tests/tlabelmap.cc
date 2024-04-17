@@ -35,7 +35,10 @@
 
 
 //#define LABELMAP_FILE "/home/michael/data/dcm/SEG/highdicom_labelmap/labelmap_monochrome8bit.dcm"
-#define LABELMAP_FILE "/home/michael/data/dcm/SEG/highdicom_labelmap/labelmap_palettecolor8bit.dcm"
+//#define LABELMAP_FILE "/home/michael/data/dcm/SEG/highdicom_labelmap/labelmap_palettecolor8bit.dcm"
+//#define LABELMAP_FILE "/home/michael/data/dcm/SEG/highdicom_labelmap/labelmap_palettecolor8bit_with_color.dcm"
+//#define LABELMAP_FILE "/home/michael/data/dcm/SEG/highdicom_labelmap/labelmap_palettecolor16bit.dcm"
+#define LABELMAP_FILE "/home/michael/data/dcm/SEG/highdicom_labelmap/labelmap_palettecolor16bit_with_color.dcm"
 
 
 static OFString EXPECTED_DUMP("");
@@ -71,10 +74,10 @@ OFTEST(dcmseg_labelmaproundtrip)
         OFString ds_dump;
         OFOStringStream oss;
         DcmDataset ds;
-        result = seg->writeDataset(ds);
-        result = seg->saveFile( "/tmp/out.dcm", EXS_RLELossless);
+        OFCHECK(seg->writeDataset(ds) == EC_Normal);
+        OFCHECK(seg->saveFile( "/tmp/created.dcm", EXS_RLELossless) == EC_Normal);
         OFCHECK(ds.chooseRepresentation(EXS_RLELossless, NULL).good());
-        OFCHECK_MSG(result.good(), "Could not write segmentation object to dataset");
+        OFCHECK_MSG(result.good(), "Could not convert segmentation object to dataset in memory");
         ds.print(oss);
         ds_dump = oss.str().c_str();
         checkCreatedObject(ds_dump);

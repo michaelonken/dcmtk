@@ -359,11 +359,11 @@ static void checkConcatenationInstance(size_t numInstance, DcmSegmentation* srcI
 
     const DcmIODTypes::Frame<Uint8>* frame = OFstatic_cast(const DcmIODTypes::Frame<Uint8>*, concat->getFrame(0));
     OFCHECK(frame != OFnullptr);
-    OFCHECK(frame->pixData != OFnullptr);
-    OFCHECK(OFstatic_cast(Uint8, frame->length) == NUM_PIXELS_PER_FRAME);
-    for (size_t pix = 0; pix < frame->length; pix++)
+    OFCHECK(frame->m_pixData != OFnullptr);
+    OFCHECK(OFstatic_cast(Uint8, frame->getLengthInBytes()) == NUM_PIXELS_PER_FRAME);
+    for (size_t pix = 0; pix < frame->getLengthInBytes(); pix++)
     {
-        OFCHECK(frame->pixData[pix] == pix);
+        OFCHECK(frame->m_pixData[pix] == pix);
     }
     delete concat;
 }

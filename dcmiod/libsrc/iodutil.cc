@@ -709,16 +709,17 @@ OFCondition DcmIODUtil::extractBinaryFrames(Uint8* pixData,
     // Loop over each frame and copy it to Frame structures
     for (size_t f = 0; f < numFrames; f++)
     {
-        // Create frame with correct length and copy 1:1 from pixel data
-        DcmIODTypes::Frame<Uint8>* frame = new DcmIODTypes::Frame<Uint8>();
-        frame->length             = frameLengthBytes;
-        frame->pixData            = new Uint8[frameLengthBytes];
-        if (!frame->pixData)
+        // Create frame with correct length and copy 1:1 from pixel data.
+        // frameLengthBytes is the number of bytes we need to copy for each frame and always
+        // same as number of pixels (since we have 1 byte per pixel in this case) as required
+        // by the constructor.
+        DcmIODTypes::Frame<Uint8>* frame = new DcmIODTypes::Frame<Uint8>(frameLengthBytes);
+        if (!frame->m_pixData)
         {
             delete frame;
             return EC_MemoryExhausted;
         }
-        memcpy(frame->pixData, readPos, frame->length);
+        memcpy(frame->m_pixData, readPos, frame->getLengthInBytes());
         // ---------------------------------------------------------
         // Remove bits in first byte from former frame if necessary:
         // ---------------------------------------------------------
@@ -728,14 +729,14 @@ OFCondition DcmIODUtil::extractBinaryFrames(Uint8* pixData,
         // make frame start at byte boundary.
         if (bitShift > 0)
         {
-            DcmIODUtil::alignFrameOnByteBoundary(frame->pixData, frame->length, 8 - bitShift);
+            DcmIODUtil::alignFrameOnByteBoundary(frame->m_pixData, frame->getLengthInBytes(), 8 - bitShift);
         }
         // -------------------------------------------------------
         // Mask out (set 0) bits of last byte if not used by frame
         // -------------------------------------------------------
         // Adapt last byte by masking out unused bits (i.e. those belonging to next frame).
         // A reader should ignore those unused bits anyway.
-        frame->pixData[frame->length - 1] = OFstatic_cast(unsigned char, (frame->pixData[frame->length - 1] << overlapBits)) >> overlapBits;
+        frame->m_pixData[frame->getLengthInBytes() - 1] = OFstatic_cast(unsigned char, (frame->m_pixData[frame->getLengthInBytes() - 1] << overlapBits)) >> overlapBits;
         // Store frame
         results.push_back(frame);
         // Compute the bitshift created by this frame
@@ -746,11 +747,11 @@ OFCondition DcmIODUtil::extractBinaryFrames(Uint8* pixData,
         if (bitShift > 0)
         {
 
-            readPos = readPos + frame->length - 1;
+            readPos = readPos + frame->getLengthInBytes() - 1;
         }
         else
         {
-            readPos = readPos + frame->length;
+            readPos = readPos + frame->getLengthInBytes();
         }
     }
     return EC_Normal;

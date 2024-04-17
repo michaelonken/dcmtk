@@ -363,8 +363,8 @@ OFCondition ConcatenationLoader::extractFrames(DcmItem& item, Info& info, const 
                     frame = new DcmIODTypes::Frame<Uint8>(bytesPerFrame);
                     if (frame && frame->getPixelData())
                     {
-                        const Uint8* ptr = pixData8 + f * frame->getLength();
-                        memcpy(frame->getPixelData(), ptr, frame->getLength());
+                        const Uint8* ptr = pixData8 + f * frame->getLengthInBytes();
+                        memcpy(frame->getPixelData(), ptr, frame->getLengthInBytes());
                     }
                 }
                 else if (info.m_BitsAlloc == 16)
@@ -373,9 +373,9 @@ OFCondition ConcatenationLoader::extractFrames(DcmItem& item, Info& info, const 
                     if (frame && frame->getPixelData())
                     {
                         // getLength() returns size in bytes, so divide by 2 since we advance by word
-                        const Uint16* ptr = pixData16 + f * frame->getLength() / 2;
+                        const Uint16* ptr = pixData16 + f * frame->getLengthInBytes() / 2;
                         // memcpy expects number of bytes to copy
-                        memcpy(frame->getPixelData(), ptr, frame->getLength());
+                        memcpy(frame->getPixelData(), ptr, frame->getLengthInBytes());
                     }
                 }
                 if (frame)
