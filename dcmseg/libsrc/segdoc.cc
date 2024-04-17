@@ -1208,6 +1208,10 @@ OFCondition DcmSegmentation::readFrames(DcmItem& dataset)
     Uint16 bytesPerPixel = (allocated >= 8) ? allocated / 8 : 1;
     if (!checkPixDataLength(pixelData, rows, cols, bytesPerPixel, numberOfFrames))
         return IOD_EC_InvalidPixelData;
+    if (bytesPerPixel == 2)
+    {
+        m_16BitPixelData = OFTrue;
+    }
 
     /* Get pixel data values */
     size_t pixelsPerFrame = OFstatic_cast(size_t, rows) * cols;

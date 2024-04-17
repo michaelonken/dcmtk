@@ -642,13 +642,6 @@ protected:
     template <typename T>
     OFCondition addFrame(T* pixData);
 
-    // /** Add frame to segmentation object.
-    //  *  @param  pixData Pixel data to be added. Length must be rows*columns bytes.
-    //  *          Pixel data is copied so it must be freed by the caller.
-    //  *  @return EC_Normal if adding was successful, error otherwise
-    //  */
-    // virtual OFCondition addFrame(Uint16* pixData);
-
 private:
 
     struct SetRowsAndCols;
