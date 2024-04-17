@@ -333,43 +333,54 @@ OFCondition ConcatenationLoader::deleteConcatAttributes(DcmItem& item)
 
 OFCondition ConcatenationLoader::extractFrames(DcmItem& item, Info& info, const Uint32 numFrames)
 {
-    const Uint8* pixData = NULL;
-    OFCondition result   = item.findAndGetUint8Array(DCM_PixelData, pixData);
-    if (result.good() && pixData)
+    const Uint8* pixData8 = NULL;
+    const Uint16* pixData16 = NULL;
+    OFCondition result;
+    if (info.m_BitsAlloc <= 8)
+    {
+        result = item.findAndGetUint8Array(DCM_PixelData, pixData8);
+    }
+    else if (info.m_BitsAlloc == 16)
+    {
+        result = item.findAndGetUint16Array(DCM_PixelData, pixData16);
+    }
+    else
+    {
+        DCMFG_ERROR("Bits Allocated=" << info.m_BitsAlloc << " not supported, must be 1, 8 or 16");
+        return FG_EC_UnsupportedPixelDataLayout;
+    }
+    if (result.good() && (pixData8 || pixData16))
     {
         size_t bytesPerFrame = 0;
         result                 = computeBytesPerFrame(info.m_Rows, info.m_Cols, info.m_BitsAlloc, bytesPerFrame);
         if (result.good())
         {
-            const Uint8* ptr = pixData;
             for (Uint32 f = 0; f < numFrames; f++)
             {
                 DcmIODTypes::FrameBase* frame = NULL;
                 if (info.m_BitsAlloc <= 8) // 8 or 1
                 {
                     frame = new DcmIODTypes::Frame<Uint8>(bytesPerFrame);
+                    if (frame && frame->getPixelData())
+                    {
+                        const Uint8* ptr = pixData8 + f * frame->getLength();
+                        memcpy(frame->getPixelData(), ptr, frame->getLength());
+                    }
                 }
                 else if (info.m_BitsAlloc == 16)
                 {
                     frame = new DcmIODTypes::Frame<Uint16>(bytesPerFrame);
-                }
-                else
-                {
-                    DCMFG_ERROR("Bits Allocated=" << info.m_BitsAlloc << " not supported, must be 8 or 16");
-                    return FG_EC_UnsupportedPixelDataLayout;
+                    if (frame && frame->getPixelData())
+                    {
+                        // getLength() returns size in bytes, so divide by 2 since we advance by word
+                        const Uint16* ptr = pixData16 + f * frame->getLength() / 2;
+                        // memcpy expects number of bytes to copy
+                        memcpy(frame->getPixelData(), ptr, frame->getLength());
+                    }
                 }
                 if (frame)
                 {
-                    if (frame->getPixelData())
-                    {
-                        memcpy(frame->getPixelData(), ptr, frame->getLength());
-                        ptr += frame->getLength();
-                        m_Frames.push_back(frame);
-                    }
-                    else
-                    {
-                        result = EC_MemoryExhausted;
-                    }
+                    m_Frames.push_back(frame);
                 }
                 else
                 {

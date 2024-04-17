@@ -72,6 +72,9 @@ public:
     {
         /// Destructor
         FrameBase() {}
+        /** Returns pixel data size in bytes
+         *  @return Size of pixel data in bytes
+         */
         virtual size_t getLength() = 0;
         virtual void* getPixelData() = 0;
         virtual Uint8 bytesPerPixel() = 0;
@@ -126,6 +129,9 @@ public:
             releaseMemory = release;
         }
 
+        /** Get size of pixel data in bytes
+         *  @return Size of pixel data in bytes
+         */
         virtual size_t getLength()
         {
             return length;
