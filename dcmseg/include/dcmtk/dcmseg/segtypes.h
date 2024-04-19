@@ -183,7 +183,7 @@ public:
 
     /** Returns string representation from labelmap color enum type
      *  @param  value The labelmap color model as enum value
-     *  @param  fallBackValue The value to use if the enum value is unknown or invalid (not used if empty)
+     *  @param  fallbackValue The value to use if the enum value is unknown or invalid (not used if empty)
      *  @return The labelmap color model as a string
      */
     static OFString labelmapColorModel2OFString(const DcmSegTypes::E_SegmentationLabelmapColorModel value, const OFString& fallbackValue="");

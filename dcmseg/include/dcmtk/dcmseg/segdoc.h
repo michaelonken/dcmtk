@@ -526,6 +526,8 @@ protected:
      *  @param  columns The number of columns for the segmentation
      *  @param  equipmentInfo Equipment information
      *  @param  contentIdentification Content meta information
+     *  @param  bitsAllocated The number of bits allocated for the pixel data
+     *          8 for binary and fractional segmentations, 8 or 16 for labelmaps
      *  @return EC_Normal if creation was successful, error otherwise
      */
     static OFCondition createCommon(DcmSegmentation*& segmentation,

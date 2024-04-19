@@ -31,13 +31,12 @@
 #include "dcmtk/dcmdata/dcvrlo.h"
 #include "dcmtk/dcmdata/dcvrut.h"
 
-/** Class representing a segment from the Segment Identification Sequence,
- *  as used within the Segmentation Image Module. It includes the Segment
- *  Description Macro.
- */
-
 class DcmSegmentation;
 
+/** Class that represents a Segment inside a Segmentation object.
+ *  It mostly represents data as found in an item of the Segment Identification
+ *  Sequence (Segmentation Image Module).
+ */
 class DCMTK_DCMSEG_EXPORT DcmSegment
 {
 
