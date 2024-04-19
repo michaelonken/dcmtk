@@ -180,9 +180,9 @@ OFTEST(dcmiod_palette_color_lut_module_extra_checks)
     OFCHECK(mod.setSegmentedGreenPaletteColorLookupTableData(data16bit, num_entries).good());
     OFCHECK(mod.setSegmentedBluePaletteColorLookupTableData(data16bit, num_entries).good());
     // this does not make sense:
-    OFCHECK(mod.setSegmentedRedPaletteColorLookupTableData(data16bit, num_entries).good());
-    OFCHECK(mod.setSegmentedGreenPaletteColorLookupTableData(data16bit, num_entries).good());
-    OFCHECK(mod.setSegmentedBluePaletteColorLookupTableData(data16bit, num_entries).good());
+    OFCHECK(mod.setRedPaletteColorLookupTableData(data16bit, num_entries).good());
+    OFCHECK(mod.setGreenPaletteColorLookupTableData(data16bit, num_entries).good());
+    OFCHECK(mod.setBluePaletteColorLookupTableData(data16bit, num_entries).good());
     OFCHECK(mod.write(item).bad());
     delete[] data16bit;
 

@@ -113,31 +113,35 @@ OFCondition IODPaletteColorLUTModule::read(DcmItem& source, const OFBool clearOl
 OFCondition IODPaletteColorLUTModule::write(DcmItem& destination)
 {
     OFBool valid, isSegmented;
-    checkSegmentConsistency(OFFalse, isSegmented);
-    if (!isSegmented)
+    valid = checkSegmentConsistency(OFFalse, isSegmented);
+    if (valid)
     {
-        valid = checkLUT(DCM_RedPaletteColorLookupTableDescriptor, DCM_RedPaletteColorLookupTableData);
-        if (valid)
-            valid = checkLUT(DCM_GreenPaletteColorLookupTableDescriptor, DCM_GreenPaletteColorLookupTableData);
-        if (valid)
-            valid = checkLUT(DCM_BluePaletteColorLookupTableDescriptor, DCM_BluePaletteColorLookupTableData);
-        if (valid)
-            valid = checkDescriptorConsistency(OFTrue /* report as errors */);
-        if (valid)
-            valid = checkDataConsistency(OFTrue /* report as errors */);
-        if (valid)
+        if (!isSegmented)
         {
-            return IODComponent::write(destination);
+            valid = checkLUT(DCM_RedPaletteColorLookupTableDescriptor, DCM_RedPaletteColorLookupTableData);
+            if (valid)
+                valid = checkLUT(DCM_GreenPaletteColorLookupTableDescriptor, DCM_GreenPaletteColorLookupTableData);
+            if (valid)
+                valid = checkLUT(DCM_BluePaletteColorLookupTableDescriptor, DCM_BluePaletteColorLookupTableData);
+            if (valid)
+                valid = checkDescriptorConsistency(OFTrue /* report as errors */);
+            if (valid)
+                valid = checkDataConsistency(OFTrue /* report as errors */);
+            if (valid)
+            {
+                return IODComponent::write(destination);
+            }
+            else
+            {
+                return IOD_EC_InvalidColorPalette;
+            }
         }
         else
         {
-            return IOD_EC_InvalidColorPalette;
+            return IODComponent::write(destination);
         }
     }
-    else
-    {
-        return IODComponent::write(destination);
-    }
+    return IOD_EC_InvalidColorPalette;
 }
 
 OFCondition IODPaletteColorLUTModule::getRedPaletteColorLookupTableDescriptor(Uint16& value,
