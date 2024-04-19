@@ -27,5 +27,8 @@ OFTEST_REGISTER(dcmseg_bigdim);
 OFTEST_REGISTER(dcmseg_utils);
 OFTEST_REGISTER(dcmseg_roundtrip);
 OFTEST_REGISTER(dcmseg_concat_binary);
-OFTEST_REGISTER(dcmseg_labelmaproundtrip);
+OFTEST_REGISTER(dcmseg_labelmap_8bit_mono2);
+OFTEST_REGISTER(dcmseg_labelmap_16bit_mono2);
+OFTEST_REGISTER(dcmseg_labelmap_8bit_palette);
+OFTEST_REGISTER(dcmseg_labelmap_16bit_palette);
 OFTEST_MAIN("dcmseg")

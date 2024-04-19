@@ -790,8 +790,7 @@ OFCondition DcmSegmentation::addFrame(T* pixData)
             case DcmSegTypes::ST_FRACTIONAL:
             case DcmSegTypes::ST_LABELMAP:
             {
-                Uint8 bytesPerPixel = sizeof(T) / 8; // 8 or 16 -> 1 or 2 bytes per pixel
-                frame = new DcmIODTypes::Frame<T>(rows * cols * bytesPerPixel);
+                frame = new DcmIODTypes::Frame<T>(rows * cols);
 
                 if (frame)
                 {
@@ -878,12 +877,12 @@ DcmSegmentation::addFrame(T* pixData, const Uint16 segmentNumber, const OFVector
     if (m_Frames.size() >= DCM_SEG_MAX_FRAMES)
         return SG_EC_MaxFramesReached;
 
-    if (m_16BitPixelData && (sizeof(T) != 16))
+    if (m_16BitPixelData && (sizeof(T) != 2))
     {
         DCMSEG_ERROR("Cannot add frame: 16 bit pixel data expected but 8 bit pixel data provided");
         return IOD_EC_InvalidPixelData;
     }
-    else if (!m_16BitPixelData && (sizeof(T) == 16))
+    else if (!m_16BitPixelData && (sizeof(T) == 2))
     {
         DCMSEG_ERROR("Cannot add frame: 8 bit pixel data expected but 16 bit pixel data provided");
         return IOD_EC_InvalidPixelData;
