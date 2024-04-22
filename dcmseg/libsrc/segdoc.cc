@@ -35,7 +35,6 @@
 #include "dcmtk/dcmseg/segutils.h"
 #include "dcmtk/ofstd/ofutil.h"
 
-// default constructor (protected, instance creation via create() function)
 
 // instantiate template functions addFrame() and addFrame() for Uint8 and Uint16
 template OFCondition
@@ -753,6 +752,7 @@ OFCondition DcmSegmentation::addSegment(DcmSegment* seg, Uint16& segmentNumber)
         return SG_EC_MaxSegmentsReached;
     }
     // Use next free segment number and insert
+    // (i.e. get the highest segment number and increment by 1).
     std::map<Uint16, DcmSegment*>::reverse_iterator it = m_Segments.rbegin();
     if (it != m_Segments.rend())
     {
@@ -1137,14 +1137,9 @@ OFBool DcmSegmentation::getSegmentNumber(const DcmSegment* segment, size_t& segm
     return OFFalse;
 }
 
-void DcmSegmentation::getSegments(OFVector<DcmSegment*>& segments)
+const std::map<Uint16, DcmSegment*>& DcmSegmentation::getSegments()
 {
-    std::map<Uint16, DcmSegment*>::iterator it = m_Segments.begin();
-    while (it != m_Segments.end())
-    {
-        segments.push_back(it->second);
-        it++;
-    }
+    return m_Segments;
 }
 
 OFCondition DcmSegmentation::getModality(OFString& value, const long signed int pos) const
@@ -1872,7 +1867,8 @@ OFBool DcmSegmentation::check(const OFBool checkFGStructure)
         return OFFalse;
     }
     // Check that all segments are referenced by at least one frame.
-    // This is not required for label maps, since they can have unused segments not referenced by any frame.
+    // This is not required for label maps, since frames are only indirectly (through their pixel values)
+    // referencing segments.
     if ( (m_Segments.size() > m_Frames.size()) && (m_SegmentationType != DcmSegTypes::ST_LABELMAP) )
     {
         DCMSEG_ERROR("More segments than frames defined");

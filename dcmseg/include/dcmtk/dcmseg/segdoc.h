@@ -326,7 +326,7 @@ public:
     /** Get all segments
      *  @param  segments The resulting segments
      */
-    virtual void getSegments(OFVector<DcmSegment*>& segments);
+    virtual const std::map<Uint16, DcmSegment*>& getSegments();
 
 
     /** Get logical segment number by providing a pointer to a given segment
@@ -740,7 +740,10 @@ private:
     /// Maximum Fractional Value: (US, 1, 1C) (required if fractional type is FRACTIONAL)
     DcmUnsignedShort m_MaximumFractionalValue;
 
-    /// Segment descriptions from Segment Sequence
+    /// Segment descriptions from Segment Sequence.
+    /// Maps Segment Number to Segment Description data.
+    /// For Labelmaps, the Segment Number is the label value, i.e. the pixel
+    /// value used in the pixel data to denote the segment.
     std::map<Uint16, DcmSegment*> m_Segments;
 
     /// Multi-frame Functional Groups high level interface
