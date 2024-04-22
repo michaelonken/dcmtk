@@ -28,6 +28,7 @@
 #include "dcmtk/dcmfg/concatenationcreator.h"
 #include "dcmtk/dcmfg/fgderimg.h"
 #include "dcmtk/dcmfg/fgseg.h"
+#include "dcmtk/dcmiod/iodtypes.h"
 #include "dcmtk/dcmiod/iodutil.h"
 #include "dcmtk/dcmseg/segdoc.h"
 #include "dcmtk/dcmseg/segment.h"
@@ -455,9 +456,18 @@ OFCondition DcmSegmentation::readWithoutPixelData(DcmItem& dataset)
 
     m_ContentIdentificationMacro.read(dataset);
 
-    m_PaletteColorLUTModule.read(dataset);
+    OFString colorModel;
+    if (dataset.findAndGetOFString(DCM_PhotometricInterpretation, colorModel).good() && (colorModel == "PALETTE COLOR"))
+    {
+        m_PaletteColorLUTModule.read(dataset);
+    }
 
     readAndCheckColorModel();
+
+    if (m_LabelmapColorModel == DcmSegTypes::SLCM_PALETTE)
+    {
+        m_PaletteColorLUTModule.read(dataset);
+    }
 
     // Read specific segmentation elements
     DcmIODUtil::getAndCheckElementFromDataset(
@@ -743,7 +753,6 @@ IODSegmentationSeriesModule& DcmSegmentation::getSegmentationSeriesModule()
 
 OFCondition DcmSegmentation::addSegment(DcmSegment* seg, Uint16& segmentNumber)
 {
-    segmentNumber = 0;
     if (seg == NULL)
         return EC_IllegalParameter;
 
@@ -751,18 +760,25 @@ OFCondition DcmSegmentation::addSegment(DcmSegment* seg, Uint16& segmentNumber)
     {
         return SG_EC_MaxSegmentsReached;
     }
-    // Use next free segment number and insert
-    // (i.e. get the highest segment number and increment by 1).
-    std::map<Uint16, DcmSegment*>::reverse_iterator it = m_Segments.rbegin();
-    if (it != m_Segments.rend())
+    // For labelmaps, use the given segment number
+    if (m_SegmentationType == DcmSegTypes::ST_LABELMAP)
     {
-        segmentNumber = it->first + 1;
+        m_Segments.insert(OFMake_pair(segmentNumber, seg));
+        return EC_Normal;
     }
-    else
+    // For binary/fractional, start with 1 if no segment exists
+    if (m_Segments.empty())
     {
         segmentNumber = 1;
+        m_Segments.insert(OFMake_pair(segmentNumber, seg));
+        return EC_Normal;
     }
-    m_Segments.insert(std::make_pair(segmentNumber, seg));
+    // Use next free segment number and insert
+    // (i.e. get the highest segment number and increment by 1).
+    OFMap<Uint16, DcmSegment*>::iterator it = m_Segments.end();
+    it--;
+    segmentNumber = it->first + 1;
+    m_Segments.insert(OFMake_pair(segmentNumber, seg));
     return EC_Normal;
 }
 
@@ -919,13 +935,22 @@ DcmSegmentation::addFrame(T* pixData, const Uint16 segmentNumber, const OFVector
     OFVector<FGBase*>::const_iterator it = perFrameInformation.begin();
     while (it != perFrameInformation.end())
     {
-        // Labelmap is not permitted to have Segmentation Functional Group, ignore if found
-
+        // Labelmap is not permitted to have Segmentation Functional Group,
+        // and for other segmentation types we create it automatically, ignore if found
         if ((*it)->getType() == DcmFGTypes::EFG_SEGMENTATION)
         {
-            DCMSEG_WARN("Ignoring provided Segmentation Functional Group, will be created automatically");
-            it++;
-            continue;
+            if (m_SegmentationType == DcmSegTypes::ST_LABELMAP)
+            {
+                DCMSEG_WARN("Ignoring provided Segmentation Functional Group, not permitted for labelmap segmentation");
+                it++;
+                continue;
+            }
+            else
+            {
+                DCMSEG_WARN("Ignoring provided Segmentation Functional Group, will be created automatically");
+                it++;
+                continue;
+            }
         }
         result = (*it)->check();
         if (result.bad())
@@ -1110,7 +1135,7 @@ DcmSegment* DcmSegmentation::getSegment(const size_t segmentNumber)
         DCMSEG_ERROR("Cannot get segment 0: No such Segment Number allowed segmentation if segmentation is of type " << DcmSegTypes::segtype2OFString(m_SegmentationType));
         return NULL;
     }
-    std::map<Uint16, DcmSegment*>::iterator it = m_Segments.find(segmentNumber);
+    OFMap<Uint16, DcmSegment*>::iterator it = m_Segments.find(segmentNumber);
     if (it == m_Segments.end())
     {
         return NULL;
@@ -1124,7 +1149,7 @@ OFBool DcmSegmentation::getSegmentNumber(const DcmSegment* segment, size_t& segm
     if (segment == NULL)
         return OFFalse;
 
-    std::map<Uint16, DcmSegment*>::iterator it = m_Segments.begin();
+    OFMap<Uint16, DcmSegment*>::iterator it = m_Segments.begin();
     while (it != m_Segments.end())
     {
         if (it->second == segment)
@@ -1137,7 +1162,7 @@ OFBool DcmSegmentation::getSegmentNumber(const DcmSegment* segment, size_t& segm
     return OFFalse;
 }
 
-const std::map<Uint16, DcmSegment*>& DcmSegmentation::getSegments()
+const OFMap<Uint16, DcmSegment*>& DcmSegmentation::getSegments()
 {
     return m_Segments;
 }
@@ -1180,7 +1205,7 @@ OFCondition DcmSegmentation::writeSegments(DcmItem& item)
     OFCondition result;
     // writeSubSequence cannot handle a map, copy to vector instead and use that for this purpose
     OFVector<DcmSegment*> segments;
-    std::map<Uint16, DcmSegment*>::iterator it = m_Segments.begin();
+    OFMap<Uint16, DcmSegment*>::iterator it = m_Segments.begin();
     while (it != m_Segments.end())
     {
         segments.push_back(it->second);
@@ -1204,7 +1229,7 @@ OFCondition DcmSegmentation::readSegments(DcmItem& item)
         {
             if (result.good())
             {
-                if (m_Segments.insert(std::make_pair(segments[count]->getSegmentNumberRead(), segments[count])).second
+                if (m_Segments.insert(OFMake_pair(segments[count]->getSegmentNumberRead(), segments[count])).second
                     == false)
                 {
                     DCMSEG_ERROR("Cannot insert segment " << segments[count]->getSegmentNumberRead()
@@ -1660,7 +1685,7 @@ OFCondition DcmSegmentation::writeSegmentationImageModule(DcmItem& dataset)
     OFVector<DcmItem*> segmentItems;
     if (result.good())
     {
-        typename std::map<Uint16, DcmSegment*>::iterator it = m_Segments.begin();
+        typename OFMap<Uint16, DcmSegment*>::iterator it = m_Segments.begin();
         dataset.findAndDeleteElement(DCM_SegmentSequence);
         for (Uint16 itemCount = 0; (it != m_Segments.end()) && result.good(); itemCount++)
         {
@@ -2081,5 +2106,5 @@ OFBool DcmSegmentation::readAndCheckColorModel()
             return OFFalse;
         }
     }
-    return OFFalse;
+    return OFTrue;
 }

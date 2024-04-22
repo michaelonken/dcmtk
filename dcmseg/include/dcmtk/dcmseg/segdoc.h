@@ -326,7 +326,7 @@ public:
     /** Get all segments
      *  @param  segments The resulting segments
      */
-    virtual const std::map<Uint16, DcmSegment*>& getSegments();
+    virtual const OFMap<Uint16, DcmSegment*>& getSegments();
 
 
     /** Get logical segment number by providing a pointer to a given segment
@@ -359,20 +359,16 @@ public:
 
     /** Add segment to segmentation object
      *  @param  seg The segment that should be added
-     *  @param  segmentNumber The logical segment number that was assigned for
-     *          this segment. Contains 0 if adding failed. Segment numbers are
-     *          assigned incrementally from 0 onwards. In case a labelmap has been
-     *          loaded which can contain "sparse" segment numbers, the segment
-     *          is assigned the next free (i.e. highest) segment number. This
-     *          means in that case, the segment number is not necessarily the
-     *          next "free" number if there are "holes" in the segment numbers.
-     *          Also, it can mean that a segment cannot be added if the next
-     *          free segment number is larger than 2^16-1 (maximum allowed),
-     *          even if there would be space in the "holes" of the segment numbers.
-     *          Since this use case is very rare (opening a labelmap segmentation and
-     *          then add using the API beyond segment number 65535) we do not
-     *          implement the "hole search" here yet, but might do this is the use
-     *          case arises.
+     *  @param  segmentNumber Depending on the type of segmentation, this
+     *          parameter is handled differently:
+     *          - For binary and fractional segmentations the segment number
+     *            is automatically assigned and will be returned in this
+     *            parameter. It is assigned from 0 onwards, i.e. the first
+     *            segment added will have segment number 1, the second 2, etc.
+     *          - For labelmap segmentations, the segment number is taken from
+     *            this parameter and can be >= 0. If the segment number is
+     *            already used, the method will overwrite an old segment with
+     *            this number.
      *  @return EC_Normal if adding was successful, error otherwise
      */
     virtual OFCondition addSegment(DcmSegment* seg, Uint16& segmentNumber);
@@ -744,7 +740,7 @@ private:
     /// Maps Segment Number to Segment Description data.
     /// For Labelmaps, the Segment Number is the label value, i.e. the pixel
     /// value used in the pixel data to denote the segment.
-    std::map<Uint16, DcmSegment*> m_Segments;
+    OFMap<Uint16, DcmSegment*> m_Segments;
 
     /// Multi-frame Functional Groups high level interface
     FGInterface m_FGInterface;

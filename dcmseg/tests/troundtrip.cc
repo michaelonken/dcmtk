@@ -181,9 +181,9 @@ static void addFrames(DcmSegmentation* seg)
     if (!seg)
         return;
 
-    FGSegmentation* fg_seg = new FGSegmentation();
+    // Segmentation FG is created automatically
     FGFrameContent* fg     = new FGFrameContent();
-    OFCHECK(fg && fg_seg);
+    OFCHECK(fg);
     fg->setStackID("1");
     if (fg)
     {
@@ -212,16 +212,13 @@ static void addFrames(DcmSegmentation* seg)
             {
                 data[i] = i;
             }
-            OFCHECK(fg_seg->setReferencedSegmentNumber(frameNo).good());
             OFVector<FGBase*> perFrameFGs;
             perFrameFGs.push_back(fg);
-            perFrameFGs.push_back(fg_seg);
             OFCHECK(seg->addFrame(data, frameNo, perFrameFGs).good());
             delete[] data;
         }
     }
     delete fg;
-    delete fg_seg;
 }
 
 static void addDimensions(DcmSegmentation* seg)
