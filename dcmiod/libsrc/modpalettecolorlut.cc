@@ -864,7 +864,11 @@ OFCondition IODPaletteColorLUTModule::getUint8DataCopy(const DcmTagKey& dataTag,
         {
             // if odd number of 16 bit entries, only extract lower byte of last entry
             newData[num8BitEntries-1] = OFstatic_cast(Uint8, data[num16BitEntries-1] >> 8);
-
+        }
+        else
+        {
+            newData[num8BitEntries-2] = OFstatic_cast(Uint8, data[num16BitEntries-1] >> 8);
+            newData[num8BitEntries-1] = OFstatic_cast(Uint8, data[num16BitEntries-1] & 0x00FF);
         }
         lutData = newData;
     }
@@ -930,6 +934,11 @@ OFCondition IODPaletteColorLUTModule::putUint8Data(const DcmTagKey& dataTag, con
     if (num8BitEntries % 2)
     {
         newData[num16BitEntries-1] &= 0xFF00;
+    }
+    // otherwise also take over last 8 bit entry
+    else
+    {
+        newData[num16BitEntries-1] |= lutData[num8BitEntries-1];
     }
     result = m_Item->putAndInsertUint16Array(dataTag, newData, num16BitEntries);
     return result;
