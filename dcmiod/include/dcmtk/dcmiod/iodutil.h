@@ -106,7 +106,7 @@ public:
      *          (Would be 'const' if the methods from 'dcmdata' would also
      *          be 'const')
      *  @param  delem DICOM element that is set to a copy of the dataset's
-     *          orinal element
+     *          original element
      *  @param  rule  Rule describing parameters to be checked on element.
      *  @return EC_Normal if element could be retrieved and value is correct, an
      *          error code otherwise
