@@ -289,9 +289,6 @@ OFTEST_FLAGS(dcmseg_labelmap_16bit_palette, EF_Slow)
     OFString temp_fn = tf.getFilename();
     OFCHECK(!temp_fn.empty());
     OFCHECK(seg_object->saveFile(temp_fn.c_str(), EXS_LittleEndianExplicit).good());
-    tf.stealFile();
-    std::cout << "temp_fn: " << temp_fn << std::endl;
-
 
     // Read object from dataset into DcmSegmentation object, write again to dataset and
     // check whether object after writing is identical to object after writing.
