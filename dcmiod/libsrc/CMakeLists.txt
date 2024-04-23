@@ -21,6 +21,7 @@ DCMTK_ADD_LIBRARY(dcmiod
   modgeneralseries.cc
   modgeneralstudy.cc
   modhelp.cc
+  modiccprofile.cc
   modimagepixel.cc
   modimagepixelbase.cc
   modmultiframefg.cc

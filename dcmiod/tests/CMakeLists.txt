@@ -3,6 +3,7 @@ DCMTK_ADD_EXECUTABLE(dcmiod_tests
   tchecks.cc
   tcielabutil.cc
   tcodes.cc
+  ticcprofile.cc
   timagepixel.cc
   tpalette.cc
   tests.cc
