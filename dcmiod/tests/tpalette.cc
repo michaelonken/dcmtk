@@ -41,10 +41,8 @@ static void clear(IODPaletteColorLUTModule& mod);
 
 static OFLogger tLog = OFLog::getLogger("dcmtk.test.tpalette");
 
-/** Setup that is run for all test cases.
- *  @param  module The module to set up
- *  @return OFTrue if setup was successful, OFFalse otherwise
- *
+/** Make sure dictionary is loaded
+ *  @return OFTrue if dictionary is loaded, OFFalse otherwise
  */
 static OFBool checkDictionary()
 {
