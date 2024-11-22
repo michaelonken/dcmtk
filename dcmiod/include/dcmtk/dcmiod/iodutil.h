@@ -983,25 +983,6 @@ public:
                                            const size_t bitsPerFrame,
                                            OFVector<DcmIODTypes::Frame*>& results);
 
-    /** Aligns 1 bit per pixel frame data starting at a given bit position in the
-     *  provided buffer with the start of that buffer. This is used to create
-     *  a frame structure where all the bytes (including the first one) only
-     *  contain data from the frame at hand.
-     *  Note that each byte is filled from the right, i.e. the first pixel will
-     *  represented by the bit at the very right of the first byte, and the 9th
-     *  pixel will be in the very right position of the following byte.
-     *  Example:
-     *    3 bytes input buffer: edcbaZYX mlkjihgf utsrqpon
-     *    Result after aligning 3 bits: fghedcba ponmlkji 000utsrq
-     *    The 000 are unused bits and therefore zeroed out in the last byte. Bits
-     *    ZYX will be shifted out which is ok since it does not belong to the
-     *    current frame. See also dcmseg/tests/tutils.cc for more examples.
-     *  @param  buf The address of the memory buffer to shift
-     *  @param  bufLen The length of the buf memory block in bytes
-     *  @param  numBits The number of bits to shift. Must be 0 <= numBits <= 7.
-     */
-    static void alignFrameOnByteBoundary(Uint8* buf, const size_t bufLen, const Uint8 numBits);
-
     static void reset_value_check_result(OFCondition& result, const OFBool checkValue, DcmElement& elem);
 
 private:

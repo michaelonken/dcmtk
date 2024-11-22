@@ -7,8 +7,11 @@ DCMTK_ADD_TEST_EXECUTABLE(dcmseg_tests
   tconcat_binary.cc
 )
 
+DCMTK_ADD_EXECUTABLE(rwseg rwseg.cc)
+
 # make sure executables are linked to the corresponding libraries
 DCMTK_TARGET_LINK_MODULES(dcmseg_tests dcmseg dcmfg dcmiod dcmdata oflog ofstd)
+DCMTK_TARGET_LINK_MODULES(rwseg dcmseg dcmfg dcmiod dcmdata oflog ofstd)
 
 # This macro parses tests.cc and registers all tests
 DCMTK_ADD_TESTS(dcmseg)
