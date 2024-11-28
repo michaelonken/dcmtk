@@ -965,10 +965,10 @@ public:
     static Uint32 limitMaxFrames(const size_t numFramesPresent, const OFString& warning);
 
     /** Extracts Frame structures from the given pixel data element. Only
-     *  applicable for pixel data with Bits Allocated = 1. Within the pixel data element, all
-     *  frames are packed next to each other, with the end of one frame and the
-     *  beginning of the next frame packed bit by bit next to each other. The
-     *  resulting Frames are a bit-by-bit copy of their original counterpart.
+     *  applicable for pixel data with Bits Allocated = 1. Within the pixel data element,
+     *  all frames are packed next to each other, with the end of one frame and the
+     *  beginning of the next frame packed bit by bit next to each other (right to left!).
+     *  The resulting Frames are a bit-by-bit copy of their original counterpart.
      *  However, their first bit is aligned to the first bit/byte in the Frame,
      *  and the unused bits in the last byte (if any) are zeroed out.
      *  @param  pixData The pixel data to read from
@@ -983,7 +983,15 @@ public:
                                            const size_t bitsPerFrame,
                                            OFVector<DcmIODTypes::Frame*>& results);
 
-    static void reset_value_check_result(OFCondition& result, const OFBool checkValue, DcmElement& elem);
+    /** Resets the given condition to EC_Normal if checkValue is true and
+     *  prints a related message as a warning to the debug logger.
+     *  @param  result The condition to check. Only EC_ValueRepresentationViolated, EC_MaximumLengthViolated,
+     *          EC_InvalidCharacter and EC_ValueMultiplicityViolated are handled. Those codes
+     *          are reset to EC_Normal if the checkValue is OFFalse.
+     *  @param  checkValue If this value is false, the condition is reset to EC_Normal
+     *  @param  elem Used if the condition is reset to EC_Normal to print a warning
+     */
+    static void resetConditionIfCheckDisabled(OFCondition& result, const OFBool checkValue, DcmElement& elem);
 
 private:
     // We only have static functions so we do not need an instance of

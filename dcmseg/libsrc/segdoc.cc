@@ -1074,11 +1074,6 @@ OFCondition DcmSegmentation::writeFractionalFrames(Uint8* pixData)
 
 OFCondition DcmSegmentation::writeBinaryFrames(Uint8* pixData, Uint16 rows, Uint16 cols, const size_t pixDataLength)
 {
-    // Holds the pixels for all frames. Each bit represents a pixel which is either
-    // 1 (part of segment) or 0 (not part of segment. All frames are directly
-    // concatenated, i.e. there are no unused bits between the frames.
-    memset(pixData, 0, pixDataLength);
-
     // Fill Pixel Data Element
     // Compute size of all bit-packed frames in bytes
     return DcmSegUtils::concatBinaryFrames(m_Frames, rows, cols, pixData, pixDataLength);

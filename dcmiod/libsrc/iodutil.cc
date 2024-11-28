@@ -197,7 +197,7 @@ DcmIODUtil::addElementToDataset(OFCondition& result, DcmItem& dataset, DcmElemen
                                                result,
                                                rule->getModule().c_str(),
                                                logLevel);
-                    reset_value_check_result(result, checkValue, *delem);
+                    resetConditionIfCheckDisabled(result, checkValue, *delem);
                 }
                 if (result.good())
                 {
@@ -737,6 +737,12 @@ OFCondition DcmIODUtil::extractBinaryFrames(Uint8* pixData,
         }
         memset(frameData, 0, bytesPerFrame); // Initialize to 0
         DcmIODTypes::Frame* frame = new DcmIODTypes::Frame();
+        if (frame == NULL)
+        {
+            DCMIOD_ERROR("Memory exhausted while extracting frames");
+            delete[] frameData;
+            return EC_MemoryExhausted;
+        }
         frame->pixData = frameData;
         frame->length = bytesPerFrame;
         results.push_back(frame);
@@ -789,7 +795,7 @@ OFCondition DcmIODUtil::extractBinaryFrames(Uint8* pixData,
 }
 
 
-void DcmIODUtil::reset_value_check_result(OFCondition& result, const OFBool checkValue, DcmElement& elem)
+void DcmIODUtil::resetConditionIfCheckDisabled(OFCondition& result, const OFBool checkValue, DcmElement& elem)
 {
     if (!checkValue)
     {

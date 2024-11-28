@@ -46,6 +46,11 @@ DcmIODTypes::Frame* DcmSegUtils::packBinaryFrame(const Uint8* pixelData, const U
 
     // Allocate memory for the packed bit array
     Uint8* packedData = new Uint8[totalBytes];
+    if (packedData == NULL)
+    {
+        DCMSEG_ERROR("Cannot allocate memory for packed binary frame");
+        return NULL;
+    }
     memset(packedData, 0, totalBytes); // Initialize to 0
 
     // Pack the bits
@@ -60,17 +65,25 @@ DcmIODTypes::Frame* DcmSegUtils::packBinaryFrame(const Uint8* pixelData, const U
 
     // Create and return the frame
     DcmIODTypes::Frame* frame = new DcmIODTypes::Frame();
+    if (frame == NULL)
+    {
+        DCMSEG_ERROR("Cannot allocate memory for packed binary frame");
+        delete[] packedData;
+        return NULL;
+    }
     frame->pixData = packedData;
     frame->length = totalBytes;
     return frame;
 }
 
-OFCondition DcmSegUtils::concatBinaryFrames(const OFVector<DcmIODTypes::Frame*>& frames, const Uint16 rows, const Uint16 cols, Uint8* pixData, const size_t pixDataLength) {
-    // Calculate total number of pixels in all input frames
-    Uint32 totalPixels = rows * cols * frames.size();
-
+OFCondition DcmSegUtils::concatBinaryFrames(const OFVector<DcmIODTypes::Frame*>& frames,
+                                            const Uint16 rows,
+                                            const Uint16 cols,
+                                            Uint8* pixData,
+                                            const size_t pixDataLength)
+{
     // Calculate total number of bits required (one per pixel)
-    Uint32 totalBits = totalPixels;
+    Uint32 totalBits = rows * cols * frames.size();
 
     // Calculate total number of bytes required (add one byte if totalBits is not a multiple of 8)
     Uint32 totalBytes = (totalBits + 7) / 8; // +7 to round up to the nearest byte
@@ -80,15 +93,17 @@ OFCondition DcmSegUtils::concatBinaryFrames(const OFVector<DcmIODTypes::Frame*>&
         return EC_IllegalParameter; // or another appropriate error code
     }
 
-    // Initialize the pixData array to 0
+    // Initialize the target pixData array to 0
     std::memset(pixData, 0, pixDataLength);
 
     // Concatenate the bits
     Uint32 bitIndex = 0;
-    for (size_t frameIndex = 0; frameIndex < frames.size(); ++frameIndex) {
+    for (size_t frameIndex = 0; frameIndex < frames.size(); ++frameIndex)
+    {
         const DcmIODTypes::Frame* frame = frames[frameIndex];
         Uint32 frameBits = rows * cols;
-        for (Uint32 i = 0; i < frameBits; ++i) {
+        for (Uint32 i = 0; i < frameBits; ++i)
+        {
             Uint32 byteIndex = i / 8;
             Uint32 bitPos = i % 8;
             if (frame->pixData[byteIndex] & (1 << bitPos % 8)) {
