@@ -1,12 +1,12 @@
 /*
  *
- *  Copyright (C) 2015-2024, J. Riesmeier, Oldenburg, Germany
+ *  Copyright (C) 2015-2025, J. Riesmeier, Oldenburg, Germany
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  Header file for class CID4021_PETRadiopharmaceutical
  *
- *  Generated automatically from DICOM PS 3.16-2023e
- *  File created on 2024-01-12 09:54:38 by J. Riesmeier
+ *  Generated automatically from DICOM PS 3.16-2025b
+ *  File created on 2025-04-15 12:51:53 by J. Riesmeier
  *
  */
 
@@ -98,8 +98,8 @@ class DCMTK_CMR_EXPORT CID4021_PETRadiopharmaceutical
         CU36_89Zr,
         /// (C96234,NCIt,"DCFBC F^18^")
         DCFBC_F18,
-        /// (C116352,NCIt,"DCFPyL F^18^")
-        DCFPyL_F18,
+        /// (C116352,NCIt,"Piflufolastat F^18^")
+        Piflufolastat_F18,
         /// (126762,DCM,"Df-[FK](2) ^89^Zr")
         DfFK2_89Zr,
         /// (126763,DCM,"Df-[FK](2)-3PEG(4) ^89^Zr")

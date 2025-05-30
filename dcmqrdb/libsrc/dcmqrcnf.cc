@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1993-2022, OFFIS e.V.
+ *  Copyright (C) 1993-2025, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -295,8 +295,6 @@ void DcmQueryRetrieveConfig::panic(const char *fmt, ...)
 {
    va_list  ap;
    va_start(ap, fmt);
-
-#if defined(HAVE_VSNPRINTF) && defined(HAVE_PROTOTYPE_VSNPRINTF)
    char buf[4096];
 
 #ifdef HAVE_PROTOTYPE_STD__VSNPRINTF
@@ -310,11 +308,6 @@ void DcmQueryRetrieveConfig::panic(const char *fmt, ...)
    buf[4095] = '\0';
 
    DCMQRDB_ERROR("CONFIG Error: " << buf << "!");
-#else
-   fprintf(stderr, "CONFIG Error: ");
-   vfprintf(stderr, fmt, ap);
-   fprintf(stderr, "!\n");
-#endif
    va_end(ap);
 }
 
@@ -749,7 +742,7 @@ char *DcmQueryRetrieveConfig::skipmnemonic (char *rcline)
       else break;
     }
    while(*help != '\0') {
-      if (!isspace(OFstatic_cast(unsigned char, *help))) help++;    /* Mnemonic */
+      if (!OFStandard::isspace(*help)) help++;    /* Mnemonic */
       else break;
    }
    while(*help != '\0') {
@@ -762,7 +755,7 @@ char *DcmQueryRetrieveConfig::skipmnemonic (char *rcline)
 
 int DcmQueryRetrieveConfig::isgap (char gap)
 {
-   if (isspace(OFstatic_cast(unsigned char, gap)))
+   if (OFStandard::isspace(gap))
       return(1);
    if (gap == '=' || gap == ',' || gap == 10 || gap == 13)
       return(1);

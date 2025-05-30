@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1994-2021, OFFIS e.V.
+ *  Copyright (C) 1994-2025, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were partly developed by
@@ -82,9 +82,7 @@
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
-#ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
-#endif
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
 #endif
@@ -147,18 +145,14 @@ DUL_associationWaiting(DUL_NETWORKKEY * callerNet, int timeout)
     t.tv_sec = timeout;
     t.tv_usec = 0;
 #ifdef DCMTK_HAVE_POLL
-    struct pollfd pfd[] = 
+    struct pollfd pfd[] =
     {
        { s, POLLIN, 0 }
     };
     nfound = poll(pfd, 1,  t.tv_sec*1000+(t.tv_usec/1000));
 #else
-#ifdef HAVE_INTP_SELECT
-    nfound = select(OFstatic_cast(int, s + 1), (int *)(&fdset), NULL, NULL, &t);
-#else
     // This is safe because on Windows the first select() parameter is ignored anyway
     nfound = select(OFstatic_cast(int, s + 1), &fdset, NULL, NULL, &t);
-#endif /* HAVE_INTP_SELECT */
 #endif /* DCMTK_HAVE_POLL */
     if (DCM_dcmnetLogger.isEnabledFor(OFLogger::DEBUG_LOG_LEVEL))
     {

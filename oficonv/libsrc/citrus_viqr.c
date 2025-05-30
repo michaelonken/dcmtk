@@ -42,11 +42,7 @@
         (var) = (tvar))
 #endif
 
-#ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
-#endif
-
-
 #include <errno.h>
 #include <limits.h>
 #include <stddef.h>
@@ -297,7 +293,7 @@ _citrus_VIQR_mbrtowc_priv(_VIQREncodingInfo * ei,
     }
     if (ch == ESCAPE && m != ei->mroot)
         ++i;
-    psenc->chlen -= i;
+    psenc->chlen -= (int)i;
     memmove(&psenc->ch[0], &psenc->ch[i], psenc->chlen);
     wc = (m == ei->mroot) ? (_citrus_wc_t)ch : m->value;
     if (pwc != NULL)

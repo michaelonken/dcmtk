@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1994-2024, OFFIS e.V.
+ *  Copyright (C) 1994-2025, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -22,12 +22,8 @@
 #include "dcmtk/config/osconfig.h"    /* make sure OS specific configuration is included first */
 
 BEGIN_EXTERN_C
-#ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
-#endif
-#ifdef HAVE_FCNTL_H
 #include <fcntl.h>       /* needed on Solaris for O_RDONLY */
-#endif
 
 // On Solaris with Sun Workshop 11, <signal.h> declares signal() but <csignal> does not
 #include <signal.h>
@@ -178,11 +174,7 @@ OFBool             opt_execSync = OFFalse;            // default: execute in bac
 /** signal handler for SIGCHLD signals that immediately cleans up
  *  terminated children.
  */
-#ifdef SIGNAL_HANDLER_WITH_ELLIPSE
-extern "C" void sigChildHandler(...)
-#else
 extern "C" void sigChildHandler(int)
-#endif
 {
   int status = 0;
   waitpid( -1, &status, WNOHANG );
@@ -404,6 +396,14 @@ int main(int argc, char *argv[])
           tlsOptions.printSupportedCiphersuites(app, COUT);
           return 0;
       }
+
+      // check if the command line contains the --list-profiles option
+      if (tlsOptions.listOfProfilesRequested(cmd))
+      {
+          tlsOptions.printSupportedTLSProfiles(app, COUT);
+          return 0;
+      }
+
     }
 
 #ifdef INETD_AVAILABLE
@@ -590,7 +590,7 @@ int main(int argc, char *argv[])
       const unsigned char *c = OFreinterpret_cast(const unsigned char *, opt_profileName);
       while (*c)
       {
-        if (! isspace(*c)) sprofile += OFstatic_cast(char, toupper(*c));
+        if (! OFStandard::isspace(*c)) sprofile += OFstatic_cast(char, toupper(*c));
         ++c;
       }
 
@@ -1011,7 +1011,7 @@ static OFCondition acceptAssociation(T_ASC_Network *net, DcmAssociationConfigura
   const char* transferSyntaxes[] = { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,   // 10
                                      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,   // 20
                                      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,   // 30
-                                     NULL };                                                       // +1
+                                     NULL, NULL, NULL, NULL, NULL, NULL };                         // +6
   int numTransferSyntaxes = 0;
 
   // try to receive an association. Here we either want to use blocking or
@@ -1306,17 +1306,22 @@ static OFCondition acceptAssociation(T_ASC_Network *net, DcmAssociationConfigura
         transferSyntaxes[24] = UID_HighThroughputJPEG2000ImageCompressionLosslessOnlyTransferSyntax;
         transferSyntaxes[25] = UID_HighThroughputJPEG2000RPCLImageCompressionLosslessOnlyTransferSyntax;
         transferSyntaxes[26] = UID_HighThroughputJPEG2000ImageCompressionTransferSyntax;
-        transferSyntaxes[27] = UID_DeflatedExplicitVRLittleEndianTransferSyntax;
+        transferSyntaxes[27] = UID_JPEGXLLosslessTransferSyntax;
+        transferSyntaxes[28] = UID_JPEGXLJPEGRecompressionTransferSyntax;
+        transferSyntaxes[29] = UID_JPEGXLTransferSyntax;
+        transferSyntaxes[30] = UID_DeflatedImageFrameCompressionTransferSyntax;
+        transferSyntaxes[31] = UID_DeflatedExplicitVRLittleEndianTransferSyntax;
+        transferSyntaxes[32] = UID_EncapsulatedUncompressedExplicitVRLittleEndianTransferSyntax;
         if (gLocalByteOrder == EBO_LittleEndian)
         {
-          transferSyntaxes[28] = UID_LittleEndianExplicitTransferSyntax;
-          transferSyntaxes[29] = UID_BigEndianExplicitTransferSyntax;
+          transferSyntaxes[33] = UID_LittleEndianExplicitTransferSyntax;
+          transferSyntaxes[34] = UID_BigEndianExplicitTransferSyntax;
         } else {
-          transferSyntaxes[28] = UID_BigEndianExplicitTransferSyntax;
-          transferSyntaxes[29] = UID_LittleEndianExplicitTransferSyntax;
+          transferSyntaxes[33] = UID_BigEndianExplicitTransferSyntax;
+          transferSyntaxes[34] = UID_LittleEndianExplicitTransferSyntax;
         }
-        transferSyntaxes[30] = UID_LittleEndianImplicitTransferSyntax;
-        numTransferSyntaxes = 31;
+        transferSyntaxes[35] = UID_LittleEndianImplicitTransferSyntax;
+        numTransferSyntaxes = 36;
       } else {
         /* We prefer explicit transfer syntaxes.
          * If we are running on a Little Endian machine we prefer
@@ -1344,7 +1349,7 @@ static OFCondition acceptAssociation(T_ASC_Network *net, DcmAssociationConfigura
     const unsigned char *c = OFreinterpret_cast(const unsigned char *, opt_profileName);
     while (*c)
     {
-      if (!isspace(*c)) sprofile += OFstatic_cast(char, toupper(*c));
+      if (!OFStandard::isspace(*c)) sprofile += OFstatic_cast(char, toupper(*c));
       ++c;
     }
 
@@ -1678,7 +1683,7 @@ static void mapCharacterAndAppendToString(Uint8 c,
 
 struct StoreCallbackData
 {
-  char* imageFileName;
+  OFString imageFileName;
   DcmFileFormat* dcmff;
   T_ASC_Association* assoc;
 };
@@ -1844,7 +1849,7 @@ storeSCPCallback(
 
           // create a name for the new subdirectory.
           char timestamp[32];
-          sprintf(timestamp, "%04u%02u%02u_%02u%02u%02u%03u",
+          OFStandard::snprintf(timestamp, sizeof(timestamp), "%04u%02u%02u_%02u%02u%02u%03u",
             dateTime.getDate().getYear(), dateTime.getDate().getMonth(), dateTime.getDate().getDay(),
             dateTime.getTime().getHour(), dateTime.getTime().getMinute(), dateTime.getTime().getIntSecond(), dateTime.getTime().getMilliSecond());
 
@@ -2027,7 +2032,8 @@ static OFCondition storeSCP(
       // create unique filename by generating a temporary UID and using ".X." as an infix
       char buf[70];
       dcmGenerateUniqueIdentifier(buf);
-      sprintf(imageFileName, "%s%c%s.X.%s%s", opt_outputDirectory.c_str(), PATH_SEPARATOR, dcmSOPClassUIDToModality(req->AffectedSOPClassUID, "UNKNOWN"),
+      OFStandard::snprintf(imageFileName, sizeof(imageFileName), "%s%c%s.X.%s%s", opt_outputDirectory.c_str(), PATH_SEPARATOR,
+        dcmSOPClassUIDToModality(req->AffectedSOPClassUID, "UNKNOWN"),
         buf, opt_fileNameExtension.c_str());
     }
     else if (opt_timeNames)
@@ -2042,7 +2048,7 @@ static OFCondition storeSCP(
       if (timeNameCounter == -1)
       {
         // timeNameCounter not set -> last written filename has to be without "serial number"
-        sprintf(cmpFileName, "%04u%02u%02u%02u%02u%02u%03u.%s%s",
+        OFStandard::snprintf(cmpFileName, sizeof(cmpFileName), "%04u%02u%02u%02u%02u%02u%03u.%s%s",
           dateTime.getDate().getYear(), dateTime.getDate().getMonth(), dateTime.getDate().getDay(),
           dateTime.getTime().getHour(), dateTime.getTime().getMinute(), dateTime.getTime().getIntSecond(), dateTime.getTime().getMilliSecond(),
           dcmSOPClassUIDToModality(req->AffectedSOPClassUID, "UNKNOWN"), opt_fileNameExtension.c_str());
@@ -2050,7 +2056,7 @@ static OFCondition storeSCP(
       else
       {
         // counter was active before, so generate filename with "serial number" for comparison
-        sprintf(cmpFileName, "%04u%02u%02u%02u%02u%02u%03u_%04u.%s%s", // millisecond version
+        OFStandard::snprintf(cmpFileName, sizeof(cmpFileName), "%04u%02u%02u%02u%02u%02u%03u_%04u.%s%s", // millisecond version
           dateTime.getDate().getYear(), dateTime.getDate().getMonth(), dateTime.getDate().getDay(),
           dateTime.getTime().getHour(), dateTime.getTime().getMinute(), dateTime.getTime().getIntSecond(), dateTime.getTime().getMilliSecond(),
           timeNameCounter, dcmSOPClassUIDToModality(req->AffectedSOPClassUID, "UNKNOWN"), opt_fileNameExtension.c_str());
@@ -2060,7 +2066,7 @@ static OFCondition storeSCP(
         // if this is not the first run and the prospective filename is equal to the last written filename
         // generate one with a serial number (incremented by 1)
         timeNameCounter++;
-        sprintf(imageFileName, "%s%c%04u%02u%02u%02u%02u%02u%03u_%04u.%s%s", opt_outputDirectory.c_str(), PATH_SEPARATOR, // millisecond version
+        OFStandard::snprintf(imageFileName, sizeof(imageFileName), "%s%c%04u%02u%02u%02u%02u%02u%03u_%04u.%s%s", opt_outputDirectory.c_str(), PATH_SEPARATOR, // millisecond version
           dateTime.getDate().getYear(), dateTime.getDate().getMonth(), dateTime.getDate().getDay(),
           dateTime.getTime().getHour(), dateTime.getTime().getMinute(), dateTime.getTime().getIntSecond(), dateTime.getTime().getMilliSecond(),
           timeNameCounter, dcmSOPClassUIDToModality(req->AffectedSOPClassUID, "UNKNOWN"), opt_fileNameExtension.c_str());
@@ -2068,7 +2074,7 @@ static OFCondition storeSCP(
       else
       {
         // first run or filenames are different: create filename without serial number
-        sprintf(imageFileName, "%s%c%04u%02u%02u%02u%02u%02u%03u.%s%s", opt_outputDirectory.c_str(), PATH_SEPARATOR, // millisecond version
+        OFStandard::snprintf(imageFileName, sizeof(imageFileName), "%s%c%04u%02u%02u%02u%02u%02u%03u.%s%s", opt_outputDirectory.c_str(), PATH_SEPARATOR, // millisecond version
           dateTime.getDate().getYear(), dateTime.getDate().getMonth(), dateTime.getDate().getDay(),
           dateTime.getTime().getHour(), dateTime.getTime().getMinute(),dateTime.getTime().getIntSecond(), dateTime.getTime().getMilliSecond(),
           dcmSOPClassUIDToModality(req->AffectedSOPClassUID, "UNKNOWN"), opt_fileNameExtension.c_str());
@@ -2081,7 +2087,7 @@ static OFCondition storeSCP(
       // Use the SOP instance UID as found in the C-STORE request message as part of the filename
       OFString uid(OFSTRING_GUARD(req->AffectedSOPInstanceUID));
       OFStandard::sanitizeFilename(uid);
-      sprintf(imageFileName, "%s%c%s.%s%s", opt_outputDirectory.c_str(), PATH_SEPARATOR, dcmSOPClassUIDToModality(req->AffectedSOPClassUID, "UNKNOWN"),
+      OFStandard::snprintf(imageFileName, sizeof(imageFileName), "%s%c%s.%s%s", opt_outputDirectory.c_str(), PATH_SEPARATOR, dcmSOPClassUIDToModality(req->AffectedSOPClassUID, "UNKNOWN"),
         uid.c_str(), opt_fileNameExtension.c_str());
     }
   }
@@ -2137,14 +2143,18 @@ static OFCondition storeSCP(
     if (!opt_ignore)
     {
       if (strcmp(imageFileName, NULL_DEVICE_NAME) != 0)
-        OFStandard::deleteFile(imageFileName);
+      {
+         OFStandard::deleteFile(imageFileName);
+      }
     }
   }
 #ifdef _WIN32
   else if (opt_ignore)
   {
     if (strcmp(imageFileName, NULL_DEVICE_NAME) != 0)
-      OFStandard::deleteFile(imageFileName); // delete the temporary file
+    {
+        OFStandard::deleteFile(imageFileName); // delete the temporary file
+    }
   }
 #endif
 
@@ -2335,7 +2345,7 @@ static void renameOnEndOfStudy()
     {
       OFStandard::strlcpy( modalityId, (*first).c_str(), 3 );
     }
-    sprintf( newFileName, "%s%06d", modalityId, counter );
+    OFStandard::snprintf(newFileName, sizeof(newFileName), "%s%06d", modalityId, counter );
 
     // create two strings containing path and file name for
     // the current filename and the future filename
@@ -2487,8 +2497,6 @@ static void executeCommand( const OFString &cmd )
 
 #ifdef HAVE_WAITPID
 static void cleanChildren(pid_t pid, OFBool synch)
-#elif defined(HAVE_WAIT3)
-static void cleanChildren(pid_t /* pid */, OFBool synch)
 #else
 static void cleanChildren(pid_t /* pid */, OFBool /* synch */)
 #endif
@@ -2499,21 +2507,11 @@ static void cleanChildren(pid_t /* pid */, OFBool /* synch */)
 {
 #ifdef HAVE_WAITPID
   int stat_loc;
-#elif defined(HAVE_WAIT3)
-  struct rusage rusage;
-  int        status;
-#endif
-
-#if defined(HAVE_WAITPID) || defined(HAVE_WAIT3)
   int child = 1;
   int options = synch ? 0 : WNOHANG;
   while (child > 0)
   {
-#ifdef HAVE_WAITPID
     child = OFstatic_cast(int, waitpid(pid, &stat_loc, options));
-#elif defined(HAVE_WAIT3)
-    child = wait3(&status, options, &rusage);
-#endif
     if (child < 0)
     {
       if (errno != ECHILD)

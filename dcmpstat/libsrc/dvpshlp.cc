@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1998-2024, OFFIS e.V.
+ *  Copyright (C) 1998-2025, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -27,17 +27,15 @@
 #include "dcmtk/dcmdata/dctk.h"
 
 BEGIN_EXTERN_C
-#ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>   /* for fork */
-#endif
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>    /* for waitpid */
 #endif
 #ifdef HAVE_SYS_TIME_H
-#include <sys/time.h>    /* for wait3 */
+#include <sys/time.h>
 #endif
 #ifdef HAVE_SYS_RESOURCE_H
-#include <sys/resource.h> /* for wait3 */
+#include <sys/resource.h>
 #endif
 END_EXTERN_C
 
@@ -127,21 +125,11 @@ void DVPSHelper::cleanChildren()
 {
 #ifdef HAVE_WAITPID
     int stat_loc;
-#elif defined(HAVE_WAIT3)
-    struct rusage rusage;
-    int        status;
-#endif
-
-#if defined(HAVE_WAITPID) || defined(HAVE_WAIT3)
     int child = 1;
     int options = WNOHANG;
     while (child > 0)
     {
-#ifdef HAVE_WAITPID
       child = (int)(waitpid(-1, &stat_loc, options));
-#elif defined(HAVE_WAIT3)
-      child = wait3(&status, options, &rusage);
-#endif
       if (child < 0)
       {
         if ((errno != ECHILD) && (errno != 0))
@@ -173,7 +161,7 @@ OFBool DVPSHelper::haveReferencedUIDItem(DcmSequenceOfItems& seq, const char *ui
   {
     item = seq.getItem(i);
     stack.clear();
-    if (EC_Normal == item->search(DCM_ReferencedSOPClassUID, stack, ESM_fromHere, OFFalse))
+    if (EC_Normal == item->search(DCM_ReferencedSOPClassUID, stack, ESM_fromHere, OFFalse) && (stack.top()->ident() == EVR_UI))
     {
       aString.clear();
       refuid = (DcmUniqueIdentifier *)(stack.top());

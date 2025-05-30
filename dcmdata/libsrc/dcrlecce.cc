@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2002-2021, OFFIS e.V.
+ *  Copyright (C) 2002-2024, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -55,10 +55,18 @@ OFBool DcmRLECodecEncoder::canChangeCoding(
   E_TransferSyntax myXfer = EXS_RLELossless;
   DcmXfer newRep(newRepType);
   DcmXfer oldRep(oldRepType);
-  if (oldRep.isNotEncapsulated() && (newRepType == myXfer)) return OFTrue; // compress requested
+  if (oldRep.usesNativeFormat() && (newRepType == myXfer)) return OFTrue; // compress requested
 
   // we don't support re-coding for now.
   return OFFalse;
+}
+
+
+Uint16 DcmRLECodecEncoder::decodedBitsAllocated(
+    Uint16 /* bitsAllocated */,
+    Uint16 /* bitsStored */) const
+{
+  return 0;
 }
 
 

@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1994-2022, OFFIS e.V.
+ *  Copyright (C) 1994-2024, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were partly developed by
@@ -75,6 +75,7 @@
 #include "dcmtk/dcmnet/dulstruc.h"
 #include "dulpriv.h"
 #include "dcmtk/ofstd/ofconsol.h"
+#include "dcmtk/ofstd/ofstd.h"
 
 static OFCondition
 constructSubItem(char *name, unsigned char type,
@@ -904,7 +905,7 @@ constructUserInfo(unsigned char type, DUL_ASSOCIATESERVICEPARAMETERS * params,
     if (totalUserInfoLength > 65535)
     {
       char errbuf[500];
-      sprintf(errbuf, "Total length of user items (%lu bytes) exceeds upper limit of 65535 bytes", totalUserInfoLength);
+      OFStandard::snprintf(errbuf, sizeof(errbuf), "Total length of user items (%lu bytes) exceeds upper limit of 65535 bytes", totalUserInfoLength);
       return makeDcmnetCondition(ASCC_CODINGERROR, OF_error, errbuf);
     }
     else // now casting to unsigned short should be safe
@@ -933,12 +934,18 @@ static OFCondition
 constructMaxLength(unsigned long maxPDU, DUL_MAXLENGTH * max,
        unsigned long *rtnLen)
 {
-    unsigned long compatMode = dcmEnableBackwardCompatibility.get();
     max->type = DUL_TYPEMAXLENGTH;
     max->rsv1 = 0;
     max->length = 4;
+
+#ifdef DCMTK_ENABLE_OUTDATED_DCMTK_WORKAROUND
+    unsigned long compatMode = dcmEnableBackwardCompatibility.get();
     if (compatMode & 0x8000) max->maxLength = DUL_DULCOMPAT | DUL_DIMSECOMPAT | compatMode;
     else max->maxLength = maxPDU;
+#else
+    max->maxLength = maxPDU;
+#endif
+
     *rtnLen = 8;
 
     return EC_Normal;

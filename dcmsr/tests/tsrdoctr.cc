@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2014-2019, J. Riesmeier, Oldenburg, Germany
+ *  Copyright (C) 2014-2024, J. Riesmeier, Oldenburg, Germany
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation are maintained by

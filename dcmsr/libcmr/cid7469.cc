@@ -1,12 +1,12 @@
 /*
  *
- *  Copyright (C) 2015-2024, J. Riesmeier, Oldenburg, Germany
+ *  Copyright (C) 2015-2025, J. Riesmeier, Oldenburg, Germany
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  Source file for class CID7469_GenericIntensityAndSizeMeasurement
  *
- *  Generated automatically from DICOM PS 3.16-2023e
- *  File created on 2024-01-12 09:54:46 by J. Riesmeier
+ *  Generated automatically from DICOM PS 3.16-2025b
+ *  File created on 2025-04-15 12:52:04 by J. Riesmeier
  *
  */
 
@@ -18,7 +18,8 @@
 
 // general information on CID 7469 (Generic Intensity and Size Measurement)
 #define CONTEXT_GROUP_NUMBER  "7469"
-#define CONTEXT_GROUP_VERSION "20141110"
+#define CONTEXT_GROUP_KEYWORD "GenericIntensityAndSizeMeasurement"
+#define CONTEXT_GROUP_VERSION "20240913"
 #define CONTEXT_GROUP_UID     "1.2.840.10008.6.1.1003"
 #define CONTEXT_GROUP_TYPE    OFTrue  /* extensible */
 
@@ -27,7 +28,7 @@ CID7469_GenericIntensityAndSizeMeasurement::CodeList *CID7469_GenericIntensityAn
 
 
 CID7469_GenericIntensityAndSizeMeasurement::CID7469_GenericIntensityAndSizeMeasurement(const DSRCodedEntryValue &selectedValue)
-  : DSRContextGroup(CONTEXT_GROUP_NUMBER, "DCMR", CONTEXT_GROUP_VERSION, CONTEXT_GROUP_UID, selectedValue)
+  : DSRContextGroup(CONTEXT_GROUP_NUMBER, "DCMR", CONTEXT_GROUP_KEYWORD, CONTEXT_GROUP_VERSION, CONTEXT_GROUP_UID, selectedValue)
 {
     setExtensible(CONTEXT_GROUP_TYPE);
 }
@@ -35,7 +36,7 @@ CID7469_GenericIntensityAndSizeMeasurement::CID7469_GenericIntensityAndSizeMeasu
 
 CID7469_GenericIntensityAndSizeMeasurement::CID7469_GenericIntensityAndSizeMeasurement(const EnumType selectedValue,
                                                                                        const OFBool enhancedEncodingMode)
-  : DSRContextGroup(CONTEXT_GROUP_NUMBER, "DCMR", CONTEXT_GROUP_VERSION, CONTEXT_GROUP_UID, getCodedEntry(selectedValue, enhancedEncodingMode))
+  : DSRContextGroup(CONTEXT_GROUP_NUMBER, "DCMR", CONTEXT_GROUP_KEYWORD, CONTEXT_GROUP_VERSION, CONTEXT_GROUP_UID, getCodedEntry(selectedValue, enhancedEncodingMode))
 {
     setExtensible(CONTEXT_GROUP_TYPE);
 }
@@ -340,6 +341,8 @@ CID7469_GenericIntensityAndSizeMeasurement::CodeList &CID7469_GenericIntensityAn
         Codes->insert(OFMake_pair(VolumeOfBoundingThreeDimensionalRegion, DSRBasicCodedEntry("121219", "DCM", "Volume of bounding three dimensional region")));
         Codes->insert(OFMake_pair(VolumeOfMesh, DSRBasicCodedEntry("RNU0", "IBSI", "Volume of Mesh")));
         Codes->insert(OFMake_pair(VolumeFromVoxelSummation, DSRBasicCodedEntry("YEKZ", "IBSI", "Volume from Voxel Summation")));
+        Codes->insert(OFMake_pair(NumberOfPixels, DSRBasicCodedEntry("130922", "DCM", "Number of pixels")));
+        Codes->insert(OFMake_pair(NumberOfVoxels, DSRBasicCodedEntry("130923", "DCM", "Number of voxels")));
     }
     /* should never be NULL */
     return *Codes;

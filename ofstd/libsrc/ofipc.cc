@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2022, OFFIS e.V.
+ *  Copyright (C) 2022-2025, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -38,18 +38,12 @@ BEGIN_EXTERN_C
 #if defined(HAVE_MQUEUE_H) && !defined(__FreeBSD__)
 #include <mqueue.h>
 #endif
-#ifdef HAVE_FCNTL_H
 #include <fcntl.h>
-#endif
-#ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
-#endif
 #ifdef HAVE_SYS_MSG_H
 #include <sys/msg.h>
 #endif
-#ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
-#endif
 
 #ifdef DCMTK_HAVE_POLL
 #include <poll.h>
@@ -133,11 +127,7 @@ public:
 #ifdef DCMTK_HAVE_POLL
       nfound = poll(pfd, 1, OFIPC_POLL_INTERVAL_USEC/1000);
 #else
-#ifdef HAVE_INTP_SELECT
-      nfound = select(queue_socket_+1, (int *)(&fdset), NULL, NULL, &t);
-#else
       nfound = select(queue_socket_+1, &fdset, NULL, NULL, &t);
-#endif /* HAVE_INTP_SELECT */
 #endif /* DCMTK_HAVE_POLL */
 
       if (nfound > 0)
@@ -238,11 +228,7 @@ extern void closeAllMessageQueues()
   }
 }
 
-#ifdef SIGNAL_HANDLER_WITH_ELLIPSE
-extern "C" void OFIPCMessageQueueServerSIGINTHandler(...)
-#else
 extern "C" void OFIPCMessageQueueServerSIGINTHandler(int)
-#endif
 {
   // globally close all message queues
   closeAllMessageQueues();
@@ -252,11 +238,7 @@ extern "C" void OFIPCMessageQueueServerSIGINTHandler(int)
   raise(SIGINT);
 }
 
-#ifdef SIGNAL_HANDLER_WITH_ELLIPSE
-extern "C" void OFIPCMessageQueueServerSIGTERMHandler(...)
-#else
 extern "C" void OFIPCMessageQueueServerSIGTERMHandler(int)
-#endif
 {
   // globally close all message queues
   closeAllMessageQueues();
@@ -363,7 +345,7 @@ OFCondition OFIPCMessageQueueServer::createQueue(const char *name, Uint32 port)
   slotname += port_str;
 
   // create mailslot
-  HANDLE hSlot = CreateMailslot(slotname.c_str(), 0, 0, NULL);
+  HANDLE hSlot = CreateMailslotA(slotname.c_str(), 0, 0, NULL);
   if (hSlot == INVALID_HANDLE_VALUE)
   {
     // report an error if the mailslot creation failed
@@ -413,7 +395,7 @@ OFCondition OFIPCMessageQueueServer::createQueue(const char *name, Uint32 port)
   // create empty temporary file based on queue name and port number
   FILE *tmpfile = fopen(namestr.c_str(),"wb");
   if (tmpfile == NULL) return EC_IPCMessageQueueFailure;
-  (void) fclose (tmpfile);
+  if (fclose(tmpfile)) return EC_IPCMessageQueueFailure;
 
   // use ftok() to generate a key_t identifier for the queue
   key_t key = ftok(namestr.c_str(), 'D' /* for DCMTK */ );
@@ -846,7 +828,7 @@ OFCondition OFIPCMessageQueueClient::openQueue(const char *name, Uint32 port)
   slotname += port_str;
 
   // open mailslot
-  HANDLE hFile = CreateFile(slotname.c_str(), GENERIC_WRITE, FILE_SHARE_READ, NULL,
+  HANDLE hFile = CreateFileA(slotname.c_str(), GENERIC_WRITE, FILE_SHARE_READ, NULL,
    OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
   if (hFile == INVALID_HANDLE_VALUE)

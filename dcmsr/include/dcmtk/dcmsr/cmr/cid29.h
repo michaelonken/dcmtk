@@ -1,12 +1,12 @@
 /*
  *
- *  Copyright (C) 2015-2024, J. Riesmeier, Oldenburg, Germany
+ *  Copyright (C) 2015-2025, J. Riesmeier, Oldenburg, Germany
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  Header file for class CID29_AcquisitionModality
  *
- *  Generated automatically from DICOM PS 3.16-2023e
- *  File created on 2024-01-12 09:54:31 by J. Riesmeier
+ *  Generated automatically from DICOM PS 3.16-2025b
+ *  File created on 2025-04-15 12:51:47 by J. Riesmeier
  *
  */
 
@@ -46,8 +46,6 @@ class DCMTK_CMR_EXPORT CID29_AcquisitionModality
         BiomagneticImaging,
         /// (BMD,DCM,"Bone Mineral Densitometry")
         BoneMineralDensitometry,
-        /// (EPS,DCM,"Cardiac Electrophysiology")
-        CardiacElectrophysiology,
         /// (CR,DCM,"Computed Radiography")
         ComputedRadiography,
         /// (CT,DCM,"Computed Tomography")
@@ -60,22 +58,12 @@ class DCMTK_CMR_EXPORT CID29_AcquisitionModality
         Diaphanography,
         /// (DX,DCM,"Digital Radiography")
         DigitalRadiography,
-        /// (ECG,DCM,"Electrocardiography")
-        Electrocardiography,
-        /// (EEG,DCM,"Electroencephalography")
-        Electroencephalography,
-        /// (EMG,DCM,"Electromyography")
-        Electromyography,
-        /// (EOG,DCM,"Electrooculography")
-        Electrooculography,
         /// (ES,DCM,"Endoscopy")
         Endoscopy,
         /// (XC,DCM,"External-camera Photography")
         ExternalCameraPhotography,
         /// (GM,DCM,"General Microscopy")
         GeneralMicroscopy,
-        /// (HD,DCM,"Hemodynamic Waveform")
-        HemodynamicWaveform,
         /// (IO,DCM,"Intra-oral Radiography")
         IntraOralRadiography,
         /// (IVOCT,DCM,"Intravascular Optical Coherence Tomography")
@@ -84,8 +72,8 @@ class DCMTK_CMR_EXPORT CID29_AcquisitionModality
         IntravascularUltrasound,
         /// (KER,DCM,"Keratometry")
         Keratometry,
-        /// (LS,DCM,"Laser Scan")
-        LaserScan,
+        /// (LS,DCM,"Laser surface scan")
+        LaserSurfaceScan,
         /// (LEN,DCM,"Lensometry")
         Lensometry,
         /// (MR,DCM,"Magnetic Resonance")
@@ -116,16 +104,12 @@ class DCMTK_CMR_EXPORT CID29_AcquisitionModality
         PanoramicXRay,
         /// (PA,DCM,"Photoacoustic")
         Photoacoustic,
-        /// (POS,DCM,"Position Sensor")
-        PositionSensor,
         /// (PT,DCM,"Positron emission tomography")
         PositronEmissionTomography,
         /// (RF,DCM,"Radiofluoroscopy")
         Radiofluoroscopy,
         /// (RG,DCM,"Radiographic imaging")
         RadiographicImaging,
-        /// (RESP,DCM,"Respiratory Waveform")
-        RespiratoryWaveform,
         /// (RTIMAGE,DCM,"RT Image")
         RTImage,
         /// (SM,DCM,"Slide Microscopy")
@@ -141,7 +125,23 @@ class DCMTK_CMR_EXPORT CID29_AcquisitionModality
         /// (VA,DCM,"Visual Acuity")
         VisualAcuity,
         /// (XA,DCM,"X-Ray Angiography")
-        XRayAngiography
+        XRayAngiography,
+        /// (EPS,DCM,"Cardiac Electrophysiology"), included from CID 34
+        CardiacElectrophysiology,
+        /// (ECG,DCM,"Electrocardiography"), included from CID 34
+        Electrocardiography,
+        /// (EEG,DCM,"Electroencephalography"), included from CID 34
+        Electroencephalography,
+        /// (EMG,DCM,"Electromyography"), included from CID 34
+        Electromyography,
+        /// (EOG,DCM,"Electrooculography"), included from CID 34
+        Electrooculography,
+        /// (HD,DCM,"Hemodynamic"), included from CID 34
+        Hemodynamic,
+        /// (POS,DCM,"Position Sensor"), included from CID 34
+        PositionSensor,
+        /// (RESP,DCM,"Respiratory"), included from CID 34
+        Respiratory
     };
 
     /** (default) constructor

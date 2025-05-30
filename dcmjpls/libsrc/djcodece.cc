@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2007-2023, OFFIS e.V.
+ *  Copyright (C) 2007-2025, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -55,15 +55,9 @@
 #include "intrface.h"
 
 BEGIN_EXTERN_C
-#ifdef HAVE_FCNTL_H
 #include <fcntl.h>       /* for O_RDONLY */
-#endif
-#ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>   /* required for sys/stat.h */
-#endif
-#ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>    /* for stat, fstat */
-#endif
 END_EXTERN_C
 
 
@@ -96,7 +90,15 @@ OFBool DJLSEncoderBase::canChangeCoding(
 {
   // this codec only handles conversion from uncompressed to JPEG-LS.
   DcmXfer oldRep(oldRepType);
-  return (oldRep.isNotEncapsulated() && (newRepType == supportedTransferSyntax()));
+  return (oldRep.usesNativeFormat() && (newRepType == supportedTransferSyntax()));
+}
+
+
+Uint16 DJLSEncoderBase::decodedBitsAllocated(
+    Uint16 /* bitsAllocated */,
+    Uint16 /* bitsStored */) const
+{
+  return 0;
 }
 
 
@@ -372,7 +374,7 @@ OFCondition DJLSEncoderBase::updateDerivationDescription(
   derivationDescription =  "near lossless JPEG-LS compression, factor ";
   OFStandard::ftoa(buf, sizeof(buf), ratio, OFStandard::ftoa_uppercase, 0, 5);
   derivationDescription += buf;
-  sprintf(buf, " (NEAR=%lu)", OFstatic_cast(unsigned long, djrp->getnearlosslessDeviation()));
+  OFStandard::snprintf(buf, sizeof(buf), " (NEAR=%lu)", OFstatic_cast(unsigned long, djrp->getnearlosslessDeviation()));
   derivationDescription += buf;
 
   // append old Derivation Description, if any
@@ -1152,7 +1154,7 @@ OFCondition DJLSEncoderBase::compressCookedFrame(
 
     frameBuffer = new Uint8[buffer_size];
     framePointer = frameBuffer;
-    result = convertToUninterleaved(frameBuffer, buffer, samplesPerPixel, width, height, jls_params.bitspersample);
+    result = convertToUninterleaved(frameBuffer, buffer, OFstatic_cast(Uint16, samplesPerPixel), width, height, OFstatic_cast(Uint16, jls_params.bitspersample));
   }
 #endif
 
@@ -1168,7 +1170,7 @@ OFCondition DJLSEncoderBase::compressCookedFrame(
   {
     // 'compressed_buffer_size' now contains the size of the compressed data in buffer
     compressedSize = OFstatic_cast(unsigned long, bytesWritten);
-    fixPaddingIfNecessary(OFstatic_cast(Uint8 *, buffer), compressed_buffer_size, compressedSize, djcp->getUseFFbitstreamPadding());
+    fixPaddingIfNecessary(OFstatic_cast(Uint8 *, compressed_buffer), compressed_buffer_size, compressedSize, djcp->getUseFFbitstreamPadding());
     result = pixelSequence->storeCompressedFrame(offsetList, compressed_buffer, compressedSize, fragmentSize);
   }
 

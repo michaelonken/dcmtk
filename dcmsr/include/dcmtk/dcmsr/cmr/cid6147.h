@@ -1,12 +1,12 @@
 /*
  *
- *  Copyright (C) 2015-2024, J. Riesmeier, Oldenburg, Germany
+ *  Copyright (C) 2015-2025, J. Riesmeier, Oldenburg, Germany
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  Header file for class CID6147_ResponseCriteria
  *
- *  Generated automatically from DICOM PS 3.16-2023e
- *  File created on 2024-01-12 09:54:39 by J. Riesmeier
+ *  Generated automatically from DICOM PS 3.16-2025b
+ *  File created on 2025-04-15 12:51:55 by J. Riesmeier
  *
  */
 

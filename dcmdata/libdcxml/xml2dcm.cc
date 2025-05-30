@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2003-2022, OFFIS e.V.
+ *  Copyright (C) 2003-2025, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -38,20 +38,14 @@
 #include <libxml/parser.h>
 
 // This function is also used in dcmsr, try to stay in sync!
-#if defined(HAVE_VSNPRINTF) && defined(HAVE_PROTOTYPE_VSNPRINTF)
 extern "C" void xml2dcm_errorFunction(void * ctx, const char *msg, ...)
 {
     // Classic C requires us to declare variables at the beginning of the function.
     OFString &buffer = *OFstatic_cast(OFString*, ctx);
-#else
-extern "C" void xml2dcm_errorFunction(void * /* ctx */, const char *msg, ...)
-{
-#endif
 
     if (!DCM_dcmdataLogger.isEnabledFor(OFLogger::DEBUG_LOG_LEVEL))
         return;
 
-#if defined(HAVE_VSNPRINTF) && defined(HAVE_PROTOTYPE_VSNPRINTF)
     // libxml calls us multiple times for one line of log output which would
     // result in garbled output. To avoid this, we buffer the output in a local
     // string in the caller which we get through our 'ctx' parameter. Then, we
@@ -82,20 +76,6 @@ extern "C" void xml2dcm_errorFunction(void * /* ctx */, const char *msg, ...)
 
         pos = buffer.find('\n');
     }
-#elif defined(HAVE_VPRINTF)
-    // No vsnprint, but at least vfprintf. Output the messages directly to stderr.
-    va_list ap;
-    va_start(ap, msg);
-#ifdef HAVE_PROTOTYPE_STD__VFPRINTF
-    std::vfprintf(stderr, msg, ap);
-#else
-    vfprintf(stderr, msg, ap);
-#endif
-    va_end(ap);
-#else
-    // We can only show the most basic part of the message, this will look bad :(
-    printf("%s", msg);
-#endif
 }
 
 
@@ -125,6 +105,12 @@ void DcmXMLParseHelper::initLibrary()
     /* initialize the XML library (only required for MT-safety) */
     xmlInitParser();
 
+#if LIBXML_VERSION < 20703
+    /*
+     * the following settings have been deprecated in newer versions of libxml,
+     * or they are not needed any more:
+     */
+
     /* do not substitute entities (other than the standard ones) */
     xmlSubstituteEntitiesDefault(0);
 
@@ -133,10 +119,13 @@ void DcmXMLParseHelper::initLibrary()
 
     /* enable node indenting for tree output */
     xmlIndentTreeOutput = 1;
+
+    /* remove ignorable whitespace */
     xmlKeepBlanksDefault(0);
 
     /* enable libxml warnings and error messages */
     xmlGetWarningsDefaultValue = 1;
+#endif
 }
 
 
@@ -218,32 +207,32 @@ OFCondition DcmXMLParseHelper::createNewElement(
             dcmTagKey.set(OFstatic_cast(Uint16, group), OFstatic_cast(Uint16, elem));
             DcmTag dcmTag(dcmTagKey);
             /* convert vr string */
-            DcmVR dcmVR(OFreinterpret_cast(char *, elemVR));
-            DcmEVR dcmEVR = dcmVR.getEVR();
-            if (dcmEVR == EVR_UNKNOWN)
+            const DcmVR dcmVR(OFreinterpret_cast(char *, elemVR));
+            if (dcmVR.isUnknown() || dcmVR.isInvalid())
             {
                 /* check whether "vr" attribute exists */
                 if (elemVR == NULL)
                 {
                     DCMDATA_WARN("missing 'vr' attribute for " << dcmTag
-                        << ", using unknown VR");
+                        << ", using the tag's VR (" << dcmTag.getVR().getVRName() << ")");
                 } else {
-                    DCMDATA_WARN("invalid 'vr' attribute (" << elemVR
-                        << ") for " << dcmTag << ", using unknown VR");
+                    DCMDATA_WARN("invalid 'vr' attribute (" << elemVR << ") for " << dcmTag
+                        << ", using the tag's VR (" << dcmTag.getVR().getVRName() << ")");
                 }
-            }
-            /* check for correct vr */
-            const DcmEVR tagEVR = dcmTag.getEVR();
-            if ((tagEVR != dcmEVR) && (dcmEVR != EVR_UNKNOWN) && (tagEVR != EVR_UNKNOWN) &&
-                ((dcmTagKey != DCM_LUTData) || ((dcmEVR != EVR_US) && (dcmEVR != EVR_SS) && (dcmEVR != EVR_OW))) &&
-                ((tagEVR != EVR_xs) || ((dcmEVR != EVR_US) && (dcmEVR != EVR_SS))) &&
-                (((tagEVR != EVR_ox) && (tagEVR != EVR_px)) || ((dcmEVR != EVR_OB) && (dcmEVR != EVR_OW))))
-            {
-                DCMDATA_WARN("element " << dcmTag << " has wrong VR (" << dcmVR.getVRName()
-                    << "), correct is " << dcmTag.getVR().getVRName());
-            }
-            if (dcmEVR != EVR_UNKNOWN)
+            } else {
+                const DcmEVR dcmEVR = dcmVR.getEVR();
+                const DcmEVR tagEVR = dcmTag.getEVR();
+                /* check for correct vr */
+                if ((tagEVR != dcmEVR) && (tagEVR != EVR_UNKNOWN) &&
+                    ((dcmTagKey != DCM_LUTData) || ((dcmEVR != EVR_US) && (dcmEVR != EVR_SS) && (dcmEVR != EVR_OW))) &&
+                    ((tagEVR != EVR_xs) || ((dcmEVR != EVR_US) && (dcmEVR != EVR_SS))) &&
+                    (((tagEVR != EVR_ox) && (tagEVR != EVR_px)) || ((dcmEVR != EVR_OB) && (dcmEVR != EVR_OW))))
+                {
+                    DCMDATA_WARN("element " << dcmTag << " has wrong VR (" << dcmVR.getVRName()
+                        << "), correct is '" << dcmTag.getVR().getVRName() << "'");
+                }
                 dcmTag.setVR(dcmVR);
+            }
             /* create DICOM element */
             result = DcmItem::newDicomElementWithVR(newElem, dcmTag);
         } else {
@@ -696,8 +685,11 @@ OFCondition DcmXMLParseHelper::readXmlFile(
     /*
      *  Starting with libxml version 2.7.3, the maximum length of XML element values
      *  is limited to 10 MB.  The following code disables this default limitation.
+     *
+     *  Other flags are now also passed to the function instead of using global
+     *  settings (some of them have been deprecated, see initLibrary()).
      */
-    xmlDocPtr doc = xmlReadFile(ifname, NULL /*encoding*/, XML_PARSE_HUGE);
+    xmlDocPtr doc = xmlReadFile(ifname, NULL /*encoding*/, XML_PARSE_HUGE | XML_PARSE_NOBLANKS | XML_PARSE_NONET);
 #else
     xmlDocPtr doc = xmlParseFile(ifname);
 #endif

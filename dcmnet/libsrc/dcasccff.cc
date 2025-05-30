@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2003-2022, OFFIS e.V.
+ *  Copyright (C) 2003-2024, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -25,6 +25,7 @@
 #include "dcmtk/dcmnet/dcasccfg.h"  /* for class DcmAssociationConfiguration */
 #include "dcmtk/dcmdata/dcerror.h"  /* for EC_IllegalCall */
 #include "dcmtk/ofstd/ofconfig.h"   /* for class OFConfigFile */
+#include "dcmtk/ofstd/ofstd.h"
 
 /* config file keys for the association configuration */
 
@@ -111,7 +112,7 @@ OFCondition DcmAssociationConfigurationFile::parseTransferSyntaxes(
     found = OFTrue;
     while (found)
     {
-      sprintf(buf, "%s%u", L0_TRANSFERSYNTAX_X, ++counter);
+      OFStandard::snprintf(buf, sizeof(buf), "%s%u", L0_TRANSFERSYNTAX_X, ++counter);
       value = config.get_entry(buf);
       if (value)
       {
@@ -160,7 +161,7 @@ OFCondition DcmAssociationConfigurationFile::parsePresentationContexts(
     found = OFTrue;
     while (found)
     {
-      sprintf(buf, "%s%u", L0_PRESENTATIONCONTEXT_X, ++counter);
+      OFStandard::snprintf(buf, sizeof(buf), "%s%u", L0_PRESENTATIONCONTEXT_X, ++counter);
       value = config.get_entry(buf);
       if (value)
       {
@@ -182,7 +183,7 @@ OFCondition DcmAssociationConfigurationFile::parsePresentationContexts(
         while (++i < len)
         {
           c = abstractSyntaxUID.at(i);
-          if (! isspace(c)) transferSyntaxKey += (char) (toupper(c));
+          if (! OFStandard::isspace(c)) transferSyntaxKey += (char) (toupper(c));
         }
 
         // finally cut abstract syntax name
@@ -230,7 +231,7 @@ OFCondition DcmAssociationConfigurationFile::parseRoleSelectionItems(
     found = OFTrue;
     while (found)
     {
-      sprintf(buf, "%s%u", L0_ROLE_X, ++counter);
+      OFStandard::snprintf(buf, sizeof(buf), "%s%u", L0_ROLE_X, ++counter);
       value = config.get_entry(buf);
       if (value)
       {
@@ -323,7 +324,7 @@ OFCondition DcmAssociationConfigurationFile::parseExtendedNegotiationItems(
     found = OFTrue;
     while (found)
     {
-      sprintf(buf, "%s%u", L0_EXTENDEDNEGOTIATION_X, ++counter);
+      OFStandard::snprintf(buf, sizeof(buf), "%s%u", L0_EXTENDEDNEGOTIATION_X, ++counter);
       value = config.get_entry(buf);
       if (value)
       {
@@ -442,7 +443,7 @@ OFCondition DcmAssociationConfigurationFile::parseProfiles(
     scontext.clear();
     while (*c)
     {
-      if (! isspace(TO_UCHAR(*c))) scontext += (char) (toupper(TO_UCHAR(*c)));
+      if (! OFStandard::isspace(*c)) scontext += (char) (toupper(TO_UCHAR(*c)));
       ++c;
     }
     context = scontext.c_str();
@@ -454,7 +455,7 @@ OFCondition DcmAssociationConfigurationFile::parseProfiles(
       srole.clear();
       while (*c)
       {
-        if (! isspace(TO_UCHAR(*c))) srole += (char) (toupper(TO_UCHAR(*c)));
+        if (! OFStandard::isspace(*c)) srole += (char) (toupper(TO_UCHAR(*c)));
         ++c;
       }
       role = srole.c_str();
@@ -467,7 +468,7 @@ OFCondition DcmAssociationConfigurationFile::parseProfiles(
       sextneg.clear();
       while (*c)
       {
-        if (! isspace(TO_UCHAR(*c))) sextneg += (char) (toupper(TO_UCHAR(*c)));
+        if (! OFStandard::isspace(*c)) sextneg += (char) (toupper(TO_UCHAR(*c)));
         ++c;
       }
       extneg = sextneg.c_str();

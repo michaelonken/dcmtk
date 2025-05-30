@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2002-2024, OFFIS e.V.
+ *  Copyright (C) 2002-2025, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -287,7 +287,7 @@ static OFString &constructTagName(DcmObject *object,
         if (compare(tagName, DcmTag_ERROR_TagName))
         {
             char buffer[32];
-            sprintf(buffer, "(0x%04x,0x%04x)", tag.getGTag(), tag.getETag());
+            OFStandard::snprintf(buffer, sizeof(buffer), "(0x%04x,0x%04x)", tag.getGTag(), tag.getETag());
             tagName = buffer;
         }
     } else
@@ -433,7 +433,7 @@ static OFBool compareItems(DcmItem *item1,
             OFBool first = OFTrue;
             DcmStack stack1, stack2;
             /* check whether attributes are equal */
-            while (item1->nextObject(stack1, first).good() && item2->nextObject(stack2, first).good())
+            while (item1->nextObject(stack1, first).good() && item2->nextObject(stack2, first).good() && stack1.top()->isElement() && stack2.top()->isElement())
             {
                 if (!compareAttributes(OFstatic_cast(DcmElement *, stack1.top()), OFstatic_cast(DcmElement *, stack2.top()), fromSequence, i++, reason))
                     break;
@@ -655,6 +655,9 @@ OFString DicomDirInterface::recordTypeToName(const E_DirRecType recordType)
         case ERT_Inventory:
             recordName = "Inventory";
             break;
+        case ERT_WfPresentation:
+            recordName = "WfPresentation";
+            break;
         default:
             recordName = "(unknown-directory-record-type)";
             break;
@@ -699,7 +702,8 @@ static E_DirRecType sopClassToRecordType(const OFString &sopClass)
              compare(sopClass, UID_SimplifiedAdultEchoSRStorage) ||
              compare(sopClass, UID_PatientRadiationDoseSRStorage) ||
              compare(sopClass, UID_PerformedImagingAgentAdministrationSRStorage) ||
-             compare(sopClass, UID_PlannedImagingAgentAdministrationSRStorage))
+             compare(sopClass, UID_PlannedImagingAgentAdministrationSRStorage) ||
+             compare(sopClass, UID_WaveformAnnotationSRStorage))
     {
         result = ERT_SRDocument;
     }
@@ -841,6 +845,11 @@ static E_DirRecType sopClassToRecordType(const OFString &sopClass)
         result = ERT_Annotation;
     else if (compare(sopClass, UID_InventoryStorage))
         result = ERT_Inventory;
+    else if (compare(sopClass, UID_WaveformPresentationStateStorage) ||
+             compare(sopClass, UID_WaveformAcquisitionPresentationStateStorage))
+    {
+        result = ERT_WfPresentation;
+    }
     return result;
 }
 
@@ -1031,6 +1040,7 @@ static OFCondition insertSortedUnder(DcmDirectoryRecord *parent,
             case ERT_Assessment:
             case ERT_Radiotherapy:
             case ERT_Annotation:
+            case ERT_WfPresentation:
                 /* try to insert based on InstanceNumber */
                 result = insertWithISCriterion(parent, child, DCM_InstanceNumber);
                 break;
@@ -1106,6 +1116,8 @@ static OFBool isMultiframeStorageSOPClass(const OFString &sopClassUID)
     return compare(sopClassUID, UID_BreastProjectionXRayImageStorageForPresentation) ||
            compare(sopClassUID, UID_BreastProjectionXRayImageStorageForProcessing) ||
            compare(sopClassUID, UID_BreastTomosynthesisImageStorage) ||
+// in fact, the following IOD is a multi-frame image but the individual frames are rather "tiles"
+//         compare(sopClassUID, UID_ConfocalMicroscopyTiledPyramidalImageStorage) ||
            compare(sopClassUID, UID_EnhancedContinuousRTImageStorage) ||
            compare(sopClassUID, UID_EnhancedCTImageStorage) ||
            compare(sopClassUID, UID_EnhancedMRColorImageStorage) ||
@@ -1115,8 +1127,10 @@ static OFBool isMultiframeStorageSOPClass(const OFString &sopClassUID)
            compare(sopClassUID, UID_EnhancedUSVolumeStorage) ||
            compare(sopClassUID, UID_EnhancedXAImageStorage) ||
            compare(sopClassUID, UID_EnhancedXRFImageStorage) ||
+//         compare(sopClassUID, UID_HeightMapSegmentationStorage) ||
            compare(sopClassUID, UID_IntravascularOpticalCoherenceTomographyImageStorageForPresentation) ||
            compare(sopClassUID, UID_IntravascularOpticalCoherenceTomographyImageStorageForProcessing) ||
+//         compare(sopClassUID, UID_LabelMapSegmentationStorage) ||
            compare(sopClassUID, UID_MultiframeGrayscaleByteSecondaryCaptureImageStorage) ||
            compare(sopClassUID, UID_MultiframeGrayscaleWordSecondaryCaptureImageStorage) ||
            compare(sopClassUID, UID_MultiframeSingleBitSecondaryCaptureImageStorage) ||
@@ -1126,8 +1140,9 @@ static OFBool isMultiframeStorageSOPClass(const OFString &sopClassUID)
            compare(sopClassUID, UID_OphthalmicPhotography16BitImageStorage) ||
            compare(sopClassUID, UID_OphthalmicPhotography8BitImageStorage) ||
            compare(sopClassUID, UID_OphthalmicTomographyImageStorage) ||
-           compare(sopClassUID, UID_ParametricMapStorage) ||
-           compare(sopClassUID, UID_RTDoseStorage) ||
+//         compare(sopClassUID, UID_ParametricMapStorage) ||
+           compare(sopClassUID, UID_PhotoacousticImageStorage) ||
+//         compare(sopClassUID, UID_RTDoseStorage) ||
            compare(sopClassUID, UID_RTImageStorage) ||
            compare(sopClassUID, UID_UltrasoundMultiframeImageStorage) ||
            compare(sopClassUID, UID_VideoEndoscopicImageStorage) ||
@@ -2378,7 +2393,7 @@ OFCondition DicomDirInterface::checkMandatoryAttributes(DcmMetaInfo *metainfo,
         metainfo->findAndGetOFStringArray(DCM_TransferSyntaxUID, transferSyntax);
         metainfo->findAndGetOFStringArray(DCM_MediaStorageSOPClassUID, mediaSOPClassUID);
         E_DirRecType recordType = sopClassToRecordType(mediaSOPClassUID);
-        /* hanging protocol, palette and implant files are handled separately */
+        /* some directory record types are handled separately */
         if (recordType == ERT_HangingProtocol)
         {
             /* check whether all type 1 elements are really present */
@@ -2563,6 +2578,7 @@ OFCondition DicomDirInterface::checkMandatoryAttributes(DcmMetaInfo *metainfo,
                     }
                     break;
                 case ERT_Presentation:
+                case ERT_WfPresentation:
                     if (!checkExistsWithValue(dataset, DCM_InstanceNumber, filename))
                         result = EC_MissingAttribute;
                     if (!checkExistsWithValue(dataset, DCM_ContentLabel, filename))
@@ -2949,6 +2965,7 @@ OFBool DicomDirInterface::recordMatchesDataset(DcmDirectoryRecord *record,
             case ERT_Radiotherapy:
             case ERT_Annotation:
             case ERT_Inventory:
+            case ERT_WfPresentation:
                 /* The attribute ReferencedSOPInstanceUID is automatically
                  * put into a Directory Record when a filename is present.
                 */
@@ -3330,6 +3347,42 @@ DcmDirectoryRecord *DicomDirInterface::buildPresentationRecord(DcmDirectoryRecor
         }
     } else
         printRecordErrorMessage(EC_MemoryExhausted, ERT_Presentation, "create");
+    return record;
+}
+
+
+// create or update waveform presentation state record and copy required values from dataset
+DcmDirectoryRecord *DicomDirInterface::buildWfPresentationRecord(DcmDirectoryRecord *record,
+                                                                 DcmFileFormat *fileformat,
+                                                                 const OFString &referencedFileID,
+                                                                 const OFFilename &sourceFilename)
+{
+    /* create new waveform presentation record */
+    if (record == NULL)
+        record = new DcmDirectoryRecord(ERT_WfPresentation, referencedFileID.c_str(), sourceFilename, fileformat);
+    if (record != NULL)
+    {
+        /* check whether new record is ok */
+        if (record->error().good())
+        {
+            DcmDataset *dataset = fileformat->getDataset();
+            /* copy attribute values from dataset to waveform presentation record */
+            copyElementType1(dataset, DCM_InstanceNumber, record, sourceFilename);
+            copyElementType1(dataset, DCM_ContentLabel, record, sourceFilename);
+            copyElementType2(dataset, DCM_ContentDescription, record, sourceFilename);
+            copyElementType1(dataset, DCM_PresentationCreationDate, record, sourceFilename);
+            copyElementType1(dataset, DCM_PresentationCreationTime, record, sourceFilename);
+            copyElementType3(dataset, DCM_ContentCreatorName, record, sourceFilename);
+            copyElementType1C(dataset, DCM_ReferencedSeriesSequence, record, sourceFilename);
+            // tbd: need to check content of the referenced series sequence
+        } else {
+            printRecordErrorMessage(record->error(), ERT_WfPresentation, "create");
+            /* free memory */
+            delete record;
+            record = NULL;
+        }
+    } else
+        printRecordErrorMessage(EC_MemoryExhausted, ERT_WfPresentation, "create");
     return record;
 }
 
@@ -4714,6 +4767,9 @@ DcmDirectoryRecord *DicomDirInterface::addRecord(DcmDirectoryRecord *parent,
                 case ERT_Inventory:
                     record = buildInventoryRecord(record, fileformat, referencedFileID, sourceFilename);
                     break;
+                case ERT_WfPresentation:
+                    record = buildWfPresentationRecord(record, fileformat, referencedFileID, sourceFilename);
+                    break;
                 default:
                     /* it can only be an image */
                     record = buildImageRecord(record, fileformat, referencedFileID, sourceFilename);
@@ -4878,6 +4934,7 @@ void DicomDirInterface::inventMissingInstanceLevelAttributes(DcmDirectoryRecord 
                 case ERT_Assessment:
                 case ERT_Radiotherapy:
                 case ERT_Annotation:
+                case ERT_WfPresentation:
                     if (!record->tagExistsWithValue(DCM_InstanceNumber))
                         setDefaultValue(record, DCM_InstanceNumber, AutoInstanceNumber++);
                     break;
@@ -5334,7 +5391,7 @@ const char *DicomDirInterface::getProfileName(const E_ApplicationProfile profile
     switch(profile)
     {
         case AP_GeneralPurpose:
-            result = "STD-GEN-CD/DVD-RAM";
+            result = "STD-GEN-CD/DVD-RAM/BD";
             break;
         case AP_GeneralPurposeDVDJPEG:
             result = "STD-GEN-DVD-JPEG";
@@ -5457,7 +5514,7 @@ OFBool DicomDirInterface::warnAboutInconsistentAttributes(DcmDirectoryRecord *re
         OFBool first = OFTrue;
         DcmElement *delem = NULL;
         /* iterate over all record elements */
-        while (record->nextObject(stack, first).good() && (result || !abortCheck))
+        while (record->nextObject(stack, first).good() && (result || !abortCheck) && stack.top()->isElement())
         {
             delem = OFstatic_cast(DcmElement *, stack.top());
             if ((delem != NULL) && (delem->getLength() > 0))
@@ -5936,10 +5993,11 @@ void DicomDirInterface::setDefaultValue(DcmDirectoryRecord *record,
             /* use at most 10 chars from prefix */
             OFStandard::strlcpy(buffer, prefix, 10 + 1);
             /* append a 6 digits number */
-            sprintf(buffer + strlen(buffer), "%06lu", number);
+            size_t txlen = strlen(buffer);
+            OFStandard::snprintf(buffer + txlen, sizeof(buffer) - txlen, "%06lu", number);
         } else {
             /* create a number string only */
-            sprintf(buffer, "%lu", number);
+            OFStandard::snprintf(buffer, sizeof(buffer), "%lu", number);
         }
         record->putAndInsertString(key, buffer);
         /* create warning message */

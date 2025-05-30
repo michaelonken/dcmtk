@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2011-2023, OFFIS e.V.
+ *  Copyright (C) 2011-2024, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -484,7 +484,7 @@ OFCondition DcmStorageSCU::addDicomFilesFromDICOMDIR(const OFFilename &filename,
         OFFilename dirName;
         OFStandard::getDirNameFromPath(dirName, filename, OFFalse /* assumeDirName */);
         // iterate over all items (directory records) where ReferencedFileID is present
-        while (dataset->search(DCM_ReferencedFileID, stack, ESM_afterStackTop, OFTrue).good())
+        while (dataset->search(DCM_ReferencedFileID, stack, ESM_afterStackTop, OFTrue).good() && stack.top()->isElement())
         {
             // make sure that the dataset and element pointer are there
             if (stack.card() > 1)
@@ -638,13 +638,13 @@ OFCondition DcmStorageSCU::addPresentationContexts()
                         status = EC_UnsupportedEncoding;
                     }
                     // check whether transfer syntax uses any kind of compression
-                    else if (xfer.isEncapsulated() || (xfer.getStreamCompression() != ESC_none))
+                    else if (xfer.isPixelDataCompressed() || xfer.isDatasetCompressed())
                     {
                         // create list of proposed transfer syntaxes
                         transferSyntaxes.clear();
                         transferSyntaxes.push_back((*transferEntry)->TransferSyntaxUID.c_str());
                         // check whether compression is lossless and we can decompress it
-                        if (xfer.isLossless())
+                        if (xfer.isLosslessCompressed())
                         {
                             if (DecompressionMode == DM_never)
                             {
@@ -663,7 +663,7 @@ OFCondition DcmStorageSCU::addPresentationContexts()
                                     status = EC_UnsupportedEncoding;
                                 }
                             }
-                            else if ((xfer.getStreamCompression() != ESC_none) /* e.g. ZIP compression */ ||
+                            else if (xfer.isDatasetCompressed() /* e.g. ZIP compression */ ||
                                 DcmCodecList::canChangeCoding(xfer.getXfer(), EXS_LittleEndianExplicit))
                             {
                                 DCMNET_DEBUG("also propose the three uncompressed transfer syntaxes, "
@@ -691,7 +691,7 @@ OFCondition DcmStorageSCU::addPresentationContexts()
                             // check whether we can decompress the lossy compression
                             if (DecompressionMode == DM_lossyAndLossless)
                             {
-                                if ((xfer.getStreamCompression() != ESC_none) /* is there any lossy stream compression? */ ||
+                                if (xfer.isDatasetCompressed() /* is there any lossy stream compression? */ ||
                                     DcmCodecList::canChangeCoding(xfer.getXfer(), EXS_LittleEndianExplicit))
                                 {
                                     DCMNET_DEBUG("also propose the three uncompressed transfer syntaxes, "
@@ -716,7 +716,31 @@ OFCondition DcmStorageSCU::addPresentationContexts()
                             status = addPresentationContext(sopClassUID, transferSyntaxes);
                         }
                     }
-                    // uncompressed case: always propose all three transfer syntaxes without compression
+                    // check whether encapsulated format is used and pixel data is uncompressed
+                    // (special case since transcoding of encapsulated uncompressed transfer syntax
+                    //  to native format is not yet supported)
+                    else if (xfer.usesEncapsulatedFormat() && !xfer.isPixelDataCompressed())
+                    {
+                        // create list of proposed transfer syntaxes
+                        transferSyntaxes.clear();
+                        transferSyntaxes.push_back((*transferEntry)->TransferSyntaxUID.c_str());
+                        if (AllowIllegalProposalMode)
+                        {
+                            // warn that we cannot transcode the SOP instance (if required)
+                            DCMNET_WARN("transfer syntax uses encapsulated format and pixel data is uncompressed," << OFendl
+                                << "  but as we do not support transcoding to native format yet, we will not propose the Default Transfer Syntax" << OFendl
+                                << "  (which might result in a violation of the DICOM standard if it is not proposed in another presentation context)");
+                        } else  {
+                            // warn that we cannot transcode the SOP instance (if required)
+                            DCMNET_WARN("transfer syntax uses encapsulated format and pixel data is uncompressed," << OFendl
+                                << "  but we do not support transcoding to native format yet and, therefore, hope that it is not needed");
+                            // we hope that the SCP accepts encapsulated uncompressed transfer syntax
+                            transferSyntaxes.push_back(UID_LittleEndianImplicitTransferSyntax);
+                        }
+                        // call the inherited method from the base class doing the real work
+                        status = addPresentationContext(sopClassUID, transferSyntaxes);
+                    }
+                    // uncompressed case (native format): always propose all three transfer syntaxes without compression
                     else
                     {
                         // call the inherited method from the base class doing the real work

@@ -506,7 +506,7 @@ The dcmrt sub-package is covered by the following copyright
 
 ---------------------------------------------------------------------------
 
-Copyright (C) 2008-2012, OFFIS e.V. and ICSMED AG, Oldenburg, Germany.
+Copyright (C) 2008-2024, OFFIS e.V. and ICSMED AG, Oldenburg, Germany.
 Copyright (C) 2013-2024, J. Riesmeier, Oldenburg, Germany.
 All rights reserved.
 
@@ -818,6 +818,70 @@ of the BSD license:
 
 ---------------------------------------------------------------------------
 
+The code for the function OFgetExecutablePath()
+is derived from the "whereami" library by Gregory Pakosz
+(https://github.com/gpakosz/whereami), which is dual-licensed under the
+WTFPL v2 and MIT licenses. The MIT license is reproduced here:
+
+/*
+ * Copyright (c) 2024 Gregory Pakosz
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the “Software”),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+ * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+ * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
+ * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+---------------------------------------------------------------------------
+
+The implementation of the argvToCommandLine() function in ofstub.cc
+is derived from an implementation with the following license:
+
+// The function argvToCommandLine() is derived from an implementation
+// with the following copyright statement:
+//
+// Copyright (c) 2011-2015 Ryan Prichard
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to
+// deal in the Software without restriction, including without limitation the
+// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+// sell copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+// IN THE SOFTWARE.
+
+
+---------------------------------------------------------------------------
+
+The implementation of the getLastErrorString() function in ofstub.cc
+is derived from an implementation by Orjan Westin published under
+the BSD license (without further specification).
+
+---------------------------------------------------------------------------
+
 Finally, DCMTK can be configured and compiled to make use of a number of
 optional external libraries that, when available, provide added functionality
 such as compression, encryption, or support for certain image formats.
@@ -834,44 +898,6 @@ When compiled with libiconv support:
 GNU LESSER GENERAL PUBLIC LICENSE
 
 License text available at: https://www.gnu.org/licenses/lgpl.html
-
----------------------------------------------------------------------------
-
-When compiled with libicu support:
-
----------------------------------------------------------------------------
-
-Copyright (C) 1991-2017 Unicode, Inc. All rights reserved.
-Distributed under the Terms of Use in http://www.unicode.org/copyright.html.
-
-Permission is hereby granted, free of charge, to any person obtaining
-a copy of the Unicode data files and any associated documentation
-(the "Data Files") or Unicode software and any associated documentation
-(the "Software") to deal in the Data Files or Software
-without restriction, including without limitation the rights to use,
-copy, modify, merge, publish, distribute, and/or sell copies of
-the Data Files or Software, and to permit persons to whom the Data Files
-or Software are furnished to do so, provided that either
-(a) this copyright and permission notice appear with all copies
-of the Data Files or Software, or
-(b) this copyright and permission notice appear in associated
-Documentation.
-
-THE DATA FILES AND SOFTWARE ARE PROVIDED "AS IS", WITHOUT WARRANTY OF
-ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
-WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-NONINFRINGEMENT OF THIRD PARTY RIGHTS.
-IN NO EVENT SHALL THE COPYRIGHT HOLDER OR HOLDERS INCLUDED IN THIS
-NOTICE BE LIABLE FOR ANY CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL
-DAMAGES, OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE,
-DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
-TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
-PERFORMANCE OF THE DATA FILES OR SOFTWARE.
-
-Except as contained in this notice, the name of a copyright holder
-shall not be used in advertising or otherwise to promote the sale,
-use or other dealings in these Data Files or Software without prior
-written authorization of the copyright holder.
 
 ---------------------------------------------------------------------------
 

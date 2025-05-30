@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1997-2022, OFFIS e.V.
+ *  Copyright (C) 1997-2025, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -79,12 +79,8 @@ inline std::ostream& operator<<( std::ostream& o, OFnullptr_t /* unused */ )
 
 #include <cstddef>
 BEGIN_EXTERN_C
-#ifdef HAVE_STDINT_H
 #include <stdint.h>
-#endif
-#ifdef HAVE_INTTYPES_H
 #include <inttypes.h>
-#endif
 END_EXTERN_C
 
 #include "dcmtk/ofstd/ofstream.h"
@@ -115,16 +111,12 @@ typedef double          Float64;    /* 64 Bit Floating Point Double */
 #define OFlonglong long long
 #elif defined(_WIN32)
 #define OFlonglong __int64
-#elif defined(HAVE_LONGLONG)
-#define OFlonglong longlong
 #endif
 
 #ifdef HAVE_UNSIGNED_LONG_LONG
 #define OFulonglong unsigned long long
 #elif defined(_WIN32)
 #define OFulonglong unsigned __int64
-#elif defined(HAVE_ULONGLONG)
-#define OFulonglong ulonglong
 #endif
 
 #ifdef HAVE_INT64_T
@@ -138,7 +130,7 @@ typedef long          Sint64;
 typedef OFlonglong    Sint64;
 #else
 /* we have not found any 64-bit signed integer type */
-#define OF_NO_SINT64 1
+#error unsupported platform (no 64-bit signed integer type)
 #endif
 
 #ifdef HAVE_UINT64_T
@@ -152,7 +144,7 @@ typedef unsigned long Uint64;
 typedef OFulonglong   Uint64;
 #else
 /* we have not found any 64-bit unsigned integer type */
-#define OF_NO_UINT64 1
+#error unsupported platform (no 64-bit unsigned integer type)
 #endif
 
 #if SIZEOF_VOID_P == 2
@@ -162,16 +154,8 @@ typedef Uint16 OFuintptr_t;
 typedef Sint32 OFintptr_t;
 typedef Uint32 OFuintptr_t;
 #elif SIZEOF_VOID_P == 8
-#ifndef OF_NO_SINT64
 typedef Sint64 OFintptr_t;
-#else
-#error unsupported platform (64-Bit pointers but no 64-Bit signed integer type)
-#endif
-#ifndef OF_NO_UINT64
 typedef Uint64 OFuintptr_t;
-#else
-#error unsupported platform (64-Bit pointers but no 64-Bit unsigned integer type)
-#endif
 #else
 #error Unsupported platform (invalid pointer size)
 #endif
@@ -182,11 +166,7 @@ typedef bool OFBool;
 #define OFTrue true
 #define OFFalse false
 
-#if defined(HAVE_TYPENAME)
 #define OFTypename typename
-#else
-#define OFTypename
-#endif
 
 #ifndef DOXYGEN
 struct DCMTK_OFSTD_EXPORT OFnullptr_t

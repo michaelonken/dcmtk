@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2002-2022, OFFIS e.V.
+ *  Copyright (C) 2002-2024, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -32,6 +32,7 @@
 #include "dcmtk/dcmdata/dcdeftag.h"  /* for tag constants */
 #include "dcmtk/dcmdata/dcuid.h"     /* for OFFIS_DCMTK_VERSION */
 #include "dcmtk/ofstd/ofdiag.h"      /* for DCMTK_DIAGNOSTIC macros */
+#include "dcmtk/ofstd/ofstd.h"
 
 #include DCMTK_DIAGNOSTIC_IGNORE_CONST_EXPRESSION_WARNING
 
@@ -97,27 +98,20 @@ OFCondition DcmQuantColorTable::computeHistogram(
 
   // compute initial maxval
   maxval = OFstatic_cast(DcmQuantComponent, -1);
-  DcmQuantColorHashTable *htable = NULL;
 
   // attempt to make a histogram of the colors, unclustered.
   // If at first we don't succeed, lower maxval to increase color
   // coherence and try again.  This will eventually terminate.
-  OFBool done = OFFalse;
-  while (! done)
+  do
   {
-    htable = new DcmQuantColorHashTable();
-    numColors = htable->addToHashTable(image, maxval, maxcolors);
-    if (numColors > 0) done = OFTrue;
-    else
-    {
-      delete htable;
+      DcmQuantColorHashTable htable;
+      if (htable.addToHashTable(image, maxval, maxcolors) > 0)
+      {
+          numColors = htable.createHistogram(array);
+          return EC_Normal;
+      }
       maxval = maxval/2;
-    }
-  }
-
-  numColors = htable->createHistogram(array);
-  delete htable;
-  return EC_Normal;
+  } while (OFTrue);
 }
 
 
@@ -538,7 +532,7 @@ void DcmQuantColorTable::setDescriptionString(OFString& str) const
 {
   char buf[100];
 
-  sprintf(buf, "Converted to PALETTE COLOR %lu/0/%u with DCMTK %s",
+  OFStandard::snprintf(buf, sizeof(buf), "Converted to PALETTE COLOR %lu/0/%u with DCMTK %s",
     (numColors > 65535) ? 0 : numColors, (sizeof(DcmQuantComponent) == 1) ? 8 : 16,
     OFFIS_DCMTK_VERSION);
 

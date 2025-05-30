@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1997-2024, OFFIS e.V.
+ *  Copyright (C) 1997-2025, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -51,16 +51,9 @@
 // of one class of the STL
 #include <list>
 
-#ifdef HAVE_STD_NAMESPACE
 #define OFList std::list
 #define OFListIterator(x) std::list< x >::iterator
 #define OFListConstIterator(x) std::list< x >::const_iterator
-#else
-#define OFList list
-#define OFListIterator(x) list< x >::iterator
-#define OFListConstIterator(x) list< x >::const_iterator
-#endif
-
 #define OFListInsert(InputIterator, T, c, pos, first, last) (c).insert((pos), (first), (last))
 #define OFListRemoveIf(Predicate, T, c, pred) (c).remove_if((pred))
 
@@ -69,9 +62,7 @@
 
 #else
 
-#ifdef HAVE_ITERATOR_HEADER
 #include <iterator>
-#endif
 
 // #define INCLUDE_CASSERT
 // #define INCLUDE_CSTDDEF
@@ -81,10 +72,8 @@
 #define OFLIST_TYPENAME
 
 BEGIN_EXTERN_C
-#ifdef HAVE_SYS_TYPES_H
 /* needed e.g. on Solaris for definition of size_t */
 #include <sys/types.h>
-#endif
 END_EXTERN_C
 
 // OFListLinkBase, OFListLink and OFListBase are classes for internal
@@ -186,10 +175,8 @@ public:
     /// member typedef for T&
     typedef T& reference;
 
-#ifdef HAVE_BIDIRECTIONAL_ITERATOR_CATEGORY
     /// member typedef declaring the category
     typedef STD_NAMESPACE bidirectional_iterator_tag iterator_category;
-#endif
 
     /** default constructor. Creates an iterator referencing nothing.
      *  In general, iterators should always be copy-constructed

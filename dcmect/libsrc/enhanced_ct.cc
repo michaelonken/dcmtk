@@ -392,8 +392,8 @@ struct EctEnhancedCT::GetFramesVisitor
 template <typename ImagePixel>
 EctEnhancedCT::EctEnhancedCT(OFin_place_type_t(ImagePixel))
     : IODImage(OFin_place<ImagePixel>)
-    , m_SynchronisationModule()
-    , m_SynchronisationModuleEnabled(OFFalse)
+    , m_SynchronizationModule()
+    , m_SynchronizationModuleEnabled(OFFalse)
     , m_EnhancedGeneralEquipmentModule()
     , m_FG()
     , m_DimensionModule()
@@ -753,17 +753,17 @@ IODFoRModule& EctEnhancedCT::getIODFrameOfReferenceModule()
 
 IODSynchronizationModule& EctEnhancedCT::getIODSynchronizationModule()
 {
-    return m_SynchronisationModule;
+    return m_SynchronizationModule;
 }
 
-void EctEnhancedCT::setIODSynchronisationModuleEnabled(const OFBool enabled)
+void EctEnhancedCT::setIODSynchronizationModuleEnabled(const OFBool enabled)
 {
-    m_SynchronisationModuleEnabled = enabled;
+    m_SynchronizationModuleEnabled = enabled;
 }
 
-OFBool EctEnhancedCT::getIODSynchronisationModuleEnabled()
+OFBool EctEnhancedCT::getIODSynchronizationModuleEnabled()
 {
-    return m_SynchronisationModuleEnabled;
+    return m_SynchronizationModuleEnabled;
 }
 
 IODGeneralEquipmentModule& EctEnhancedCT::getIODGeneralEquipmentModule()
@@ -1098,8 +1098,8 @@ OFCondition EctEnhancedCT::writeConcatenation(ConcatenationCreator& cc)
 OFCondition EctEnhancedCT::writeGeneric(DcmItem& dataset)
 {
     OFCondition result;
-    if (m_SynchronisationModuleEnabled)
-        result = m_SynchronisationModule.write(dataset);
+    if (m_SynchronizationModuleEnabled)
+        result = m_SynchronizationModule.write(dataset);
     if (result.good())
         result = m_FG.setNumberOfFrames(
             DcmIODUtil::limitMaxFrames(m_Frames.size(), "Maximum number of frames exceeded, will write 2147483647"));
@@ -1187,7 +1187,7 @@ OFCondition EctEnhancedCT::readGeneric(DcmItem& dataset)
     }
 
     IODImage::read(dataset);
-    m_SynchronisationModule.read(dataset);
+    m_SynchronizationModule.read(dataset);
     m_EnhancedGeneralEquipmentModule.read(dataset);
     m_FG.read(dataset);
     m_DimensionModule.read(dataset);
@@ -1222,9 +1222,9 @@ OFCondition EctEnhancedCT::decompress(DcmDataset& dset)
 {
     DcmXfer xfer = dset.getOriginalXfer();
     OFCondition result;
-    // If the original transfer is encapsulated and we do not already have an uncompressed version, decompress or reject
-    // the file
-    if (xfer.isEncapsulated())
+    // If the original transfer syntax refers to compressed pixel data and we do not
+    // already have an uncompressed version, decompress or reject the file
+    if (xfer.isPixelDataCompressed())
     {
         DCMECT_DEBUG("Enhanced CT object is compressed, converting to uncompressed transfer syntax first");
         result = DcmIODUtil::decompress(dset);

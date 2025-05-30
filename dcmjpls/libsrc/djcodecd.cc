@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2007-2024, OFFIS e.V.
+ *  Copyright (C) 2007-2025, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -69,10 +69,28 @@ OFBool DJLSDecoderBase::canChangeCoding(
   // this codec only handles conversion from JPEG-LS to uncompressed.
 
   DcmXfer newRep(newRepType);
-  if (newRep.isNotEncapsulated() && (oldRepType == supportedTransferSyntax()))
+  if (newRep.usesNativeFormat() && (oldRepType == supportedTransferSyntax()))
      return OFTrue;
 
   return OFFalse;
+}
+
+
+Uint16 DJLSDecoderBase::decodedBitsAllocated(
+    Uint16 /* bitsAllocated */,
+    Uint16 bitsStored) const
+{
+  // this codec does not support images with less than 2 bits per sample
+  if (bitsStored < 2) return 0;
+
+  // for images with 2..8 bits per sample, BitsAllocated will be 8
+  if (bitsStored <= 8) return 8;
+
+  // for images with 9..16 bits per sample, BitsAllocated will be 16
+  if (bitsStored <= 16) return 16;
+
+  // this codec does not support images with more than 16 bits per sample
+  return 0;
 }
 
 
@@ -186,7 +204,7 @@ OFCondition DJLSDecoderBase::decode(
   {
       DCMJPLS_DEBUG("JPEG-LS decoder processes frame " << (currentFrame+1));
 
-      result = decodeFrame(pixSeq, djcp, dataset, currentFrame, currentItem, pixeldata8, frameSize,
+      result = decodeFrameNoSwap(pixSeq, djcp, dataset, currentFrame, currentItem, pixeldata8, frameSize,
           imageFrames, imageColumns, imageRows, imageSamplesPerPixel, bytesPerSample);
 
       // check if we should enforce "one fragment per frame" while
@@ -211,8 +229,17 @@ OFCondition DJLSDecoderBase::decode(
   if (result.good() && (numberOfFramesPresent || (imageFrames > 1)))
   {
     char numBuf[20];
-    sprintf(numBuf, "%ld", OFstatic_cast(long, imageFrames));
+    OFStandard::snprintf(numBuf, sizeof(numBuf), "%ld", OFstatic_cast(long, imageFrames));
     result = ((DcmItem *)dataset)->putAndInsertString(DCM_NumberOfFrames, numBuf);
+  }
+
+  if (result.good())
+  {
+    // decompression is complete, finally adjust byte order if necessary
+    if (bytesPerSample == 1) // we're writing bytes into words
+    {
+      result = swapIfNecessary(gLocalByteOrder, EBO_LittleEndian, pixeldata16, OFstatic_cast(Uint32, totalSize), sizeof(Uint16));
+    }
   }
 
   if (result.good() && (dataset->ident() == EVR_dataset))
@@ -315,7 +342,7 @@ OFCondition DJLSDecoderBase::decodeFrame(
   return result;
 }
 
-OFCondition DJLSDecoderBase::decodeFrame(
+OFCondition DJLSDecoderBase::decodeFrameNoSwap(
     DcmPixelSequence * fromPixSeq,
     const DJLSCodecParameter *cp,
     DcmItem *dataset,
@@ -472,16 +499,6 @@ OFCondition DJLSDecoderBase::decodeFrame(
         }
       }
 
-      if (result.good())
-      {
-          // decompression is complete, finally adjust byte order if necessary
-          if (bytesPerSample == 1) // we're writing bytes into words
-          {
-              result = swapIfNecessary(gLocalByteOrder, EBO_LittleEndian, buffer,
-                      bufSize, sizeof(Uint16));
-          }
-      }
-
       // update planar configuration if we are decoding a color image
       if (result.good() && (imageSamplesPerPixel > 1))
       {
@@ -493,6 +510,35 @@ OFCondition DJLSDecoderBase::decodeFrame(
   return result;
 }
 
+OFCondition DJLSDecoderBase::decodeFrame(
+    DcmPixelSequence * fromPixSeq,
+    const DJLSCodecParameter *cp,
+    DcmItem *dataset,
+    Uint32 frameNo,
+    Uint32& currentItem,
+    void * buffer,
+    Uint32 bufSize,
+    Sint32 imageFrames,
+    Uint16 imageColumns,
+    Uint16 imageRows,
+    Uint16 imageSamplesPerPixel,
+    Uint16 bytesPerSample)
+{
+    OFCondition result = decodeFrameNoSwap(fromPixSeq, cp, dataset, frameNo, currentItem, buffer, bufSize, imageFrames, imageColumns, imageRows, imageSamplesPerPixel, bytesPerSample);
+    if (result.good())
+    {
+        // decompression is complete, finally adjust byte order if necessary
+        if (bytesPerSample == 1) // we're writing bytes into words
+        {
+            if ((gLocalByteOrder == EBO_BigEndian) && (bufSize & 1))
+            {
+              DCMJPLS_WARN("Size of frame buffer is odd, cannot correct byte order for last pixel value");
+            }
+            result = swapIfNecessary(gLocalByteOrder, EBO_LittleEndian, buffer, bufSize, sizeof(Uint16));
+        }
+    }
+    return result;
+}
 
 OFCondition DJLSDecoderBase::encode(
     const Uint16 * /* pixelData */,

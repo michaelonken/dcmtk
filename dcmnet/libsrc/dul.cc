@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1994-2022, OFFIS e.V.
+ *  Copyright (C) 1994-2025, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were partly developed by
@@ -83,10 +83,8 @@ BEGIN_EXTERN_C
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
-#ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
-#endif
-/* sys/socket.h included via dcompat.h - needed for Ultrix */
+/* sys/socket.h included via "dcmtk/ofstd/ofsockad.h" - needed for Ultrix */
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
 #endif
@@ -103,12 +101,10 @@ BEGIN_EXTERN_C
 #include <tcpd.h>               /* for hosts_ctl */
 int dcmtk_hosts_access(struct request_info *req);
 #endif
+#include <fcntl.h>              /* for FD_CLOEXEC */
+
 /* declare extern "C" typedef for signal handler function pointer */
-#ifdef SIGNAL_HANDLER_WITH_ELLIPSE
-typedef void(*mySIG_TYP)(...);
-#else
 typedef void(*mySIG_TYP)(int);
-#endif
 END_EXTERN_C
 
 #ifdef DCMTK_HAVE_POLL
@@ -123,6 +119,7 @@ END_EXTERN_C
 #include "dcmtk/dcmnet/lst.h"
 #include "dcmtk/ofstd/ofconsol.h"
 #include "dcmtk/ofstd/ofstd.h"
+#include "dcmtk/ofstd/ofsockad.h" /* for class OFSockAddr and SOCK_CLOEXEC */
 
 #include "dcmtk/dcmnet/dul.h"
 #include "dcmtk/dcmnet/dulstruc.h"
@@ -1563,13 +1560,7 @@ receiveTransportConnectionTCP(PRIVATE_NETWORKKEY ** network,
     fd_set fdset;
 #endif
     struct timeval timeout_val;
-#ifdef HAVE_DECLARATION_SOCKLEN_T
     socklen_t len;
-#elif !defined(HAVE_PROTOTYPE_ACCEPT) || defined(HAVE_INTP_ACCEPT)
-    int len;
-#else
-    size_t len;
-#endif
     int nfound, connected;
     struct sockaddr from;
     struct linger sockarg;
@@ -1630,17 +1621,11 @@ receiveTransportConnectionTCP(PRIVATE_NETWORKKEY ** network,
 #ifdef DCMTK_HAVE_POLL
             nfound = poll(pfd, 1, timeout_val.tv_sec*1000+(timeout_val.tv_usec/1000));
 #else
-#ifdef HAVE_INTP_SELECT
-            nfound = select(
-              OFstatic_cast(int, (*network)->networkSpecific.TCP.listenSocket + 1),
-                           (int *)(&fdset), NULL, NULL, &timeout_val);
-#else
             // On Win32, it is safe to cast the first parameter to int
             // because Windows ignores this parameter anyway.
             nfound = select(
               OFstatic_cast(int, (*network)->networkSpecific.TCP.listenSocket + 1),
                            &fdset, NULL, NULL, &timeout_val);
-#endif /* HAVE_INTP_SELECT */
 #endif /* DCMTK_HAVE_POLL*/
 
             if (DCM_dcmnetLogger.isEnabledFor(OFLogger::DEBUG_LOG_LEVEL))
@@ -1681,17 +1666,11 @@ receiveTransportConnectionTCP(PRIVATE_NETWORKKEY ** network,
 #ifdef DCMTK_HAVE_POLL
                 nfound = poll(pfd, 1, timeout_val.tv_sec*1000+(timeout_val.tv_usec/1000));
 #else
-#ifdef HAVE_INTP_SELECT
-                nfound = select(
-                  OFstatic_cast(int, (*network)->networkSpecific.TCP.listenSocket + 1),
-                                (int *)(&fdset), NULL, NULL, &timeout_val);
-#else
                 // On Win32, it is safe to cast the first parameter to int
                 // because Windows ignores this parameter anyway.
                 nfound = select(
                   OFstatic_cast(int, (*network)->networkSpecific.TCP.listenSocket + 1),
                                 &fdset, NULL, NULL, &timeout_val);
-#endif /* HAVE_INTP_SELECT */
 #endif /* DCMTK_HAVE_POLL */
                 if (DCM_dcmnetLogger.isEnabledFor(OFLogger::DEBUG_LOG_LEVEL))
                 {
@@ -1727,6 +1706,12 @@ receiveTransportConnectionTCP(PRIVATE_NETWORKKEY ** network,
             OFSTRINGSTREAM_GETOFSTRING(stream, msg)
             return makeDcmnetCondition(DULC_TCPINITERROR, OF_error, msg.c_str());
         }
+
+#ifdef FD_CLOEXEC
+        // prevent socket leakage to child programs executed with exec()
+        int flags = fcntl(sock, F_GETFD, 0);
+        fcntl(sock, F_SETFD, FD_CLOEXEC | flags);
+#endif
     }
 
 #ifdef HAVE_FORK
@@ -1793,7 +1778,7 @@ receiveTransportConnectionTCP(PRIVATE_NETWORKKEY ** network,
             size_t len2 = strlen(command_argv[i]);
             if ((len2 > 0) && (command_argv[i][len2 - 1] == '\\'))
             {
-	            cmdLine += "\\";
+                cmdLine += "\\";
             }
             cmdLine += "\"";
         }
@@ -1882,7 +1867,7 @@ receiveTransportConnectionTCP(PRIVATE_NETWORKKEY ** network,
                 DWORD bytesWritten;
                 char buf[30];
                 // we pass the socket handle as a 64-bit unsigned integer, which should work for 32 and 64 bit Windows
-                sprintf(buf, "%llu", OFreinterpret_cast(unsigned __int64, childSocketHandle));
+                OFStandard::snprintf(buf, sizeof(buf), "%llu", OFreinterpret_cast(unsigned __int64, childSocketHandle));
                 if (!WriteFile(hChildStdInWriteDup, buf, OFstatic_cast(DWORD, strlen(buf) + 1), &bytesWritten, NULL))
                 {
                     CloseHandle(hChildStdInWriteDup);
@@ -1983,7 +1968,7 @@ receiveTransportConnectionTCP(PRIVATE_NETWORKKEY ** network,
     // create string containing numerical IP address.
     OFString client_dns_name;
     char client_ip_address[20];
-    sprintf(client_ip_address, "%-d.%-d.%-d.%-d",  // this code is ugly but thread safe
+    OFStandard::snprintf(client_ip_address, sizeof(client_ip_address), "%-d.%-d.%-d.%-d",  // this code is ugly but thread safe
        ((int) from.sa_data[2]) & 0xff,
        ((int) from.sa_data[3]) & 0xff,
        ((int) from.sa_data[4]) & 0xff,
@@ -2180,13 +2165,7 @@ initializeNetworkTCP(PRIVATE_NETWORKKEY ** key, void *parameter)
         (! processIsForkedChild))
     {
 
-#ifdef HAVE_DECLARATION_SOCKLEN_T
       socklen_t length;
-#elif !defined(HAVE_PROTOTYPE_ACCEPT) || defined(HAVE_INTP_ACCEPT)
-      int length;
-#else
-      size_t length;
-#endif
 
 #ifdef _WIN32
       SOCKET sock;
@@ -2197,8 +2176,24 @@ initializeNetworkTCP(PRIVATE_NETWORKKEY ** key, void *parameter)
 
       /* Create socket for Internet type communication */
       (*key)->networkSpecific.TCP.port = *(int *) parameter;
+
+      // Create socket and prevent leakage of the open socket to processes called with exec()
+      // by using SOCK_CLOEXEC (where available) or FD_CLOEXEC (POSIX.1-2008)
+#ifdef SOCK_CLOEXEC
+      (*key)->networkSpecific.TCP.listenSocket = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
+      sock = (*key)->networkSpecific.TCP.listenSocket;
+#elif defined(FD_CLOEXEC)
       (*key)->networkSpecific.TCP.listenSocket = socket(AF_INET, SOCK_STREAM, 0);
       sock = (*key)->networkSpecific.TCP.listenSocket;
+      if (sock >= 0)
+      {
+          int flags = fcntl(sock, F_GETFD, 0);
+          fcntl(sock, F_SETFD, FD_CLOEXEC | flags);
+      }
+#else
+      (*key)->networkSpecific.TCP.listenSocket = socket(AF_INET, SOCK_STREAM, 0);
+      sock = (*key)->networkSpecific.TCP.listenSocket;
+#endif
 
 #ifdef _WIN32
       if (sock == INVALID_SOCKET)
@@ -2685,11 +2680,11 @@ dump_uid(const char *UID, const char *indent)
 
     if ((UID==NULL)||(UID[0] == '\0'))
     {
-        sprintf(buf, indent, " ");
+        OFStandard::snprintf(buf, sizeof(buf), indent, " ");
         return OFString(buf) + "No UID";
     } else {
         uidName = dcmFindNameOfUID(UID, "Unknown UID");
-        sprintf(buf, indent, " ");
+        OFStandard::snprintf(buf, sizeof(buf), indent, " ");
         return OFString(buf) + uidName;
     }
 }

@@ -32,14 +32,10 @@
 #endif
 
 /* */
-#ifdef HAVE_SYS_TYPES_H
 #define DCMTK_LOG4CPLUS_HAVE_SYS_TYPES_H
-#endif
 
 /* */
-#ifdef HAVE_SYS_STAT_H
 #define DCMTK_LOG4CPLUS_HAVE_SYS_STAT_H
-#endif
 
 /* */
 #ifdef HAVE_SYS_SYSCALL_H
@@ -70,9 +66,7 @@
 #endif
 
 /* */
-#ifdef HAVE_FCNTL_H
 #define DCMTK_LOG4CPLUS_HAVE_FCNTL_H
-#endif
 
 /* */
 #define DCMTK_LOG4CPLUS_HAVE_STDARG_H
@@ -87,9 +81,7 @@
 #define DCMTK_LOG4CPLUS_HAVE_ERRNO_H
 
 /* */
-#ifdef HAVE_WCHAR_H
 #define DCMTK_LOG4CPLUS_HAVE_WCHAR_H
-#endif
 
 /* */
 #define DCMTK_LOG4CPLUS_HAVE_LIMITS_H
@@ -100,9 +92,7 @@
 #endif
 
 /* */
-#ifdef HAVE_GETADDRINFO
 #define DCMTK_LOG4CPLUS_HAVE_GETADDRINFO
-#endif
 
 /* */
 #ifdef HAVE_GETHOSTBYNAME_R
@@ -110,9 +100,7 @@
 #endif
 
 /* */
-#ifdef HAVE_GETPID
 #define DCMTK_LOG4CPLUS_HAVE_GETPID
-#endif
 
 /* */
 #ifdef HAVE_PROTOTYPE_GETTIMEOFDAY
@@ -185,9 +173,7 @@
 #endif
 
 /* */
-#ifdef HAVE_STAT
 #define DCMTK_LOG4CPLUS_HAVE_STAT
-#endif
 
 /* */
 #ifdef WITH_THREADS
@@ -204,15 +190,6 @@
 /* Define for C99 compilers/standard libraries that support more than just the
    "C" locale. */
 #undef DCMTK_LOG4CPLUS_WORKING_C_LOCALE
-
-/* Define to int if undefined. */
-#if 0
-/* This block is handled by configure completely */
-#undef socklen_t
-#ifndef HAVE_DECLARATION_SOCKLEN_T
-#define socklen_t int
-#endif
-#endif
 
 /* Defined for --enable-debugging builds. */
 #ifdef DEBUG
@@ -273,9 +250,7 @@
 #endif
 
 /* */
-#ifdef HAVE_VSNPRINTF
 #define DCMTK_LOG4CPLUS_HAVE_VSNPRINTF
-#endif
 
 /* */
 #ifdef HAVE_PROTOTYPE_STD__VSNPRINTF
@@ -328,14 +303,10 @@
 #endif
 
 /* Define to 1 if you have the `mbstowcs' function. */
-#ifdef HAVE_MBSTOWCS
 #define DCMTK_LOG4CPLUS_HAVE_MBSTOWCS
-#endif
 
 /* Define to 1 if you have the `wcstombs' function. */
-#ifdef HAVE_WCSTOMBS
 #define DCMTK_LOG4CPLUS_HAVE_WCSTOMBS
-#endif
 
 /* Define to 1 if you have Linux style syscall(SYS_gettid). */
 #if defined(HAVE_SYS_SYSCALL_H) && defined(HAVE_SYS_GETTID)

@@ -27,14 +27,31 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
+# Expose CMAKE_DEBUG_POSTFIX to the user and extend it for DLLs and executables.
+#
+# If the user wants to use a different postfix for debug build artifacts, he can
+# set this variable (e.g. to "_d").  This will append _d to all libraries built
+# with the exception of Windows DLLS.  If the latter should also have the debug
+# the USE_DEBUG_POSTFIX_FOR_DLLS option must be enabled.
+# To append the debug postfix to executables (except test programs), the
+# USE_DEBUG_POSTFIX_FOR_EXEC option can be used.
+set(CMAKE_DEBUG_POSTFIX "" CACHE STRING "Library postfix for debug builds (default: none).")
+# If enabled, the debug postfix will be used for Windows DLLs as well.
+option(USE_DEBUG_POSTFIX_FOR_DLLS "Use CMAKE_DEBUG_POSTFIX also for DLLs on Windows." OFF)
+# If enabled, the debug postfix will be used for executables (except for test programs).
+option(USE_DEBUG_POSTFIX_FOR_EXEC "Use CMAKE_DEBUG_POSTFIX also for executables." OFF)
+# Check whether the user enabled one of the USE_DEBUG_POSTFIX options but did not set CMAKE_DEBUG_POSTFIX.
+if((USE_DEBUG_POSTFIX_FOR_DLLS OR USE_DEBUG_POSTFIX_FOR_EXEC) AND NOT CMAKE_DEBUG_POSTFIX)
+  message(FATAL_ERROR "USE_DEBUG_POSTFIX_FOR_DLLS or USE_DEBUG_POSTFIX_FOR_EXEC is enabled, but CMAKE_DEBUG_POSTFIX does not have a value.")
+endif()
 
 # Basic version information
 set(DCMTK_MAJOR_VERSION 3)
 set(DCMTK_MINOR_VERSION 6)
-set(DCMTK_BUILD_VERSION 8)
+set(DCMTK_BUILD_VERSION 9)
 # The ABI is not guaranteed to be stable between different snapshots/releases,
 # so this particular version number is increased for each snapshot or release.
-set(DCMTK_ABI_VERSION 18)
+set(DCMTK_ABI_VERSION 19)
 
 # Package "release" settings (some are currently unused and, therefore, disabled)
 set(DCMTK_PACKAGE_NAME "dcmtk")
@@ -50,9 +67,9 @@ set(DCMTK_PACKAGE_VERSION_SUFFIX "+")
 option(DCMTK_LINK_STATIC "Statically link all libraries and tools with the runtime and third party libraries." OFF)
 # Modify linker flags and libraries for static builds if enabled by the user
 if(DCMTK_LINK_STATIC)
-    if (NOT APPLE)
-        # MacOS does not support static libraries. DCMTK_LINK_STATIC is still useful on MacOS though,
-        # since it will create binaries that only depend on MacOS's libc.
+    if(NOT APPLE)
+        # MacOS does not support static libraries. DCMTK_LINK_STATIC is still useful on
+        # macOS though, since it will create binaries that only depend on macOS's libc.
         set(CMAKE_EXE_LINKER_FLAGS "-static")
     endif()
     set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
@@ -72,16 +89,20 @@ else()
     set(DCMTK_LIBRARY_PROPERTIES VERSION "${DCMTK_ABI_VERSION}.${DCMTK_PACKAGE_VERSION}" SOVERSION "${DCMTK_ABI_VERSION}")
 endif()
 
+if(CMAKE_DEBUG_POSTFIX AND USE_DEBUG_POSTFIX_FOR_DLLS)
+    list(APPEND DCMTK_LIBRARY_PROPERTIES DEBUG_POSTFIX "${CMAKE_DEBUG_POSTFIX}")
+endif()
+
 option(DCMTK_PORTABLE_LINUX_BINARIES "Create ELF binaries while statically linking all third party libraries and libstdc++." OFF)
 if(DCMTK_PORTABLE_LINUX_BINARIES)
-    if (DCMTK_LINK_STATIC)
+    if(DCMTK_LINK_STATIC)
         message(FATAL_ERROR "Options DCMTK_LINK_STATIC and DCMTK_PORTABLE_LINUX_BINARIES are mutually exclusive.")
     endif()
     # only use static versions of third party libraries
     set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
 
     # When using gcc and clang, use the static version of libgcc/libstdc++.
-    if ((CMAKE_CXX_COMPILER_ID STREQUAL "GNU") OR
+    if((CMAKE_CXX_COMPILER_ID STREQUAL "GNU") OR
         (CMAKE_CXX_COMPILER_ID STREQUAL "Clang") OR
         (CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang") OR
         (CMAKE_CXX_COMPILER_ID STREQUAL "ARMClang") OR
@@ -108,12 +129,9 @@ endfunction()
 # would probably be to compile all third-party libraries ourself.
 if(DCMTK_LINK_STATIC OR DCMTK_PORTABLE_LINUX_BINARIES)
     get_static_library("STATIC_DL" "libdl.a")
-    set(ICU_EXTRA_LIBS_STATIC "${STATIC_DL}")
     get_static_library("STATIC_LZMA" "liblzma.a")
     get_static_library("STATIC_ZLIB" "libz.a")
-    get_static_library("STATIC_ICUUC" "libicuuc.a")
-    get_static_library("STATIC_ICUDATA" "libicudata.a")
-    set(LIBXML2_EXTRA_LIBS_STATIC "${STATIC_LZMA}" "${STATIC_ZLIB}" "${STATIC_ICUUC}" "${STATIC_ICUDATA}" "${STATIC_DL}")
+    set(LIBXML2_EXTRA_LIBS_STATIC "${STATIC_LZMA}" "${STATIC_ZLIB}" "${STATIC_DL}")
     get_static_library("STATIC_PTHREAD" "libpthread.a")
     set(OPENJPEG_EXTRA_LIBS_STATIC "${STATIC_PTHREAD}")
     set(OPENSSL_EXTRA_LIBS_STATIC "${STATIC_DL}")
@@ -132,7 +150,6 @@ if(DCMTK_LINK_STATIC OR DCMTK_PORTABLE_LINUX_BINARIES)
     get_static_library("STATIC_NSL" "libnsl.a")
     set(WRAP_EXTRA_LIBS_STATIC "${STATIC_NSL}")
 else()
-    set(ICU_EXTRA_LIBS_STATIC)
     set(LIBXML2_EXTRA_LIBS_STATIC)
     set(OPENJPEG_EXTRA_LIBS_STATIC)
     set(OPENSSL_EXTRA_LIBS_STATIC)
@@ -141,25 +158,11 @@ else()
     set(WRAP_EXTRA_LIBS_STATIC)
 endif()
 
-# Gather information about the employed CMake version's behavior
-set(DCMTK_CMAKE_HAS_CXX_STANDARD FALSE)
-
-if(NOT CMAKE_VERSION VERSION_LESS "3.1.3")
-  set(DCMTK_CMAKE_HAS_CXX_STANDARD TRUE)
-endif()
-
-define_property(GLOBAL PROPERTY DCMTK_CMAKE_HAS_CXX_STANDARD
-  BRIEF_DOCS "TRUE iff the CXX_STANDARD property exists."
-  FULL_DOCS "TRUE for CMake versions since 3.1.3 that evaluate the CXX_STANDARD property and CMAKE_CXX_STANDARD variable."
-)
-set_property(GLOBAL PROPERTY DCMTK_CMAKE_HAS_CXX_STANDARD ${DCMTK_CMAKE_HAS_CXX_STANDARD})
-
 # General build options and settings
 option(BUILD_APPS "Build command line applications and test programs." ON)
 option(BUILD_SHARED_LIBS "Build with shared libraries." OFF)
 option(BUILD_SINGLE_SHARED_LIBRARY "Build a single DCMTK library." OFF)
 mark_as_advanced(BUILD_SINGLE_SHARED_LIBRARY)
-set(CMAKE_DEBUG_POSTFIX "" CACHE STRING "Library postfix for debug builds. Usually left blank.")
 set(DCMTK_TLS_LIBRARY_POSTFIX "" CACHE STRING "Postfix for libraries that change their ABI when using OpenSSL.")
 # add our CMake modules to the module path, but prefer the ones from CMake.
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_ROOT}/Modules" "${CMAKE_CURRENT_SOURCE_DIR}/${DCMTK_CMAKE_INCLUDE}/CMake/")
@@ -174,9 +177,8 @@ option(DCMTK_WITH_PNG "Configure DCMTK with support for PNG." ON)
 option(DCMTK_WITH_XML "Configure DCMTK with support for XML." ON)
 option(DCMTK_WITH_ZLIB "Configure DCMTK with support for ZLIB." ON)
 option(DCMTK_WITH_OPENSSL "Configure DCMTK with support for OPENSSL." ON)
-option(DCMTK_WITH_SNDFILE "Configure DCMTK with support for SNDFILE." ON)
+option(DCMTK_WITH_SNDFILE "Configure DCMTK with support for SNDFILE." OFF)
 option(DCMTK_WITH_ICONV "Configure DCMTK with support for ICONV." ON)
-option(DCMTK_WITH_ICU "Configure DCMTK with support for ICU." ON)
 if(NOT WIN32)
   option(DCMTK_WITH_WRAP "Configure DCMTK with support for WRAP." ON)
 endif()
@@ -198,7 +200,6 @@ endmacro()
 
 DCMTK_INFERABLE_OPTION(DCMTK_ENABLE_STL_VECTOR "Enable use of STL vector.")
 DCMTK_INFERABLE_OPTION(DCMTK_ENABLE_STL_ALGORITHM "Enable use of STL algorithm.")
-DCMTK_INFERABLE_OPTION(DCMTK_ENABLE_STL_LIMITS "Enable use of STL limit.")
 DCMTK_INFERABLE_OPTION(DCMTK_ENABLE_STL_LIST "Enable use of STL list.")
 DCMTK_INFERABLE_OPTION(DCMTK_ENABLE_STL_MAP "Enable use of STL map.")
 DCMTK_INFERABLE_OPTION(DCMTK_ENABLE_STL_MEMORY "Enable use of STL memory.")
@@ -207,7 +208,7 @@ DCMTK_INFERABLE_OPTION(DCMTK_ENABLE_STL_STRING "Enable use of STL string.")
 DCMTK_INFERABLE_OPTION(DCMTK_ENABLE_STL_TYPE_TRAITS "Enable use of STL type traits.")
 DCMTK_INFERABLE_OPTION(DCMTK_ENABLE_STL_TUPLE "Enable use of STL tuple.")
 DCMTK_INFERABLE_OPTION(DCMTK_ENABLE_STL_SYSTEM_ERROR "Enable use of STL system_error.")
-DCMTK_INFERABLE_OPTION(DCMTK_ENABLE_CXX11 "Enable use of native C++11 features (eg. move semantics).")
+DCMTK_INFERABLE_OPTION(DCMTK_ENABLE_STL_ATOMIC "Enable use of STL atomic.")
 
 # On Windows, the built-in dictionary is default, on Unix the external one.
 # It is not possible to use both, built-in plus external default dictionary.
@@ -223,7 +224,7 @@ else()
 endif()
 set(DCMTK_DEFAULT_DICT "${DCMTK_DEFAULT_DICT_DEFAULT}" CACHE STRING "Denotes whether DCMTK will use built-in (compiled-in), external (file), or no default dictionary on startup")
 set_property(CACHE DCMTK_DEFAULT_DICT PROPERTY STRINGS builtin external none)
-if (DCMTK_DEFAULT_DICT EQUAL "none")
+if(DCMTK_DEFAULT_DICT EQUAL "none")
   message(WARNING "Denotes whether DCMTK will use built-in (compiled-in), external (file), or no default dictionary on startup")
 endif()
 
@@ -233,14 +234,14 @@ option(DCMTK_USE_DCMDICTPATH "Enable reading dictionary that is defined through 
 
 # Declare the option DCMTK_ENABLE_BUILTIN_OFICONV_DATA, which by default is ON when
 # we are compiling shared libraries.
-if (BUILD_SHARED_LIBS)
+if(BUILD_SHARED_LIBS)
   option(DCMTK_ENABLE_BUILTIN_OFICONV_DATA "Embed oficonv data files into oficonv library" ON)
 else()
   option(DCMTK_ENABLE_BUILTIN_OFICONV_DATA "Embed oficonv data files into oficonv library" OFF)
 endif()
 
 # evaluate the option DCMTK_ENABLE_BUILTIN_OFICONV_DATA
-if (DCMTK_ENABLE_BUILTIN_OFICONV_DATA)
+if(DCMTK_ENABLE_BUILTIN_OFICONV_DATA)
   add_definitions(-DDCMTK_ENABLE_BUILTIN_OFICONV_DATA)
 endif()
 
@@ -250,7 +251,7 @@ mark_as_advanced(CMAKE_DEBUG_POSTFIX)
 mark_as_advanced(FORCE EXECUTABLE_OUTPUT_PATH LIBRARY_OUTPUT_PATH)
 mark_as_advanced(SNDFILE_DIR DCMTK_WITH_SNDFILE) # not yet needed in public DCMTK
 mark_as_advanced(DCMTK_GENERATE_DOXYGEN_TAGFILE)
-mark_as_advanced(DCMTK_WITH_OPENJPEG) # only needed by DCMJP2K module
+mark_as_advanced(OpenJPEG_DIR DCMTK_WITH_OPENJPEG) # only needed by DCMJP2K module
 mark_as_advanced(DCMTK_TLS_LIBRARY_POSTFIX)
 
 if(NOT WIN32)
@@ -369,7 +370,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 if(WIN32)
   option(DCMTK_OVERWRITE_WIN32_COMPILER_FLAGS  "Modify the default compiler flags selected by CMake." ON)
   option(DCMTK_COMPILE_WIN32_MULTITHREADED_DLL "Compile DCMTK using the Multithreaded DLL runtime library." OFF)
-  if (BUILD_SHARED_LIBS)
+  if(BUILD_SHARED_LIBS)
     set(DCMTK_COMPILE_WIN32_MULTITHREADED_DLL ON)
   endif()
 else()
@@ -379,7 +380,7 @@ else()
 endif()
 
 if(WIN32 AND CMAKE_GENERATOR MATCHES "Visual Studio .*|NMake .*")
-  if (POLICY CMP0091)
+  if(POLICY CMP0091)
     # CMake 3.15 and newer use CMAKE_MSVC_RUNTIME_LIBRARY to select
     # the MSVC runtime library
     if(DCMTK_COMPILE_WIN32_MULTITHREADED_DLL OR BUILD_SHARED_LIBS)
@@ -495,8 +496,8 @@ if(WIN32)   # special handling for Windows systems
 
 else()   # ... for non-Windows systems
 
-  # Compiler flags for Mac OS X
-  if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+  # Compiler flags for macOS and iOS
+  if(CMAKE_SYSTEM_NAME MATCHES "Darwin" OR CMAKE_SYSTEM_NAME MATCHES "iOS")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_XOPEN_SOURCE_EXTENDED -D_BSD_SOURCE -D_BSD_COMPAT -D_OSF_SOURCE -D_DARWIN_C_SOURCE")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_XOPEN_SOURCE_EXTENDED -D_BSD_SOURCE -D_BSD_COMPAT -D_OSF_SOURCE -D_DARWIN_C_SOURCE")
   # Compiler flags for NetBSD
@@ -526,7 +527,7 @@ else()   # ... for non-Windows systems
   endif()
 
   # When compiling with IBM xlC, add flags to suppress some noisy C++ warnings
-  if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "XL")
+  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "XL")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -qsuppress=1500-029:1500-030")
   endif()
 
@@ -550,47 +551,42 @@ endif()
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG")
 
-# handle CMAKE_CXX_STANDARD and related variables
-if(DCMTK_CMAKE_HAS_CXX_STANDARD)
-  if(NOT DEFINED CMAKE_CXX_STANDARD)
-    if(DCMTK_ENABLE_CXX11 AND NOT DCMTK_ENABLE_CXX11 STREQUAL "INFERRED")
-      set(CMAKE_CXX_STANDARD 11)
-    endif()
-  endif()
-  if(NOT DEFINED CMAKE_CXX_STANDARD OR CMAKE_CXX_STANDARD MATCHES "^9[0-9]?$")
-    set(DCMTK_MODERN_CXX_STANDARD FALSE)
-  else()
-    set(DCMTK_MODERN_CXX_STANDARD TRUE)
-  endif()
-  define_property(GLOBAL PROPERTY DCMTK_MODERN_CXX_STANDARD
-    BRIEF_DOCS "TRUE when compiling C++11 (or newer) code."
-    FULL_DOCS "TRUE when the compiler does support and is configured for C++11 or a later C++ standard."
-  )
-  set_property(GLOBAL PROPERTY DCMTK_MODERN_CXX_STANDARD ${DCMTK_MODERN_CXX_STANDARD})
-  if(DEFINED DCMTK_CXX11_FLAGS)
-    message(WARNING "Legacy variable DCMTK_CXX11_FLAGS will be ignored since CMake now sets the flags based on the CMAKE_CXX_STANDARD variable automatically.")
-  endif()
-elseif(NOT DEFINED DCMTK_CXX11_FLAGS)
-  # determine which flags are required to enable C++11 features (if any)
-  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
-    set(DCMTK_CXX11_FLAGS "-std=c++11")
-  elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-    if(CMAKE_HOST_WIN32)
-      set(DCMTK_CXX11_FLAGS "/Qstd=c++11")
-    else()
-      set(DCMTK_CXX11_FLAGS "-std=c++11")
-    endif()
-  else()
-    set(DCMTK_CXX11_FLAGS "")
-  endif()
-  set(DCMTK_CXX11_FLAGS "${DCMTK_CXX11_FLAGS}" CACHE STRING "The flags to add to CMAKE_CXX_FLAGS for enabling C++11 (if any).")
-  mark_as_advanced(DCMTK_CXX11_FLAGS)
+option(DCMTK_PERMIT_CXX98 "Permit (deprecated) compilation with C++98 language standard. This will cease to function in a future DCMTK release." OFF)
+
+# If desired C++ standard is at least C++11, set DCMTK_MODERN_CXX_STANDARD to true
+# and remember it in global property DCMTK_MODERN_CXX_STANDARD.
+# This is later evaluated in GenerateDCMTKConfigure.cmake in order to check
+# whether the compiler actually supports the required C++ standards up to the
+# version specified in CMAKE_CXX_STANDARD. Finally, the highest C++ version
+# (<= CMAKE_CXX_STANDARD) will be selected that the compiler actually supports.
+if(NOT DEFINED CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 11)
+  set(DCMTK_MODERN_CXX_STANDARD TRUE)
+elseif(CMAKE_CXX_STANDARD MATCHES "^9[0-9]?$" AND NOT DCMTK_PERMIT_CXX98)
+  message(FATAL_ERROR "DCMTK will require C++11 or later in the future. Use cmake option -DDCMTK_PERMIT_CXX98=ON to override this error (for now)")
+elseif(CMAKE_CXX_STANDARD MATCHES "^9[0-9]?$")
+  set(DCMTK_MODERN_CXX_STANDARD FALSE)
+  message(WARNING "DCMTK will require C++11 or later in the future, continuing for now.")
+elseif(CMAKE_CXX_STANDARD GREATER 20)
+  MESSAGE(WARNING "DCMTK is only known to compile for C++ versions <= 20 (C++${CMAKE_CXX_STANDARD} requested).")
+  set(DCMTK_MODERN_CXX_STANDARD TRUE)
+else() # CMAKE_CXX_STANDARD is 11, 14, 17 or 20
+  set(DCMTK_MODERN_CXX_STANDARD TRUE)
 endif()
+
+define_property(GLOBAL PROPERTY DCMTK_MODERN_CXX_STANDARD
+  BRIEF_DOCS "TRUE when compiling C++11 (or newer) code."
+  FULL_DOCS "TRUE when the compiler does support and is configured for C++11 or a later C++ standard."
+)
+
+# Remember globally that we use at least C++11
+set_property(GLOBAL PROPERTY DCMTK_MODERN_CXX_STANDARD ${DCMTK_MODERN_CXX_STANDARD})
+# Build global list of all modern C++ standard versions supported so far
 define_property(GLOBAL PROPERTY DCMTK_MODERN_CXX_STANDARDS
   BRIEF_DOCS "Modern C++ standards DCMTK knows about."
   FULL_DOCS "The list of C++ standards since C++11 that DCMTK currently has configuration tests for. "
 )
-set_property(GLOBAL PROPERTY DCMTK_MODERN_CXX_STANDARDS 11 14 17)
+set_property(GLOBAL PROPERTY DCMTK_MODERN_CXX_STANDARDS 11 14 17 20)
 
 #-----------------------------------------------------------------------------
 # Enable various warnings by default
@@ -607,12 +603,12 @@ if(MSVC)
     add_compile_options("/W4")
 else()
     # Add -Wall to the compiler flags if we are compiling with gcc or Clang.
-    if ((CMAKE_CXX_COMPILER_ID STREQUAL "GNU") OR
-        (CMAKE_CXX_COMPILER_ID STREQUAL "Clang") OR
-        (CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang") OR
-        (CMAKE_CXX_COMPILER_ID STREQUAL "ARMClang") OR
-        (CMAKE_CXX_COMPILER_ID STREQUAL "XLClang"))
-        add_compile_options("-Wall")
+    if((CMAKE_CXX_COMPILER_ID STREQUAL "GNU") OR
+       (CMAKE_CXX_COMPILER_ID STREQUAL "Clang") OR
+       (CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang") OR
+       (CMAKE_CXX_COMPILER_ID STREQUAL "ARMClang") OR
+       (CMAKE_CXX_COMPILER_ID STREQUAL "XLClang"))
+       add_compile_options("-Wall")
     endif()
 endif()
 
@@ -699,6 +695,7 @@ if(DCMTK_WITH_OPENSSL)
   CHECK_FUNCTIONWITHHEADER_EXISTS("SSL_CTX_set1_sigalgs(0,0,0)" "openssl/ssl.h" HAVE_OPENSSL_PROTOTYPE_SSL_CTX_SET1_SIGALGS)
   CHECK_FUNCTIONWITHHEADER_EXISTS("TLS1_TXT_ECDHE_ECDSA_WITH_AES_256_CCM_8" "openssl/ssl.h" HAVE_OPENSSL_PROTOTYPE_TLS1_TXT_ECDHE_ECDSA_WITH_AES_256_CCM_8)
   CHECK_FUNCTIONWITHHEADER_EXISTS("TLS1_TXT_ECDHE_ECDSA_WITH_CAMELLIA_256_GCM_SHA384" "openssl/ssl.h" HAVE_OPENSSL_PROTOTYPE_TLS1_TXT_ECDHE_ECDSA_WITH_CAMELLIA_256_GCM_SHA384)
+  CHECK_FUNCTIONWITHHEADER_EXISTS("TS_VERIFY_CTX_set0_store(0,0)" "openssl/ts.h" HAVE_OPENSSL_PROTOTYPE_TS_VERIFY_CTX_SET0_STORE)
 
   # test presence of functions, constants and macros needed for the dcmsign module
   CHECK_FUNCTIONWITHHEADER_EXISTS("EVP_PKEY_get_group_name" "openssl/evp.h" HAVE_OPENSSL_PROTOTYPE_EVP_PKEY_GET_GROUP_NAME)

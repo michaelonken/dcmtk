@@ -32,9 +32,7 @@
 #include "dcmtk/config/osconfig.h"
 #include "dcmtk/oficonv/oidefine.h"
 
-#ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
-#endif
 #include <wchar.h>
 #include <stdint.h>
 
@@ -295,10 +293,11 @@ DCMTK_OFICONV_EXPORT void OFiconvlist(int (*do_one) (unsigned int count, const c
 
 /** resolve the character encoding name specified by the name argument
  *  to its canonical form.
+ *  The resolved name is returned in a newly allocated buffer that must be freed by the caller using free().
  *  @param name encoding name
  *  @return canonical encoding name, NULL if unknown
  */
-DCMTK_OFICONV_EXPORT const char *OFiconv_canonicalize(const char *name);
+DCMTK_OFICONV_EXPORT char *OFiconv_canonicalize(const char *name);
 
 /** This function can retrieve or set specific conversion setting from the
  *  cd conversion descriptor. The request parameter specifies the operation
@@ -309,6 +308,12 @@ DCMTK_OFICONV_EXPORT const char *OFiconv_canonicalize(const char *name);
  *  @return 0 if successful, -1 otherwise, in which case errno is set
  */
 DCMTK_OFICONV_EXPORT int OFiconvctl(iconv_t cd, int request, void *argument);
+
+/** This function define a runtime path where to look for the oficonv db files.
+ * This path is used only after the env variable DCMICONVPATH.
+ * @param path to the location of esdb folder
+ */
+DCMTK_OFICONV_EXPORT void OFiconv_setpath(const char *iconv_path);
 
 /// space holder type for OFlocale_charset().
 typedef struct {

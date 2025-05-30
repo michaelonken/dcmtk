@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1994-2023, OFFIS e.V.
+ *  Copyright (C) 1994-2025, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were partly developed by
@@ -102,9 +102,7 @@
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
-#ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
-#endif
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
 #endif
@@ -336,6 +334,7 @@ ASC_createAssociationParameters(T_ASC_Parameters ** params,
 
     (*params)->DULparams.useSecureLayer = OFFalse;
     (*params)->DULparams.tcpConnectTimeout = tcpConnectTimeout;
+    (*params)->DULparams.protocol_family = ASC_AF_Default;
     return EC_Normal;
 }
 
@@ -657,7 +656,7 @@ ASC_addPresentationContext(
     if ((presentationContextID % 2) == 0)
     {
       char buf[256];
-      sprintf(buf, "ASC Bad presentation context ID: %d", presentationContextID);
+      OFStandard::snprintf(buf, sizeof(buf), "ASC Bad presentation context ID: %d", presentationContextID);
       return makeDcmnetCondition(ASCC_BADPRESENTATIONCONTEXTID, OF_error, buf);
     }
     /* see if a presentation context with this id already exists in list */
@@ -667,7 +666,7 @@ ASC_addPresentationContext(
     if (pc)
     {
       char buf[256];
-      sprintf(buf, "ASC Duplicate presentation context ID: %d", presentationContextID);
+      OFStandard::snprintf(buf, sizeof(buf), "ASC Duplicate presentation context ID: %d", presentationContextID);
       return makeDcmnetCondition(ASCC_DUPLICATEPRESENTATIONCONTEXTID, OF_error, buf);
     }
 
@@ -778,14 +777,14 @@ ASC_getPresentationContext(T_ASC_Parameters * params,
     if (params->DULparams.requestedPresentationContext == NULL)
     {
       char buf[256];
-      sprintf(buf, "ASC Bad presentation context position: %d", listPosition);
+      OFStandard::snprintf(buf, sizeof(buf), "ASC Bad presentation context position: %d", listPosition);
       return makeDcmnetCondition(ASCC_BADPRESENTATIONCONTEXTPOSITION, OF_error, buf);
     }
     l = &(params->DULparams.requestedPresentationContext);
     if (*l == NULL)
     {
       char buf[256];
-      sprintf(buf, "ASC Bad presentation context position: %d", listPosition);
+      OFStandard::snprintf(buf, sizeof(buf), "ASC Bad presentation context position: %d", listPosition);
       return makeDcmnetCondition(ASCC_BADPRESENTATIONCONTEXTPOSITION, OF_error, buf);
     }
     pc = (DUL_PRESENTATIONCONTEXT*) LST_Head(l);
@@ -799,7 +798,7 @@ ASC_getPresentationContext(T_ASC_Parameters * params,
     if (pc == NULL)
     {
       char buf[256];
-      sprintf(buf, "ASC Bad presentation context position: %d", listPosition);
+      OFStandard::snprintf(buf, sizeof(buf), "ASC Bad presentation context position: %d", listPosition);
       return makeDcmnetCondition(ASCC_BADPRESENTATIONCONTEXTPOSITION, OF_error, buf);
     }
 
@@ -1704,12 +1703,8 @@ ASC_associationWaiting(T_ASC_Network * network, int timeout)
     };
     nfound = poll(pfd, 1, t.tv_sec*1000+(t.tv_usec/1000));
 #else
-#ifdef HAVE_INTP_SELECT
-    nfound = select(OFstatic_cast(int, s + 1), (int *)(&fdset), NULL, NULL, &t);
-#else
     // the typecast is safe because Windows ignores the first select() parameter anyway
     nfound = select(OFstatic_cast(int, s + 1), &fdset, NULL, NULL, &t);
-#endif /* HAVE_INTP_SELECT */
 #endif /* DCMTK_HAVE_POLL */
     if (DCM_dcmnetLogger.isEnabledFor(OFLogger::DEBUG_LOG_LEVEL))
     {
@@ -1952,12 +1947,14 @@ ASC_requestAssociation(T_ASC_Network * network,
         */
         params->theirMaxPDUReceiveSize = params->DULparams.peerMaxPDU;
 
+#ifdef DCMTK_ENABLE_OUTDATED_DCMTK_WORKAROUND
         if (!((params->theirMaxPDUReceiveSize & DUL_MAXPDUCOMPAT) ^ DUL_DULCOMPAT))
         {
           /* activate compatibility with DCMTK releases prior to 3.0 */
           DUL_activateCompatibilityMode((*assoc)->DULassociation, dcmEnableBackwardCompatibility.get() | DUL_DULCOMPAT | DUL_DIMSECOMPAT);
           if (params->modeCallback) params->modeCallback->callback(params->theirMaxPDUReceiveSize);
         }
+#endif
 
         /* create a sendPDVBuffer */
         sendLen = params->theirMaxPDUReceiveSize;
@@ -2020,10 +2017,13 @@ ASC_acknowledgeAssociation(
     if (associatePDU && associatePDUlength) retrieveRawPDU = 1;
 
     assoc->params->DULparams.maxPDU = assoc->params->ourMaxPDUReceiveSize;
+
+#ifdef DCMTK_ENABLE_OUTDATED_DCMTK_WORKAROUND
     if (!((assoc->params->theirMaxPDUReceiveSize & DUL_MAXPDUCOMPAT) ^ DUL_DULCOMPAT))
     {
       assoc->params->DULparams.maxPDU = dcmEnableBackwardCompatibility.get() | DUL_DULCOMPAT | DUL_DIMSECOMPAT;
     }
+#endif
 
     OFStandard::strlcpy(assoc->params->DULparams.calledImplementationClassUID,
         assoc->params->ourImplementationClassUID, sizeof(assoc->params->DULparams.calledImplementationClassUID));
@@ -2189,6 +2189,16 @@ ASC_setTransportLayerType(
 {
   if (params == NULL) return ASC_NULLKEY;
   params->DULparams.useSecureLayer = useSecureLayer;
+  return EC_Normal;
+}
+
+OFCondition
+ASC_setProtocolFamily(
+    T_ASC_Parameters * params,
+    T_ASC_ProtocolFamily protocolFamily)
+{
+  if (params == NULL) return ASC_NULLKEY;
+  params->DULparams.protocol_family = protocolFamily;
   return EC_Normal;
 }
 

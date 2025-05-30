@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1994-2022, OFFIS e.V.
+ *  Copyright (C) 1994-2025, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were partly developed by
@@ -88,28 +88,9 @@
 #include "dcmtk/ofstd/ofstd.h"
 #include "dcmtk/dcmnet/diutil.h"
 
-#ifdef HAVE_UNIX_H
-#if defined(macintosh) && defined (HAVE_WINSOCK_H)
-/* unix.h defines timeval incompatible with winsock.h */
-#define timeval _UNWANTED_timeval
-#endif
-#include <unix.h>	/* for unlink() under Metrowerks C++ (Macintosh) */
-#undef timeval
-#endif
-#ifdef HAVE_FCNTL_H
-#include <fcntl.h>
-#endif
-
 BEGIN_EXTERN_C
-#ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
-#endif
-#ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
-#endif
-#ifdef HAVE_STAT_H
-#include <stat.h>
-#endif
 #ifdef HAVE_SYS_UTSNAME_H
 #include <sys/utsname.h>
 #endif
@@ -129,18 +110,7 @@ char dcompat_functionDefinedOnlyToStopLinkerMoaning;
 
 
 #ifndef HAVE_FLOCK
-#ifdef macintosh
 
-// MacOS seems not to support file locking
-
-int dcmtk_flock(int fd, int operation)
-{
-  DCMNET_WARN("Unsupported flock(fd[" << fd << "],operation[0x"
-    << hex << operation << "])");
-  return 0;
-}
-
-#else /* macintosh */
 #ifdef _WIN32
 
 #ifndef USE__LOCKING
@@ -287,60 +257,11 @@ int dcmtk_flock(int fd, int operation)
 }
 
 #endif /* _WIN32 */
-#endif /* macintosh */
+
 #endif /* HAVE_FLOCK */
 
-#ifndef HAVE_GETHOSTNAME
-/*
-** Use the SYSV uname function (if we have it)
-*/
-#ifdef HAVE_UNAME
-int gethostname(char* name, int namelen)
-{
-    struct utsname uts;
-    int rc;
-
-    memset(&uts, 0, sizeof(uts));
-    rc = utsname(&uts);
-    if (rc >= 0) {
-	strncpy(name, uts.nodename, namelen);
-	rc = 0;
-    }
-    return rc;
-}
-#endif /* HAVE_UNAME */
-#endif /* ! HAVE_GETHOSTNAME */
-
-#ifndef HAVE_ACCESS
-
-/*
-** The access function is OS dependent.
-*/
-
-#if defined(macintosh) || defined(_WIN32)
-int access(const char* path, int /* amode */)
-{
-    int rc;
-    struct stat buf;
-
-    rc = stat(path, &buf);
-
-    /* WARNING
-    ** on the macintosh if a file is there we can do anything with it except
-    ** if it is locked or on a read only filesystem.  Trying to find out about
-    ** that is too complicated at the moment.
-    */
-    return rc;
-}
-#endif
-
-#endif /* HAVE_ACCESS */
 
 DCMTK_DCMNET_EXPORT void dcmtk_plockerr(const char *s)
 {
-#if !defined(HAVE_FLOCK) && defined(macintosh)
-  DCMNET_ERROR(s << ": flock not implemented");
-#else
   DCMNET_ERROR(s << ": " << OFStandard::getLastSystemErrorCode().message());
-#endif
 }

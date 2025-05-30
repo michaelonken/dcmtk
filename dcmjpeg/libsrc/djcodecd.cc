@@ -21,6 +21,7 @@
 
 #include "dcmtk/config/osconfig.h"
 #include "dcmtk/dcmjpeg/djcodecd.h"
+#include "dcmtk/ofstd/ofstd.h"
 
 // dcmdata includes
 #include "dcmtk/dcmdata/dcdatset.h"  /* for class DcmDataset */
@@ -53,10 +54,29 @@ OFBool DJCodecDecoder::canChangeCoding(
 {
   E_TransferSyntax myXfer = supportedTransferSyntax();
   DcmXfer newRep(newRepType);
-  if (newRep.isNotEncapsulated() && (oldRepType == myXfer)) return OFTrue; // decompress requested
+  if (newRep.usesNativeFormat() && (oldRepType == myXfer))
+    return OFTrue; // decompress requested
 
   // we don't support re-coding for now.
   return OFFalse;
+}
+
+
+Uint16 DJCodecDecoder::decodedBitsAllocated(
+    Uint16 /* bitsAllocated */,
+    Uint16 bitsStored) const
+{
+  // this codec does not support images with less than 2 bits per sample
+  if (bitsStored < 2) return 0;
+
+  // for images with 2..8 bits per sample, BitsAllocated will be 8
+  if (bitsStored <= 8) return 8;
+
+  // for images with 9..16 bits per sample, BitsAllocated will be 16
+  if (bitsStored <= 16) return 16;
+
+  // this codec does not support images with more than 16 bits per sample
+  return 0;
 }
 
 
@@ -341,7 +361,7 @@ OFCondition DJCodecDecoder::decode(
                   if (result.good() && (numberOfFramesPresent || (imageFrames > 1)))
                   {
                     char numBuf[20];
-                    sprintf(numBuf, "%ld", OFstatic_cast(long, imageFrames));
+                    OFStandard::snprintf(numBuf, sizeof(numBuf), "%ld", OFstatic_cast(long, imageFrames));
                     result = OFreinterpret_cast(DcmItem*, dataset)->putAndInsertString(DCM_NumberOfFrames, numBuf);
                   }
 
@@ -568,6 +588,11 @@ OFCondition DJCodecDecoder::decodeFrame(
                     // decompression is complete, finally adjust byte order if necessary
                     if (jpeg->bytesPerSample() == 1) // we're writing bytes into words
                     {
+                      if ((gLocalByteOrder == EBO_BigEndian) && (frameSize & 1))
+                      {
+                        DCMJPEG_WARN("Size of frame buffer is odd, cannot correct byte order for last pixel value");
+                      }
+
                       result = swapIfNecessary(gLocalByteOrder, EBO_LittleEndian, OFreinterpret_cast(Uint16*, buffer), OFstatic_cast(Uint32, frameSize), sizeof(Uint16));
                     }
                   }

@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1994-2023, OFFIS e.V.
+ *  Copyright (C) 1994-2024, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -188,7 +188,7 @@ DcmVR DcmTag::setVR(const DcmVR& avr)    // resolve ambiguous VR
 {
     vr = avr;
 
-    if (vr.getEVR() == EVR_UNKNOWN)
+    if (vr.isUnknown() || vr.isInvalid())
     {
         errorFlag = EC_InvalidVR;
     } else {
@@ -233,7 +233,7 @@ OFBool DcmTag::isUnknownVR() const
     OFBool result = OFFalse;
     switch (vr.getValidEVR()) // this is the VR we're going to write in explicit VR
     {
-        case EVR_UNKNOWN:
+        case EVR_UNKNOWN:     // in fact, getValidEVR() should never return the first two
         case EVR_UNKNOWN2B:
         case EVR_UN:
             result = OFTrue;
@@ -267,10 +267,7 @@ OFCondition DcmTag::findTagFromName(const char *name, DcmTag &value)
             const DcmDictEntry *dicent = globalDataDict.findEntry(name);
             /* store resulting tag value */
             if (dicent != NULL)
-            {
-              value.set(dicent->getKey());
-              value.setVR(dicent->getVR());
-            }
+                value.setTag(dicent->getKey(), dicent->getVR(), dicent->getTagName(), dicent->getPrivateCreator());
             else
                 result = EC_TagNotFound;
             dcmDataDict.rdunlock();
@@ -291,6 +288,19 @@ void DcmTag::setPrivateCreator(const char *privCreator)
     // a new private creator identifier probably changes the name of the tag.
     // Enforce new dictionary lookup the next time getTagName() is called.
     updateTagName(NULL);
+    updatePrivateCreator(privCreator);
+}
+
+
+void DcmTag::setTag(const DcmTagKey &key,
+                    const DcmVR &avr,
+                    const char *name,
+                    const char *privCreator)
+{
+    set(key);
+    /* the following method also sets the errorFlag */
+    setVR(avr);
+    updateTagName(name);
     updatePrivateCreator(privCreator);
 }
 

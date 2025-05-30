@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1994-2022, OFFIS e.V.
+ *  Copyright (C) 1994-2025, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -35,6 +35,8 @@
 #include "dcmtk/dcmdata/dcuid.h"      /* for dcmtk version name */
 #include "dcmtk/dcmdata/dcdicent.h"
 #include "dcmtk/dcmdata/dcostrmz.h"   /* for dcmZlibCompressionLevel */
+#include "dcmtk/ofstd/ofstd.h"
+#include "dcmtk/dcmtls/tlsopt.h"      /* for DcmTLSOptions */
 
 #ifdef WITH_ZLIB
 #include <zlib.h>     /* for zlibVersion() */
@@ -62,7 +64,7 @@ static char rcsid[] = "$dcmtk: " OFFIS_CONSOLE_APPLICATION " v"
 #define EXITCODE_CANNOT_CLOSE_ASSOCIATION       67
 #define EXITCODE_CMOVE_WARNING                  68
 #define EXITCODE_CMOVE_ERROR                    69
-
+#define EXITCODE_CANNOT_CREATE_TLS_LAYER        70
 
 typedef enum {
      QMPatientRoot = 0,
@@ -176,18 +178,18 @@ addOverrideKey(OFConsoleApplication& app, const char *s)
     }
     DcmTag tag(OFstatic_cast(Uint16, g), OFstatic_cast(Uint16, e));
     if (tag.error() != EC_Normal) {
-        sprintf(msg2, "unknown tag: (%04x,%04x)", g, e);
+        OFStandard::snprintf(msg2, sizeof(msg2), "unknown tag: (%04x,%04x)", g, e);
         app.printError(msg2);
     }
     DcmElement *elem = DcmItem::newDicomElement(tag);
     if (elem == NULL) {
-        sprintf(msg2, "cannot create element for tag: (%04x,%04x)", g, e);
+        OFStandard::snprintf(msg2, sizeof(msg2), "cannot create element for tag: (%04x,%04x)", g, e);
         app.printError(msg2);
     }
     if (!valStr.empty()) {
         if (elem->putString(valStr.c_str()).bad())
         {
-            sprintf(msg2, "cannot put tag value: (%04x,%04x)=\"", g, e);
+            OFStandard::snprintf(msg2, sizeof(msg2), "cannot put tag value: (%04x,%04x)=\"", g, e);
             msg = msg2;
             msg += valStr;
             msg += "\"";
@@ -197,12 +199,12 @@ addOverrideKey(OFConsoleApplication& app, const char *s)
 
     if (overrideKeys == NULL) overrideKeys = new DcmDataset;
     if (overrideKeys->insert(elem, OFTrue).bad()) {
-        sprintf(msg2, "cannot insert tag: (%04x,%04x)", g, e);
+        OFStandard::snprintf(msg2, sizeof(msg2), "cannot insert tag: (%04x,%04x)", g, e);
         app.printError(msg2);
     }
 }
 
-static OFCondition cmove(T_ASC_Association *assoc, const char *fname);
+static OFCondition cmove(T_ASC_Association *assoc, const char *fname, OFBool secureConnection);
 
 static OFCondition
 addPresentationContext(T_ASC_Parameters *params,
@@ -223,6 +225,7 @@ main(int argc, char *argv[])
   const char *opt_peerTitle = PEERAPPLICATIONTITLE;
   const char *opt_ourTitle = APPLICATIONTITLE;
   OFList<OFString> fileNameList;
+  DcmTLSOptions tlsOptions(NET_ACCEPTORREQUESTOR);
 
   OFStandard::initializeNetwork();
 
@@ -316,14 +319,14 @@ main(int argc, char *argv[])
       cmd.addOption("--dimse-timeout",       "-td",  1, "[s]econds: integer (default: unlimited)", "timeout for DIMSE messages");
 
       OFString opt3 = "set max receive pdu to n bytes (default: ";
-      sprintf(tempstr, "%ld", OFstatic_cast(long, ASC_DEFAULTMAXPDU));
+      OFStandard::snprintf(tempstr, sizeof(tempstr), "%ld", OFstatic_cast(long, ASC_DEFAULTMAXPDU));
       opt3 += tempstr;
       opt3 += ")";
       OFString opt4 = "[n]umber of bytes: integer (";
-      sprintf(tempstr, "%ld", OFstatic_cast(long, ASC_MINIMUMPDUSIZE));
+      OFStandard::snprintf(tempstr, sizeof(tempstr), "%ld", OFstatic_cast(long, ASC_MINIMUMPDUSIZE));
       opt4 += tempstr;
       opt4 += "..";
-      sprintf(tempstr, "%ld", OFstatic_cast(long, ASC_MAXIMUMPDUSIZE));
+      OFStandard::snprintf(tempstr, sizeof(tempstr), "%ld", OFstatic_cast(long, ASC_MAXIMUMPDUSIZE));
       opt4 += tempstr;
       opt4 += ")";
       cmd.addOption("--max-pdu",             "-pdu", 1, opt4.c_str(), opt3.c_str());
@@ -334,6 +337,10 @@ main(int argc, char *argv[])
       cmd.addOption("--cancel",                      1, "[n]umber: integer",
                                                         "cancel after n responses (default: never)");
       cmd.addOption("--uid-padding",         "-up",     "silently correct space-padded UIDs");
+
+  // add TLS specific command line options if (and only if) we are compiling with OpenSSL
+  tlsOptions.addTLSCommandlineOptions(cmd);
+
   cmd.addGroup("output options:");
     cmd.addSubGroup("general:");
       cmd.addOption("--output-directory",    "-od",  1, "[d]irectory: string (default: \".\")", "write received objects to existing directory d");
@@ -382,7 +389,7 @@ main(int argc, char *argv[])
         {
           app.printHeader(OFTrue /*print host identifier*/);
           COUT << OFendl << "External libraries used:";
-#if !defined(WITH_ZLIB) && !defined(WITH_TCPWRAPPER)
+#if !defined(WITH_ZLIB) && !defined(WITH_TCPWRAPPER) && !defined(WITH_OPENSSL)
           COUT << " none" << OFendl;
 #else
           COUT << OFendl;
@@ -393,8 +400,24 @@ main(int argc, char *argv[])
 #ifdef WITH_TCPWRAPPER
           COUT << "- LIBWRAP" << OFendl;
 #endif
+          // print OpenSSL version if (and only if) we are compiling with OpenSSL
+          tlsOptions.printLibraryVersion();
           return EXITCODE_NO_ERROR;
         }
+      }
+
+      // check if the command line contains the --list-ciphers option
+      if (tlsOptions.listOfCiphersRequested(cmd))
+      {
+          tlsOptions.printSupportedCiphersuites(app, COUT);
+          return EXITCODE_NO_ERROR;
+      }
+
+      // check if the command line contains the --list-profiles option
+      if (tlsOptions.listOfProfilesRequested(cmd))
+      {
+          tlsOptions.printSupportedTLSProfiles(app, COUT);
+          return EXITCODE_NO_ERROR;
       }
 
       /* command line parameters */
@@ -515,6 +538,9 @@ main(int argc, char *argv[])
       if (cmd.findOption("--ignore"))  opt_ignore = OFTrue;
       if (cmd.findOption("--cancel"))  app.checkValue(cmd.getValueAndCheckMin(opt_cancelAfterNResponses, 0));
       if (cmd.findOption("--uid-padding")) opt_correctUIDPadding = OFTrue;
+
+      // evaluate (most of) the TLS command line options (if we are compiling with OpenSSL)
+      tlsOptions.parseArguments(app, cmd);
 
       if (cmd.findOption("--output-directory"))
       {
@@ -786,8 +812,17 @@ main(int argc, char *argv[])
     }
     ASC_setAPTitles(params, opt_ourTitle, opt_peerTitle, NULL);
 
-    sprintf(peerHost, "%s:%d", opt_peer, OFstatic_cast(int, opt_port));
+    OFStandard::snprintf(peerHost, sizeof(peerHost), "%s:%d", opt_peer, OFstatic_cast(int, opt_port));
     ASC_setPresentationAddresses(params, OFStandard::getHostName().c_str(), peerHost);
+
+    OFBool secureConnection = tlsOptions.secureConnectionRequested();
+
+    /* create a secure transport layer if requested and OpenSSL is available */
+    cond = tlsOptions.createTransportLayer(net, params, app, cmd);
+    if (cond.bad()) {
+      OFLOG_FATAL(movescuLogger, DimseCondition::dump(temp_str, cond));
+      return EXITCODE_CANNOT_CREATE_TLS_LAYER;
+    }
 
     /*
      * We also add a presentation context for the corresponding
@@ -837,13 +872,13 @@ main(int argc, char *argv[])
     if (fileNameList.empty())
     {
       /* no files provided on command line */
-      cond = cmove(assoc, NULL);
+      cond = cmove(assoc, NULL, secureConnection);
     } else {
       OFListIterator(OFString) iter = fileNameList.begin();
       OFListIterator(OFString) enditer = fileNameList.end();
       while ((iter != enditer) && cond.good())
       {
-          cond = cmove(assoc, (*iter).c_str());
+          cond = cmove(assoc, (*iter).c_str(), secureConnection);
           ++iter;
       }
     }
@@ -907,6 +942,12 @@ main(int argc, char *argv[])
     }
 
     OFStandard::shutdownNetwork();
+
+    cond = tlsOptions.writeRandomSeed();
+    if (cond.bad()) {
+        // failure to write back the random seed is a warning, not an error
+        OFLOG_WARN(movescuLogger, DimseCondition::dump(temp_str, cond));
+    }
 
     return cmove_status_code;
 }
@@ -988,18 +1029,19 @@ addPresentationContext(T_ASC_Parameters *params,
 }
 
 static OFCondition
-acceptSubAssoc(T_ASC_Network *aNet, T_ASC_Association **assoc)
+acceptSubAssoc(T_ASC_Network *aNet, T_ASC_Association **assoc, OFBool secureConnection)
 {
     const char *knownAbstractSyntaxes[] = {
         UID_VerificationSOPClass
     };
-    const char* transferSyntaxes[] = { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,  // 10
-                                       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,  // 20
-                                       NULL };                                                      // +1
+    const char* transferSyntaxes[] = { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,   // 10
+                                       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,   // 20
+                                       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,   // 30
+                                       NULL, NULL, NULL, NULL, NULL, NULL };                         // +6
     int numTransferSyntaxes;
     OFString temp_str;
 
-    OFCondition cond = ASC_receiveAssociation(aNet, assoc, opt_maxPDU);
+    OFCondition cond = ASC_receiveAssociation(aNet, assoc, opt_maxPDU, NULL, NULL, secureConnection);
     if (cond.good())
     {
       OFLOG_INFO(movescuLogger, "Sub-Association Received");
@@ -1187,25 +1229,40 @@ acceptSubAssoc(T_ASC_Network *aNet, T_ASC_Association **assoc)
             transferSyntaxes[6] = UID_JPEGLSLosslessTransferSyntax;
             transferSyntaxes[7] = UID_RLELosslessTransferSyntax;
             transferSyntaxes[8] = UID_MPEG2MainProfileAtMainLevelTransferSyntax;
-            transferSyntaxes[9] = UID_MPEG2MainProfileAtHighLevelTransferSyntax;
-            transferSyntaxes[10] = UID_MPEG4HighProfileLevel4_1TransferSyntax;
-            transferSyntaxes[11] = UID_MPEG4BDcompatibleHighProfileLevel4_1TransferSyntax;
-            transferSyntaxes[12] = UID_MPEG4HighProfileLevel4_2_For2DVideoTransferSyntax;
-            transferSyntaxes[13] = UID_MPEG4HighProfileLevel4_2_For3DVideoTransferSyntax;
-            transferSyntaxes[14] = UID_MPEG4StereoHighProfileLevel4_2TransferSyntax;
-            transferSyntaxes[15] = UID_HEVCMainProfileLevel5_1TransferSyntax;
-            transferSyntaxes[16] = UID_HEVCMain10ProfileLevel5_1TransferSyntax;
-            transferSyntaxes[17] = UID_DeflatedExplicitVRLittleEndianTransferSyntax;
+            transferSyntaxes[9] = UID_FragmentableMPEG2MainProfileMainLevelTransferSyntax;
+            transferSyntaxes[10] = UID_MPEG2MainProfileAtHighLevelTransferSyntax;
+            transferSyntaxes[11] = UID_FragmentableMPEG2MainProfileHighLevelTransferSyntax;
+            transferSyntaxes[12] = UID_MPEG4HighProfileLevel4_1TransferSyntax;
+            transferSyntaxes[13] = UID_FragmentableMPEG4HighProfileLevel4_1TransferSyntax;
+            transferSyntaxes[14] = UID_MPEG4BDcompatibleHighProfileLevel4_1TransferSyntax;
+            transferSyntaxes[15] = UID_FragmentableMPEG4BDcompatibleHighProfileLevel4_1TransferSyntax;
+            transferSyntaxes[16] = UID_MPEG4HighProfileLevel4_2_For2DVideoTransferSyntax;
+            transferSyntaxes[17] = UID_FragmentableMPEG4HighProfileLevel4_2_For2DVideoTransferSyntax;
+            transferSyntaxes[18] = UID_MPEG4HighProfileLevel4_2_For3DVideoTransferSyntax;
+            transferSyntaxes[19] = UID_FragmentableMPEG4HighProfileLevel4_2_For3DVideoTransferSyntax;
+            transferSyntaxes[20] = UID_MPEG4StereoHighProfileLevel4_2TransferSyntax;
+            transferSyntaxes[21] = UID_FragmentableMPEG4StereoHighProfileLevel4_2TransferSyntax;
+            transferSyntaxes[22] = UID_HEVCMainProfileLevel5_1TransferSyntax;
+            transferSyntaxes[23] = UID_HEVCMain10ProfileLevel5_1TransferSyntax;
+            transferSyntaxes[24] = UID_HighThroughputJPEG2000ImageCompressionLosslessOnlyTransferSyntax;
+            transferSyntaxes[25] = UID_HighThroughputJPEG2000RPCLImageCompressionLosslessOnlyTransferSyntax;
+            transferSyntaxes[26] = UID_HighThroughputJPEG2000ImageCompressionTransferSyntax;
+            transferSyntaxes[27] = UID_JPEGXLLosslessTransferSyntax;
+            transferSyntaxes[28] = UID_JPEGXLJPEGRecompressionTransferSyntax;
+            transferSyntaxes[29] = UID_JPEGXLTransferSyntax;
+            transferSyntaxes[30] = UID_DeflatedImageFrameCompressionTransferSyntax;
+            transferSyntaxes[31] = UID_DeflatedExplicitVRLittleEndianTransferSyntax;
+            transferSyntaxes[32] = UID_EncapsulatedUncompressedExplicitVRLittleEndianTransferSyntax;
             if (gLocalByteOrder == EBO_LittleEndian)
             {
-              transferSyntaxes[18] = UID_LittleEndianExplicitTransferSyntax;
-              transferSyntaxes[19] = UID_BigEndianExplicitTransferSyntax;
+              transferSyntaxes[33] = UID_LittleEndianExplicitTransferSyntax;
+              transferSyntaxes[34] = UID_BigEndianExplicitTransferSyntax;
             } else {
-              transferSyntaxes[18] = UID_BigEndianExplicitTransferSyntax;
-              transferSyntaxes[19] = UID_LittleEndianExplicitTransferSyntax;
+              transferSyntaxes[33] = UID_BigEndianExplicitTransferSyntax;
+              transferSyntaxes[34] = UID_LittleEndianExplicitTransferSyntax;
             }
-            transferSyntaxes[20] = UID_LittleEndianImplicitTransferSyntax;
-            numTransferSyntaxes = 21;
+            transferSyntaxes[35] = UID_LittleEndianImplicitTransferSyntax;
+            numTransferSyntaxes = 36;
           } else {
             /* We prefer explicit transfer syntaxes.
              * If we are running on a Little Endian machine we prefer
@@ -1285,7 +1342,7 @@ static OFCondition echoSCP(
 
 struct StoreCallbackData
 {
-    char *imageFileName;
+    OFString imageFileName;
     DcmFileFormat *dcmff;
     T_ASC_Association *assoc;
 };
@@ -1355,9 +1412,8 @@ storeSCPCallback(
        if ((imageDataSet != NULL) && (*imageDataSet != NULL) && !opt_bitPreserving && !opt_ignore)
        {
          StoreCallbackData *cbdata = OFstatic_cast(StoreCallbackData*, callbackData);
-         /* create full path name for the output file */
-         OFString ofname;
-         OFStandard::combineDirAndFilename(ofname, opt_outputDirectory, cbdata->imageFileName, OFTrue /* allowEmptyDirName */);
+         const OFString ofname(cbdata->imageFileName);
+         // check whether output file exists
          if (OFStandard::fileExists(ofname))
          {
            OFLOG_WARN(movescuLogger, "DICOM file already exists, overwriting: " << ofname);
@@ -1422,11 +1478,15 @@ static OFCondition storeSCP(
         OFStandard::strlcpy(imageFileName, NULL_DEVICE_NAME, 2048);
 #endif
     } else {
-        sprintf(imageFileName, "%s.%s",
+        OFStandard::snprintf(imageFileName, sizeof(imageFileName), "%s.%s",
             dcmSOPClassUIDToModality(req->AffectedSOPClassUID),
             req->AffectedSOPInstanceUID);
         OFStandard::sanitizeFilename(imageFileName);
     }
+
+    // generate target path to write data
+    OFString ofname;
+    OFStandard::combineDirAndFilename(ofname, opt_outputDirectory, imageFileName, OFTrue /* allowEmptyDirName */);
 
     OFString temp_str;
     if (movescuLogger.isEnabledFor(OFLogger::DEBUG_LOG_LEVEL))
@@ -1440,7 +1500,7 @@ static OFCondition storeSCP(
 
     StoreCallbackData callbackData;
     callbackData.assoc = assoc;
-    callbackData.imageFileName = imageFileName;
+    callbackData.imageFileName = ofname;
     DcmFileFormat dcmff;
     callbackData.dcmff = &dcmff;
 
@@ -1455,7 +1515,7 @@ static OFCondition storeSCP(
 
     if (opt_bitPreserving)
     {
-      cond = DIMSE_storeProvider(assoc, presID, req, imageFileName, opt_useMetaheader,
+      cond = DIMSE_storeProvider(assoc, presID, req, ofname.c_str(), opt_useMetaheader,
         NULL, storeSCPCallback, OFreinterpret_cast(void*, &callbackData), opt_blockMode, opt_dimse_timeout);
     } else {
       cond = DIMSE_storeProvider(assoc, presID, req, NULL, opt_useMetaheader,
@@ -1468,11 +1528,18 @@ static OFCondition storeSCP(
       /* remove file */
       if (!opt_ignore)
       {
-        if (strcmp(imageFileName, NULL_DEVICE_NAME) != 0) OFStandard::deleteFile(imageFileName);
+        if (strcmp(imageFileName, NULL_DEVICE_NAME) != 0)
+        {
+          OFStandard::deleteFile(ofname);
+        }
       }
 #ifdef _WIN32
     } else if (opt_ignore) {
-        if (strcmp(imageFileName, NULL_DEVICE_NAME) != 0) OFStandard::deleteFile(imageFileName); // delete the temporary file
+        if (strcmp(imageFileName, NULL_DEVICE_NAME) != 0)
+        {
+          // delete the temporary file
+          OFStandard::deleteFile(ofname);
+        }
 #endif
     }
 
@@ -1544,15 +1611,19 @@ subOpSCP(T_ASC_Association **subAssoc)
 }
 
 static void
-subOpCallback(void * /*subOpCallbackData*/ ,
+subOpCallback(void *subOpCallbackData,
         T_ASC_Network *aNet, T_ASC_Association **subAssoc)
 {
-
     if (aNet == NULL) return;   /* help no net ! */
+
+    OFBool secureConnection = OFFalse;
+    if (subOpCallbackData) {
+        secureConnection = * OFreinterpret_cast(OFBool *, subOpCallbackData);
+    }
 
     if (*subAssoc == NULL) {
         /* negotiate association */
-        acceptSubAssoc(aNet, subAssoc);
+        acceptSubAssoc(aNet, subAssoc, secureConnection);
     } else {
         /* be a service class provider */
         subOpSCP(subAssoc);
@@ -1611,7 +1682,7 @@ substituteOverrideKeys(DcmDataset *dset)
 
 
 static  OFCondition
-moveSCU(T_ASC_Association *assoc, const char *fname)
+moveSCU(T_ASC_Association *assoc, const char *fname, OFBool secureConnection)
 {
     T_ASC_PresentationContextID presId;
     T_DIMSE_C_MoveRQ    req;
@@ -1666,7 +1737,7 @@ moveSCU(T_ASC_Association *assoc, const char *fname)
 
     OFCondition cond = DIMSE_moveUser(assoc, presId, &req, dcmff.getDataset(),
         moveCallback, &callbackData, opt_blockMode, opt_dimse_timeout, net, subOpCallback,
-        NULL, &rsp, &statusDetail, &rspIds, opt_ignorePendingDatasets);
+        &secureConnection, &rsp, &statusDetail, &rspIds, opt_ignorePendingDatasets);
 
     if (cond == EC_Normal) {
 
@@ -1713,11 +1784,11 @@ moveSCU(T_ASC_Association *assoc, const char *fname)
 
 
 static OFCondition
-cmove(T_ASC_Association *assoc, const char *fname)
+cmove(T_ASC_Association *assoc, const char *fname, OFBool secureConnection)
 {
     OFCondition cond = EC_Normal;
     int n = OFstatic_cast(int, opt_repeatCount);
     while (cond.good() && n--)
-        cond = moveSCU(assoc, fname);
+        cond = moveSCU(assoc, fname, secureConnection);
     return cond;
 }

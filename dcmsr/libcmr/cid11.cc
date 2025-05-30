@@ -1,12 +1,12 @@
 /*
  *
- *  Copyright (C) 2015-2024, J. Riesmeier, Oldenburg, Germany
+ *  Copyright (C) 2015-2025, J. Riesmeier, Oldenburg, Germany
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  Source file for class CID11_AdministrationRoute
  *
- *  Generated automatically from DICOM PS 3.16-2023e
- *  File created on 2024-01-12 09:54:30 by J. Riesmeier
+ *  Generated automatically from DICOM PS 3.16-2025b
+ *  File created on 2025-04-15 12:51:46 by J. Riesmeier
  *
  */
 
@@ -18,7 +18,8 @@
 
 // general information on CID 11 (Administration Route)
 #define CONTEXT_GROUP_NUMBER  "11"
-#define CONTEXT_GROUP_VERSION "20200117"
+#define CONTEXT_GROUP_KEYWORD "AdministrationRoute"
+#define CONTEXT_GROUP_VERSION "20240611"
 #define CONTEXT_GROUP_UID     "1.2.840.10008.6.1.9"
 #define CONTEXT_GROUP_TYPE    OFTrue  /* extensible */
 
@@ -27,7 +28,7 @@ CID11_AdministrationRoute::CodeList *CID11_AdministrationRoute::Codes = NULL;
 
 
 CID11_AdministrationRoute::CID11_AdministrationRoute(const DSRCodedEntryValue &selectedValue)
-  : DSRContextGroup(CONTEXT_GROUP_NUMBER, "DCMR", CONTEXT_GROUP_VERSION, CONTEXT_GROUP_UID, selectedValue)
+  : DSRContextGroup(CONTEXT_GROUP_NUMBER, "DCMR", CONTEXT_GROUP_KEYWORD, CONTEXT_GROUP_VERSION, CONTEXT_GROUP_UID, selectedValue)
 {
     setExtensible(CONTEXT_GROUP_TYPE);
 }
@@ -35,7 +36,7 @@ CID11_AdministrationRoute::CID11_AdministrationRoute(const DSRCodedEntryValue &s
 
 CID11_AdministrationRoute::CID11_AdministrationRoute(const EnumType selectedValue,
                                                      const OFBool enhancedEncodingMode)
-  : DSRContextGroup(CONTEXT_GROUP_NUMBER, "DCMR", CONTEXT_GROUP_VERSION, CONTEXT_GROUP_UID, getCodedEntry(selectedValue, enhancedEncodingMode))
+  : DSRContextGroup(CONTEXT_GROUP_NUMBER, "DCMR", CONTEXT_GROUP_KEYWORD, CONTEXT_GROUP_VERSION, CONTEXT_GROUP_UID, getCodedEntry(selectedValue, enhancedEncodingMode))
 {
     setExtensible(CONTEXT_GROUP_TYPE);
 }
@@ -174,7 +175,7 @@ CID11_AdministrationRoute::CodeList &CID11_AdministrationRoute::getCodes()
         Codes->insert(OFMake_pair(NasalRoute, DSRBasicCodedEntry("46713006", "SCT", "Nasal route")));
         Codes->insert(OFMake_pair(IntradermalRoute, DSRBasicCodedEntry("372464004", "SCT", "Intradermal route")));
         Codes->insert(OFMake_pair(IntratumorRoute, DSRBasicCodedEntry("447122006", "SCT", "Intratumor route")));
-        Codes->insert(OFMake_pair(IntracorpusCavernosumRoute, DSRBasicCodedEntry("445769006", "SCT", "Intracorpus cavernosum route")));
+        Codes->insert(OFMake_pair(IntracorpusCavernosumRoute, DSRBasicCodedEntry("1259221004", "SCT", "Intracorpus cavernosum route")));
     }
     /* should never be NULL */
     return *Codes;

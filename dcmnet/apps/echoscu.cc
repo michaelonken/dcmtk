@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1994-2024, OFFIS e.V.
+ *  Copyright (C) 1994-2025, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -31,6 +31,7 @@
 #include "dcmtk/ofstd/ofconapp.h"
 #include "dcmtk/dcmdata/dcuid.h"      /* for dcmtk version name */
 #include "dcmtk/dcmtls/tlsopt.h"      /* for DcmTLSOptions */
+#include "dcmtk/ofstd/ofstd.h"
 
 #ifdef WITH_ZLIB
 #include <zlib.h>                     /* for zlibVersion() */
@@ -67,6 +68,7 @@ static const char* transferSyntaxes[] = {
       UID_LittleEndianImplicitTransferSyntax, /* default xfer syntax first */
       UID_LittleEndianExplicitTransferSyntax,
       UID_BigEndianExplicitTransferSyntax,
+      UID_EncapsulatedUncompressedExplicitVRLittleEndianTransferSyntax,
       UID_JPEGProcess1TransferSyntax,
       UID_JPEGProcess2_4TransferSyntax,
       UID_JPEGProcess3_5TransferSyntax,
@@ -87,6 +89,7 @@ static const char* transferSyntaxes[] = {
       UID_JPEGProcess14SV1TransferSyntax,
       UID_RLELosslessTransferSyntax,
       UID_DeflatedExplicitVRLittleEndianTransferSyntax,
+      UID_DeflatedImageFrameCompressionTransferSyntax,
       UID_JPEGLSLosslessTransferSyntax,
       UID_JPEGLSLossyTransferSyntax,
       UID_JPEG2000LosslessOnlyTransferSyntax,
@@ -111,7 +114,10 @@ static const char* transferSyntaxes[] = {
       UID_FragmentableMPEG4StereoHighProfileLevel4_2TransferSyntax,
       UID_HighThroughputJPEG2000ImageCompressionLosslessOnlyTransferSyntax,
       UID_HighThroughputJPEG2000RPCLImageCompressionLosslessOnlyTransferSyntax,
-      UID_HighThroughputJPEG2000ImageCompressionTransferSyntax
+      UID_HighThroughputJPEG2000ImageCompressionTransferSyntax,
+      UID_JPEGXLLosslessTransferSyntax,
+      UID_JPEGXLJPEGRecompressionTransferSyntax,
+      UID_JPEGXLTransferSyntax
 };
 
 // ********************************************
@@ -171,12 +177,16 @@ main(int argc, char *argv[])
    OFLog::addOptions(cmd);
 
   cmd.addGroup("network options:");
+    cmd.addSubGroup("IP protocol version:");
+      cmd.addOption("--ipv4",           "-i4",     "use IPv4 only (default)");
+      cmd.addOption("--ipv6",           "-i6",     "use IPv6 only");
+      cmd.addOption("--ip-auto",        "-i0",     "use DNS lookup to determine IP protocol");
     cmd.addSubGroup("application entity titles:");
       cmd.addOption("--aetitle",        "-aet", 1, "[a]etitle: string", "set my calling AE title (default: " APPLICATIONTITLE ")");
       cmd.addOption("--call",           "-aec", 1, "[a]etitle: string", "set called AE title of peer (default: " PEERAPPLICATIONTITLE ")");
     cmd.addSubGroup("association negotiation debugging:");
       OFString opt5 = "[n]umber: integer (1..";
-      sprintf(tempstr, "%ld", OFstatic_cast(long, maxXferSyntaxes));
+      OFStandard::snprintf(tempstr, sizeof(tempstr), "%ld", OFstatic_cast(long, maxXferSyntaxes));
       opt5 += tempstr;
       opt5 += ")";
       cmd.addOption("--propose-ts",     "-pts", 1, opt5.c_str(), "propose n transfer syntaxes");
@@ -235,6 +245,14 @@ main(int argc, char *argv[])
             tlsOptions.printSupportedCiphersuites(app, COUT);
             return EXITCODE_NO_ERROR;
         }
+
+        // check if the command line contains the --list-profiles option
+        if (tlsOptions.listOfProfilesRequested(cmd))
+        {
+            tlsOptions.printSupportedTLSProfiles(app, COUT);
+            return EXITCODE_NO_ERROR;
+        }
+
       }
 
       /* command line parameters */
@@ -374,9 +392,16 @@ main(int argc, char *argv[])
     /* structure. The default values to be set here are "STORESCU" and "ANY-SCP". */
     ASC_setAPTitles(params, opt_ourTitle, opt_peerTitle, NULL);
 
+    /* set the IP protocol version */
+    cmd.beginOptionBlock();
+    if (cmd.findOption("--ipv4")) ASC_setProtocolFamily(params, ASC_AF_INET);
+    if (cmd.findOption("--ipv6")) ASC_setProtocolFamily(params, ASC_AF_INET6);
+    if (cmd.findOption("--ip-auto")) ASC_setProtocolFamily(params, ASC_AF_UNSPEC);
+    cmd.endOptionBlock();
+
     /* Figure out the presentation addresses and copy the */
     /* corresponding values into the association parameters.*/
-    sprintf(peerHost, "%s:%d", opt_peer, OFstatic_cast(int, opt_port));
+    OFStandard::snprintf(peerHost, sizeof(peerHost), "%s:%d", opt_peer, OFstatic_cast(int, opt_port));
     ASC_setPresentationAddresses(params, OFStandard::getHostName().c_str(), peerHost);
 
     /* Set the presentation contexts which will be negotiated */

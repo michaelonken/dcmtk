@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2002-2022, OFFIS e.V.
+ *  Copyright (C) 2002-2025, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -26,9 +26,7 @@
 #include "dcmtk/ofstd/ofconsol.h"
 
 BEGIN_EXTERN_C
-#ifdef HAVE_FCNTL_H
 #include <fcntl.h>
-#endif
 #ifdef HAVE_IO_H
 #include <io.h>
 #endif
@@ -134,6 +132,17 @@ void DcmFileConsumer::flush()
   // nothing to flush
 }
 
+void DcmFileConsumer::fclose()
+{
+  int result = file_.fclose();
+  if (result)
+  {
+    OFString buffer = OFStandard::getLastSystemErrorCode().message();
+    status_ = makeOFCondition(OFM_dcmdata, 19, OF_error, buffer.c_str());
+  }
+  else status_ = EC_Normal;
+}
+
 /* ======================================================================= */
 
 DcmOutputFileStream::DcmOutputFileStream(const OFFilename &filename)
@@ -152,6 +161,20 @@ DcmOutputFileStream::DcmOutputFileStream(OFFile& file)
 : DcmOutputStream(&consumer_) // safe because DcmOutputStream only stores pointer
 , consumer_(file)
 {
+}
+
+OFCondition DcmOutputFileStream::fclose()
+{
+  // last attempt to flush stream before file is closed
+  flush();
+#ifdef DEBUG
+  if (! isFlushed())
+  {
+    DCMDATA_WARN("closing unflushed DcmOutputFileStream, loss of data!");
+  }
+#endif
+  consumer_.fclose();
+  return consumer_.status();
 }
 
 DcmOutputFileStream::~DcmOutputFileStream()

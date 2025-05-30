@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2000-2021, OFFIS e.V.
+ *  Copyright (C) 2000-2024, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -42,6 +42,7 @@
 #include "dcmtk/dcmsign/sisrvpr.h"  /* for class SiStructuredReportingVerificationProfile */
 #include "dcmtk/ofstd/ofexit.h"     /* for common exit codes */
 #include "dcmtk/dcmsign/siexit.h"   /* for dcmsign specific exit codes */
+#include "dcmtk/ofstd/ofstd.h"
 
 
 DcmSignatureHelper::DcmSignatureHelper()
@@ -57,7 +58,7 @@ int DcmSignatureHelper::readNextToken(const char *c, int& pos, DcmTagKey& key, U
   OFString aString;
   int lpos = pos;
   int spos = 0;
-  while(isspace(OFstatic_cast(unsigned char, c[lpos]))) ++lpos; // ignore leading space
+  while(OFStandard::isspace(c[lpos])) ++lpos; // ignore leading space
 
   if (c[lpos]=='\0') return -1; // EOF
   if (c[lpos]=='.')
@@ -293,7 +294,7 @@ void DcmSignatureHelper::printSignatureItemPosition(DcmStack& stack, OFString& s
           {
             if (sq->getItem(m) == elem)
             {
-              sprintf(buf, "[%lu]", m);
+              OFStandard::snprintf(buf, sizeof(buf), "[%lu]", m);
               str.append(buf);
             }
           }
@@ -306,7 +307,7 @@ void DcmSignatureHelper::printSignatureItemPosition(DcmStack& stack, OFString& s
           tagname = currentTag.getTagName();
           if (tagname) str.append(tagname); else
           {
-            sprintf(buf, "(%04x,%04x)", elem->getTag().getGroup(), elem->getTag().getElement());
+            OFStandard::snprintf(buf, sizeof(buf), "(%04x,%04x)", elem->getTag().getGroup(), elem->getTag().getElement());
             str.append(buf);
           }
           if (elem->ident() == EVR_SQ) sq = OFstatic_cast(DcmSequenceOfItems *, elem); else sq = NULL;

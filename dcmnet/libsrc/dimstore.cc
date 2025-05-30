@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1994-2021, OFFIS e.V.
+ *  Copyright (C) 1994-2025, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were partly developed by
@@ -81,10 +81,7 @@
 
 #include "dcmtk/config/osconfig.h"    /* make sure OS specific configuration is included first */
 
-#ifdef HAVE_FCNTL_H
 #include <fcntl.h>
-#endif
-
 #include "dcmtk/dcmnet/diutil.h"
 #include "dcmtk/dcmnet/dimse.h"        /* always include the module header */
 #include "dcmtk/dcmnet/cond.h"
@@ -269,7 +266,7 @@ DIMSE_storeUser(
             if (rsp.CommandField != DIMSE_C_STORE_RSP)
             {
               char buf[256];
-              sprintf(buf, "DIMSE: Unexpected Response Command Field: 0x%x", (unsigned)rsp.CommandField);
+              OFStandard::snprintf(buf, sizeof(buf), "DIMSE: Unexpected Response Command Field: 0x%x", (unsigned)rsp.CommandField);
               return makeDcmnetCondition(DIMSEC_UNEXPECTEDRESPONSE, OF_error, buf);
             }
 
@@ -280,7 +277,7 @@ DIMSE_storeUser(
             if (response->MessageIDBeingRespondedTo != request->MessageID)
             {
               char buf2[256];
-              sprintf(buf2, "DIMSE: Unexpected Response MsgId: %d (expected: %d)", response->MessageIDBeingRespondedTo, request->MessageID);
+              OFStandard::snprintf(buf2, sizeof(buf2), "DIMSE: Unexpected Response MsgId: %d (expected: %d)", response->MessageIDBeingRespondedTo, request->MessageID);
               return makeDcmnetCondition(DIMSEC_UNEXPECTEDRESPONSE, OF_error, buf2);
             }
         }
@@ -467,6 +464,11 @@ DIMSE_storeProvider( T_ASC_Association *assoc,
         } else {
           /* if no error occurred, receive data and write it to the file */
           cond = DIMSE_receiveDataSetInFile(assoc, blockMode, timeout, &presIdData, filestream, privCallback, &callbackCtx);
+
+          /* if the file was successfully written, close the file and check the return code */
+          if (cond.good()) cond = filestream->fclose();
+
+          /* deleting the file stream will also close the file if it is still open */
           delete filestream;
           if (cond != EC_Normal)
           {

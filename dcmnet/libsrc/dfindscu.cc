@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1994-2022, OFFIS e.V.
+ *  Copyright (C) 1994-2024, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -31,6 +31,7 @@
 #include "dcmtk/dcmdata/dcdeftag.h"
 #include "dcmtk/ofstd/ofconapp.h"
 #include "dcmtk/ofstd/ofstream.h"
+#include "dcmtk/ofstd/ofstd.h"
 
 /* ---------------- static functions ---------------- */
 
@@ -125,7 +126,7 @@ void DcmFindSCUDefaultCallback::callback(
             {
                 OFString outputFilename;
                 char rspIdsFileName[32];
-                sprintf(rspIdsFileName, "rsp%04d.dcm", responseCount);
+                OFStandard::snprintf(rspIdsFileName, sizeof(rspIdsFileName), "rsp%04d.dcm", responseCount);
                 OFStandard::combineDirAndFilename(outputFilename, outputDirectory_, rspIdsFileName, OFTrue /*allowEmptyDirName*/);
                 DCMNET_INFO("Writing response dataset to file: " << outputFilename);
                 DcmFindSCU::writeToFile(outputFilename.c_str(), responseIdentifiers);
@@ -135,7 +136,7 @@ void DcmFindSCUDefaultCallback::callback(
             {
                 OFString outputFilename;
                 char rspIdsFileName[32];
-                sprintf(rspIdsFileName, "rsp%04d.xml", responseCount);
+                OFStandard::snprintf(rspIdsFileName, sizeof(rspIdsFileName), "rsp%04d.xml", responseCount);
                 OFStandard::combineDirAndFilename(outputFilename, outputDirectory_, rspIdsFileName, OFTrue /*allowEmptyDirName*/);
                 DCMNET_INFO("Writing response dataset to file: " << outputFilename);
                 DcmFindSCU::writeToXMLFile(outputFilename.c_str(), responseIdentifiers);
@@ -248,7 +249,8 @@ OFCondition DcmFindSCU::performQuery(
     DcmFindSCUCallback *callback,
     OFList<OFString> *fileNameList,
     const char *outputDirectory,
-    const char *extractFilename)
+    const char *extractFilename,
+    T_ASC_ProtocolFamily protocolVersion)
 {
     T_ASC_Association *assoc = NULL;
     T_ASC_Parameters *params = NULL;
@@ -281,6 +283,9 @@ OFCondition DcmFindSCU::performQuery(
     /* structure. The default values to be set here are "FINDSCU" and "ANY-SCP". */
     ASC_setAPTitles(params, ourTitle, peerTitle, NULL);
 
+    /* set the IP protocol version */
+    ASC_setProtocolFamily(params, protocolVersion);
+
     /* Set the transport layer type (type of network connection) in the params */
     /* structure. The default is an insecure connection; where OpenSSL is  */
     /* available the user is able to request an encrypted,secure connection. */
@@ -294,7 +299,7 @@ OFCondition DcmFindSCU::performQuery(
 
     /* Figure out the presentation addresses and copy the */
     /* corresponding values into the association parameters.*/
-    sprintf(peerHost, "%s:%d", peer, OFstatic_cast(int, port));
+    OFStandard::snprintf(peerHost, sizeof(peerHost), "%s:%d", peer, OFstatic_cast(int, port));
     ASC_setPresentationAddresses(params, OFStandard::getHostName().c_str(), peerHost);
 
     /* Set the presentation contexts which will be negotiated */

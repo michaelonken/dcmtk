@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1994-2023, OFFIS e.V.
+ *  Copyright (C) 1994-2025, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -142,7 +142,7 @@ stripWhitespace(char* s)
     unsigned char *t;
     unsigned char *p;
     t=p=OFreinterpret_cast(unsigned char *, s);
-    while ((c = *t++) != '\0') if (!isspace(c)) *p++ = c;
+    while ((c = *t++) != '\0') if (!OFStandard::isspace(c)) *p++ = c;
     *p = '\0';
   }
 }
@@ -154,7 +154,7 @@ stripTrailingWhitespace(char* s)
     for
     (
         char* it = s + strlen(s) - 1;
-        it >= s && isspace(OFstatic_cast(unsigned char, *it));
+        it >= s && OFStandard::isspace(*it);
         *it-- = '\0'
     );
     return s;
@@ -169,7 +169,7 @@ stripLeadingWhitespace(char* s)
     unsigned char *t;
     unsigned char *p;
     t=p=OFreinterpret_cast(unsigned char *, s);
-    while (isspace(*t)) t++;
+    while (OFStandard::isspace(*t)) t++;
     while ((c = *t++) != '\0') *p++ = c;
     *p = '\0';
   }
@@ -232,7 +232,7 @@ splitFields(const char* line, char* fields[], int maxFields, char splitChar)
     size_t len;
 
     do {
-#ifdef __BORLANDC__
+#ifdef HAVE_CLASSIC_BORLAND_COMPILER
         // Borland Builder expects a non-const argument
         p = strchr(OFconst_cast(char *, line), splitChar);
 #else
@@ -379,7 +379,7 @@ onlyWhitespace(const char* s)
     int charsFound = OFFalse;
 
     for (size_t i = 0; (!charsFound) && (i < len); ++i) {
-        charsFound = !isspace(OFstatic_cast(unsigned char, s[i]));
+        charsFound = !OFStandard::isspace(s[i]);
     }
     return (!charsFound)? (OFTrue) : (OFFalse);
 }
@@ -403,7 +403,7 @@ isaCommentLine(const char* s)
     OFBool isComment = OFFalse; /* assumption */
     size_t len = strlen(s);
     size_t i = 0;
-    for (i = 0; i < len && isspace(OFstatic_cast(unsigned char, s[i])); ++i) /*loop*/;
+    for (i = 0; i < len && OFStandard::isspace(s[i]); ++i) /*loop*/;
     isComment = (s[i] == DCM_DICT_COMMENT_CHAR);
     return isComment;
 }
@@ -575,15 +575,6 @@ DcmDataDictionary::loadDictionary(const char* fileName, OFBool errorIfAbsent)
     }
 }
 
-#ifndef HAVE_GETENV
-
-static
-char* getenv() {
-    return NULL;
-}
-
-#endif /* !HAVE_GETENV */
-
 
 
 OFBool
@@ -670,7 +661,7 @@ DcmDataDictionary::addEntry(DcmDictEntry* e)
 {
     if (e->isRepeating()) {
         /*
-         * Find the best position in repeating tag list
+         * Find the best position in repeating groups data dictionary.
          * Existing entries are replaced if the ranges and repetition
          * constraints are the same.
          * If a range represents a subset of an existing range then it
@@ -747,14 +738,13 @@ DcmDataDictionary::findEntry(const DcmDictEntry& entry) const
 const DcmDictEntry*
 DcmDataDictionary::findEntry(const DcmTagKey& key, const char *privCreator) const
 {
-    /* search first in the normal tags dictionary and if not found
-     * then search in the repeating tags list.
+    /* first, search in the normal tags data dictionary (including private tags)
      */
     const DcmDictEntry* e = NULL;
-
     e = hashDict.get(key, privCreator);
+
     if (e == NULL) {
-        /* search in the repeating tags dictionary */
+        /* then, search in the repeating groups data dictionary */
         OFBool found = OFFalse;
         DcmDictEntryListConstIterator iter(repDict.begin());
         DcmDictEntryListConstIterator last(repDict.end());
@@ -774,8 +764,7 @@ DcmDataDictionary::findEntry(const char *name) const
     const DcmDictEntry* e = NULL;
     const DcmDictEntry* ePrivate = NULL;
 
-    /* search first in the normal tags dictionary and if not found
-     * then search in the repeating tags list.
+    /* first, search in the normal tags data dictionary
      */
     DcmHashDictIterator iter;
     for (iter = hashDict.begin(); (e == NULL) && (iter != hashDict.end()); ++iter) {
@@ -790,8 +779,9 @@ DcmDataDictionary::findEntry(const char *name) const
         }
     }
 
-    if (e == NULL) {
-        /* search in the repeating tags dictionary */
+    /* if not found ... */
+     if (e == NULL) {
+        /* search in the repeating groups data dictionary */
         OFBool found = OFFalse;
         DcmDictEntryListConstIterator iter2(repDict.begin());
         DcmDictEntryListConstIterator last(repDict.end());

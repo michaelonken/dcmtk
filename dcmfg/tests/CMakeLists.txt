@@ -1,5 +1,5 @@
 # declare executables
-DCMTK_ADD_EXECUTABLE(dcmfg_tests
+DCMTK_ADD_TEST_EXECUTABLE(dcmfg_tests
   tests.cc
   t_concatenation_creator.cc
   t_concatenation_loader.cc
@@ -15,7 +15,7 @@ DCMTK_ADD_EXECUTABLE(dcmfg_tests
 )
 
 # make sure executables are linked to the corresponding libraries
-DCMTK_TARGET_LINK_MODULES(dcmfg_tests dcmfg dcmdata oflog ofstd)
+DCMTK_TARGET_LINK_MODULES(dcmfg_tests dcmfg)
 
 # This macro parses tests.cc and registers all tests
 DCMTK_ADD_TESTS(dcmfg)

@@ -1,5 +1,5 @@
 #
-#  Copyright (C) 1994-2024, OFFIS e.V.
+#  Copyright (C) 1994-2025, OFFIS e.V.
 #  All rights reserved.  See COPYRIGHT file for details.
 #
 #  This software and supporting documentation were developed by
@@ -21,8 +21,8 @@
 # DICONDE (Digital Imaging and Communication in Nondestructive Evaluation) and
 # DICOS (Digital Imaging and Communications in Security) standard.
 #
-# Generated automatically from DICOM PS 3.6-2024a and PS 3.7-2024a.
-# File created on 2024-02-21 19:09:59 by J. Riesmeier on thinkpad2.
+# Generated automatically from DICOM PS 3.6-2025b and PS 3.7-2025b.
+# File created on 2025-04-15 12:19:07 by J. Riesmeier on thinkpad2.
 #
 # In addition, the data dictionary entries from the following final text
 # supplements and correction items (CP) have been incorporated:
@@ -122,6 +122,7 @@
 (0008,0019)	UI	PyramidUID	1	DICOM
 (0008,001A)	UI	RelatedGeneralSOPClassUID	1-n	DICOM
 (0008,001B)	UI	OriginalSpecializedSOPClassUID	1	DICOM
+(0008,001C)	CS	SyntheticData	1	DICOM
 (0008,0020)	DA	StudyDate	1	DICOM
 (0008,0021)	DA	SeriesDate	1	DICOM
 (0008,0022)	DA	AcquisitionDate	1	DICOM
@@ -277,6 +278,8 @@
 (0008,1140)	SQ	ReferencedImageSequence	1	DICOM
 (0008,114A)	SQ	ReferencedInstanceSequence	1	DICOM
 (0008,114B)	SQ	ReferencedRealWorldValueMappingInstanceSequence	1	DICOM
+(0008,114C)	SQ	ReferencedSegmentationSequence	1	DICOM
+(0008,114D)	SQ	ReferencedSurfaceSegmentationSequence	1	DICOM
 (0008,1150)	UI	ReferencedSOPClassUID	1	DICOM
 (0008,1155)	UI	ReferencedSOPInstanceUID	1	DICOM
 (0008,1156)	SQ	DefinitionSourceSequence	1	DICOM
@@ -297,6 +300,10 @@
 (0008,119B)	SQ	FailedStudySequence	1	DICOM
 (0008,1200)	SQ	StudiesContainingOtherReferencedInstancesSequence	1	DICOM
 (0008,1250)	SQ	RelatedSeriesSequence	1	DICOM
+(0008,1301)	SQ	PrincipalDiagnosisCodeSequence	1	DICOM
+(0008,1302)	SQ	PrimaryDiagnosisCodeSequence	1	DICOM
+(0008,1303)	SQ	SecondaryDiagnosesCodeSequence	1	DICOM
+(0008,1304)	SQ	HistologicalDiagnosesCodeSequence	1	DICOM
 (0008,2111)	ST	DerivationDescription	1	DICOM
 (0008,2112)	SQ	SourceImageSequence	1	DICOM
 (0008,2120)	SH	StageName	1	DICOM
@@ -341,6 +348,12 @@
 (0008,9459)	FL	RecommendedDisplayFrameRateInFloat	1	DICOM
 (0008,9460)	CS	SkipFrameRangeFlag	1	DICOM
 (0010,0010)	PN	PatientName	1	DICOM
+(0010,0011)	SQ	PersonNamesToUseSequence	1	DICOM
+(0010,0012)	LT	NameToUse	1	DICOM
+(0010,0013)	UT	NameToUseComment	1	DICOM
+(0010,0014)	SQ	ThirdPersonPronounsSequence	1	DICOM
+(0010,0015)	SQ	PronounCodeSequence	1	DICOM
+(0010,0016)	UT	PronounComment	1	DICOM
 (0010,0020)	LO	PatientID	1	DICOM
 (0010,0021)	LO	IssuerOfPatientID	1	DICOM
 (0010,0022)	CS	TypeOfPatientID	1	DICOM
@@ -354,6 +367,13 @@
 (0010,0034)	LO	PatientDeathDateInAlternativeCalendar	1	DICOM
 (0010,0035)	CS	PatientAlternativeCalendar	1	DICOM
 (0010,0040)	CS	PatientSex	1	DICOM
+(0010,0041)	SQ	GenderIdentitySequence	1	DICOM
+(0010,0042)	UT	SexParametersForClinicalUseCategoryComment	1	DICOM
+(0010,0043)	SQ	SexParametersForClinicalUseCategorySequence	1	DICOM
+(0010,0044)	SQ	GenderIdentityCodeSequence	1	DICOM
+(0010,0045)	UT	GenderIdentityComment	1	DICOM
+(0010,0046)	SQ	SexParametersForClinicalUseCategoryCodeSequence	1	DICOM
+(0010,0047)	UR	SexParametersForClinicalUseCategoryReference	1-n	DICOM
 (0010,0050)	SQ	PatientInsurancePlanCodeSequence	1	DICOM
 (0010,0101)	SQ	PatientPrimaryLanguageCodeSequence	1	DICOM
 (0010,0102)	SQ	PatientPrimaryLanguageModifierCodeSequence	1	DICOM
@@ -392,7 +412,8 @@
 (0010,2152)	LO	RegionOfResidence	1	DICOM
 (0010,2154)	SH	PatientTelephoneNumbers	1-n	DICOM
 (0010,2155)	LT	PatientTelecomInformation	1	DICOM
-(0010,2160)	SH	EthnicGroup	1	DICOM
+(0010,2161)	SQ	EthnicGroupCodeSequence	1	DICOM
+(0010,2162)	UC	EthnicGroups	1-n	DICOM
 (0010,2180)	SH	Occupation	1	DICOM
 (0010,21A0)	CS	SmokingStatus	1	DICOM
 (0010,21B0)	LT	AdditionalPatientHistory	1	DICOM
@@ -416,21 +437,28 @@
 (0012,0010)	LO	ClinicalTrialSponsorName	1	DICOM
 (0012,0020)	LO	ClinicalTrialProtocolID	1	DICOM
 (0012,0021)	LO	ClinicalTrialProtocolName	1	DICOM
+(0012,0022)	LO	IssuerOfClinicalTrialProtocolID	1	DICOM
+(0012,0023)	SQ	OtherClinicalTrialProtocolIDsSequence	1	DICOM
 (0012,0030)	LO	ClinicalTrialSiteID	1	DICOM
 (0012,0031)	LO	ClinicalTrialSiteName	1	DICOM
+(0012,0032)	LO	IssuerOfClinicalTrialSiteID	1	DICOM
 (0012,0040)	LO	ClinicalTrialSubjectID	1	DICOM
+(0012,0041)	LO	IssuerOfClinicalTrialSubjectID	1	DICOM
 (0012,0042)	LO	ClinicalTrialSubjectReadingID	1	DICOM
+(0012,0043)	LO	IssuerOfClinicalTrialSubjectReadingID	1	DICOM
 (0012,0050)	LO	ClinicalTrialTimePointID	1	DICOM
 (0012,0051)	ST	ClinicalTrialTimePointDescription	1	DICOM
 (0012,0052)	FD	LongitudinalTemporalOffsetFromEvent	1	DICOM
 (0012,0053)	CS	LongitudinalTemporalEventType	1	DICOM
 (0012,0054)	SQ	ClinicalTrialTimePointTypeCodeSequence	1	DICOM
+(0012,0055)	LO	IssuerOfClinicalTrialTimePointID	1	DICOM
 (0012,0060)	LO	ClinicalTrialCoordinatingCenterName	1	DICOM
 (0012,0062)	CS	PatientIdentityRemoved	1	DICOM
 (0012,0063)	LO	DeidentificationMethod	1-n	DICOM
 (0012,0064)	SQ	DeidentificationMethodCodeSequence	1	DICOM
 (0012,0071)	LO	ClinicalTrialSeriesID	1	DICOM
 (0012,0072)	LO	ClinicalTrialSeriesDescription	1	DICOM
+(0012,0073)	LO	IssuerOfClinicalTrialSeriesID	1	DICOM
 (0012,0081)	LO	ClinicalTrialProtocolEthicsCommitteeName	1	DICOM
 (0012,0082)	LO	ClinicalTrialProtocolEthicsCommitteeApprovalNumber	1	DICOM
 (0012,0083)	SQ	ConsentForClinicalTrialUseSequence	1	DICOM
@@ -603,6 +631,18 @@
 (0014,40A0)	LO	ImageQualityIndicatorType	1-n	DICOM/DICONDE
 (0014,40A1)	LO	ImageQualityIndicatorMaterial	1-n	DICOM/DICONDE
 (0014,40A2)	LO	ImageQualityIndicatorSize	1-n	DICOM/DICONDE
+(0014,4101)	SQ	WaveDimensionsDefinitionSequence	1	DICOM/DICONDE
+(0014,4102)	US	WaveDimensionNumber	1	DICOM/DICONDE
+(0014,4103)	LO	WaveDimensionDescription	1	DICOM/DICONDE
+(0014,4104)	US	WaveDimensionUnit	1	DICOM/DICONDE
+(0014,4105)	CS	WaveDimensionValueType	1	DICOM/DICONDE
+(0014,4106)	SQ	WaveDimensionValuesSequence	1-n	DICOM/DICONDE
+(0014,4107)	US	ReferencedWaveDimension	1	DICOM/DICONDE
+(0014,4108)	SL	IntegerNumericValue	1	DICOM/DICONDE
+(0014,4109)	OB	ByteNumericValue	1	DICOM/DICONDE
+(0014,410A)	OW	ShortNumericValue	1	DICOM/DICONDE
+(0014,410B)	OF	SinglePrecisionFloatingPointNumericValue	1	DICOM/DICONDE
+(0014,410C)	OD	DoublePrecisionFloatingPointNumericValue	1	DICOM/DICONDE
 (0014,5002)	IS	LINACEnergy	1	DICOM/DICONDE
 (0014,5004)	IS	LINACOutput	1	DICOM/DICONDE
 (0014,5100)	US	ActiveAperture	1	DICOM/DICONDE
@@ -637,6 +677,98 @@
 (0014,511D)	DS	WedgeChamferHeight	1	DICOM/DICONDE
 (0014,511E)	CS	WedgeCurve	1	DICOM/DICONDE
 (0014,511F)	DS	RadiusAlongWedge	1	DICOM/DICONDE
+(0014,6001)	SQ	ThermalCameraSettingsSequence	1	DICOM/DICONDE
+(0014,6002)	DS	AcquisitionFrameRate	1	DICOM/DICONDE
+(0014,6003)	DS	IntegrationTime	1	DICOM/DICONDE
+(0014,6004)	DS	NumberOfCalibrationFrames	1	DICOM/DICONDE
+(0014,6005)	DS	NumberOfRowsInFullAcquisitionImage	1	DICOM/DICONDE
+(0014,6006)	DS	NumberOfColumnsInFullAcquisitionImage	1	DICOM/DICONDE
+(0014,6007)	SQ	ThermalSourceSettingsSequence	1	DICOM/DICONDE
+(0014,6008)	DS	SourceHorizontalPitch	1	DICOM/DICONDE
+(0014,6009)	DS	SourceVerticalPitch	1	DICOM/DICONDE
+(0014,600A)	DS	SourceHorizontalScanSpeed	1	DICOM/DICONDE
+(0014,600B)	DS	ThermalSourceModulationFrequency	1	DICOM/DICONDE
+(0014,600C)	SQ	InductionSourceSettingSequence	1	DICOM/DICONDE
+(0014,600D)	DS	CoilFrequency	1	DICOM/DICONDE
+(0014,600E)	DS	CurrentAmplitudeAcrossCoil	1	DICOM/DICONDE
+(0014,600F)	SQ	FlashSourceSettingSequence	1	DICOM/DICONDE
+(0014,6010)	DS	FlashDuration	1	DICOM/DICONDE
+(0014,6011)	DS	FlashFrameNumber	1-n	DICOM/DICONDE
+(0014,6012)	SQ	LaserSourceSettingSequence	1	DICOM/DICONDE
+(0014,6013)	DS	HorizontalLaserSpotDimension	1	DICOM/DICONDE
+(0014,6014)	DS	VerticalLaserSpotDimension	1	DICOM/DICONDE
+(0014,6015)	DS	LaserWavelength	1	DICOM/DICONDE
+(0014,6016)	DS	LaserPower	1	DICOM/DICONDE
+(0014,6017)	SQ	ForcedGasSettingSequence	1	DICOM/DICONDE
+(0014,6018)	SQ	VibrationSourceSettingSequence	1	DICOM/DICONDE
+(0014,6019)	DS	VibrationExcitationFrequency	1	DICOM/DICONDE
+(0014,601A)	DS	VibrationExcitationVoltage	1	DICOM/DICONDE
+(0014,601B)	CS	ThermographyDataCaptureMethod	1	DICOM/DICONDE
+(0014,601C)	CS	ThermalTechnique	1	DICOM/DICONDE
+(0014,601D)	SQ	ThermalCameraCoreSequence	1	DICOM/DICONDE
+(0014,601E)	CS	DetectorWavelengthRange	1	DICOM/DICONDE
+(0014,601F)	CS	ThermalCameraCalibrationType	1	DICOM/DICONDE
+(0014,6020)	UV	AcquisitionImageCounter	1	DICOM/DICONDE
+(0014,6021)	DS	FrontPanelTemperature	1	DICOM/DICONDE
+(0014,6022)	DS	AirGapTemperature	1	DICOM/DICONDE
+(0014,6023)	DS	VerticalPixelSize	1	DICOM/DICONDE
+(0014,6024)	DS	HorizontalPixelSize	1	DICOM/DICONDE
+(0014,6025)	ST	DataStreamingProtocol	1-n	DICOM/DICONDE
+(0014,6026)	SQ	LensSequence	1	DICOM/DICONDE
+(0014,6027)	DS	FieldOfView	1	DICOM/DICONDE
+(0014,6028)	LO	LensFilterManufacturer	1	DICOM/DICONDE
+(0014,6029)	CS	CutoffFilterType	1	DICOM/DICONDE
+(0014,602A)	DS	LensFilterCutOffWavelength	1-n	DICOM/DICONDE
+(0014,602B)	SQ	ThermalSourceSequence	1	DICOM/DICONDE
+(0014,602C)	CS	ThermalSourceMotionState	1	DICOM/DICONDE
+(0014,602D)	CS	ThermalSourceMotionType	1	DICOM/DICONDE
+(0014,602E)	SQ	InductionHeatingSequence	1	DICOM/DICONDE
+(0014,602F)	ST	CoilConfigurationID	1	DICOM/DICONDE
+(0014,6030)	DS	NumberOfTurnsInCoil	1	DICOM/DICONDE
+(0014,6031)	CS	ShapeOfIndividualTurn	1	DICOM/DICONDE
+(0014,6032)	DS	SizeOfIndividualTurn	1-n	DICOM/DICONDE
+(0014,6033)	DS	DistanceBetweenTurns	1-n	DICOM/DICONDE
+(0014,6034)	SQ	FlashHeatingSequence	1	DICOM/DICONDE
+(0014,6035)	DS	NumberOfLamps	1	DICOM/DICONDE
+(0014,6036)	ST	FlashSynchronizationProtocol	1	DICOM/DICONDE
+(0014,6037)	CS	FlashModificationStatus	1	DICOM/DICONDE
+(0014,6038)	SQ	LaserHeatingSequence	1	DICOM/DICONDE
+(0014,6039)	LO	LaserManufacturer	1	DICOM/DICONDE
+(0014,603A)	LO	LaserModelNumber	1	DICOM/DICONDE
+(0014,603B)	ST	LaserTypeDescription	1	DICOM/DICONDE
+(0014,603C)	SQ	ForcedGasHeatingSequence	1	DICOM/DICONDE
+(0014,603D)	LO	GasUsedForHeatingCoolingPart	1	DICOM/DICONDE
+(0014,603E)	SQ	VibrationSonicHeatingSequence	1	DICOM/DICONDE
+(0014,603F)	LO	ProbeManufacturer	1	DICOM/DICONDE
+(0014,6040)	LO	ProbeModelNumber	1	DICOM/DICONDE
+(0014,6041)	DS	ApertureSize	1	DICOM/DICONDE
+(0014,6042)	DS	ProbeResonantFrequency	1	DICOM/DICONDE
+(0014,6043)	UT	HeatSourceDescription	1	DICOM/DICONDE
+(0014,6044)	CS	SurfacePreparationWithOpticalCoating	1	DICOM/DICONDE
+(0014,6045)	ST	OpticalCoatingType	1	DICOM/DICONDE
+(0014,6046)	DS	ThermalConductivityOfExposedSurface	1	DICOM/DICONDE
+(0014,6047)	DS	MaterialDensity	1	DICOM/DICONDE
+(0014,6048)	DS	SpecificHeatOfInspectionSurface	1	DICOM/DICONDE
+(0014,6049)	DS	EmissivityOfInspectionSurface	1	DICOM/DICONDE
+(0014,604A)	CS	ElectromagneticClassificationOfInspectionSurface	1-n	DICOM/DICONDE
+(0014,604C)	DS	MovingWindowSize	1	DICOM/DICONDE
+(0014,604D)	CS	MovingWindowType	1	DICOM/DICONDE
+(0014,604E)	DS	MovingWindowWeights	1-n	DICOM/DICONDE
+(0014,604F)	DS	MovingWindowPitch	1	DICOM/DICONDE
+(0014,6050)	CS	MovingWindowPaddingScheme	1	DICOM/DICONDE
+(0014,6051)	DS	MovingWindowPaddingLength	1	DICOM/DICONDE
+(0014,6052)	SQ	SpatialFilteringParametersSequence	1	DICOM/DICONDE
+(0014,6053)	CS	SpatialFilteringScheme	1	DICOM/DICONDE
+(0014,6056)	DS	HorizontalMovingWindowSize	1	DICOM/DICONDE
+(0014,6057)	DS	VerticalMovingWindowSize	1	DICOM/DICONDE
+(0014,6059)	SQ	PolynomialFittingSequence	1	DICOM/DICONDE
+(0014,605A)	CS	FittingDataType	1-n	DICOM/DICONDE
+(0014,605B)	CS	OperationOnTimeAxisBeforeFitting	1	DICOM/DICONDE
+(0014,605C)	CS	OperationOnPixelIntensityBeforeFitting	1	DICOM/DICONDE
+(0014,605D)	DS	OrderOfPolynomial	1	DICOM/DICONDE
+(0014,605E)	CS	IndependentVariableForPolynomialFit	1	DICOM/DICONDE
+(0014,605F)	DS	PolynomialCoefficients	1-n	DICOM/DICONDE
+(0014,6060)	CS	ThermographyPixelDataUnit	1	DICOM/DICONDE
 (0016,0001)	DS	WhitePoint	1	DICOM
 (0016,0002)	DS	PrimaryChromaticities	3	DICOM
 (0016,0003)	UT	BatteryLevel	1	DICOM
@@ -1720,6 +1852,7 @@
 (0022,000C)	FL	HorizontalFieldOfView	1	DICOM
 (0022,000D)	CS	PupilDilated	1	DICOM
 (0022,000E)	FL	DegreeOfDilation	1	DICOM
+(0022,000F)	FD	VertexDistance	1	DICOM
 (0022,0010)	FL	StereoBaselineAngle	1	DICOM
 (0022,0011)	FL	StereoBaselineDisplacement	1	DICOM
 (0022,0012)	FL	StereoHorizontalPixelOffset	1	DICOM
@@ -1863,10 +1996,16 @@
 (0022,1618)	SQ	ScanPatternTypeCodeSequence	1	DICOM
 (0022,1620)	SQ	ReferencedSurfaceMeshIdentificationSequence	1	DICOM
 (0022,1622)	CS	OphthalmicVolumetricPropertiesFlag	1	DICOM
+(0022,1623)	FL	OphthalmicAnatomicReferencePointFrameCoordinate	1	DICOM
 (0022,1624)	FL	OphthalmicAnatomicReferencePointXCoordinate	1	DICOM
 (0022,1626)	FL	OphthalmicAnatomicReferencePointYCoordinate	1	DICOM
+(0022,1627)	SQ	OphthalmicEnFaceVolumeDescriptorSequence	1	DICOM
 (0022,1628)	SQ	OphthalmicEnFaceImageQualityRatingSequence	1	DICOM
+(0022,1629)	CS	OphthalmicEnFaceVolumeDescriptorScope	1	DICOM
 (0022,1630)	DS	QualityThreshold	1	DICOM
+(0022,1632)	SQ	OphthalmicAnatomicReferencePointSequence	1	DICOM
+(0022,1633)	CS	OphthalmicAnatomicReferencePointLocalizationType	1	DICOM
+(0022,1634)	IS	PrimaryAnatomicStructureItemIndex	1	DICOM
 (0022,1640)	SQ	OCTBscanAnalysisAcquisitionParametersSequence	1	DICOM
 (0022,1642)	UL	NumberOfBscansPerFrame	1	DICOM
 (0022,1643)	FL	BscanSlabThickness	1	DICOM
@@ -2247,12 +2386,12 @@
 (003A,0317)	CS	WaveformAmplifierType	1	DICOM
 (003A,0318)	SQ	FilterLowFrequencyCharacteristicsSequence	1	DICOM
 (003A,0319)	SQ	FilterHighFrequencyCharacteristicsSequence	1	DICOM
-(003A,0320)	SQ	SummarizedFilterLookupTable	1	DICOM
+(003A,0320)	SQ	SummarizedFilterLookupTableSequence	1	DICOM
 (003A,0321)	SQ	NotchFilterCharacteristicsSequence	1	DICOM
 (003A,0322)	CS	WaveformFilterType	1	DICOM
 (003A,0323)	SQ	AnalogFilterCharacteristicsSequence	1	DICOM
 (003A,0324)	DS	AnalogFilterRollOff	1	DICOM
-(003A,0325)	SQ	AnalogFilterType	1	DICOM
+(003A,0325)	SQ	AnalogFilterTypeCodeSequence	1	DICOM
 (003A,0326)	SQ	DigitalFilterCharacteristicsSequence	1	DICOM
 (003A,0327)	IS	DigitalFilterOrder	1	DICOM
 (003A,0328)	SQ	DigitalFilterTypeCodeSequence	1	DICOM
@@ -2424,6 +2563,8 @@
 (0040,A030)	DT	VerificationDateTime	1	DICOM
 (0040,A032)	DT	ObservationDateTime	1	DICOM
 (0040,A033)	DT	ObservationStartDateTime	1	DICOM
+(0040,A034)	DT	EffectiveStartDateTime	1	DICOM
+(0040,A035)	DT	EffectiveStopDateTime	1	DICOM
 (0040,A040)	CS	ValueType	1	DICOM
 (0040,A043)	SQ	ConceptNameCodeSequence	1	DICOM
 (0040,A050)	CS	ContinuityOfContent	1	DICOM
@@ -2481,6 +2622,25 @@
 (0040,A807)	SQ	TableColumnDefinitionSequence	1	DICOM
 (0040,A808)	SQ	CellValuesSequence	1	DICOM
 (0040,B020)	SQ	WaveformAnnotationSequence	1	DICOM
+(0040,B030)	SQ	StructuredWaveformAnnotationSequence	1	DICOM
+(0040,B031)	SQ	WaveformAnnotationDisplaySelectionSequence	1	DICOM
+(0040,B032)	US	ReferencedMontageIndex	1	DICOM
+(0040,B033)	SQ	WaveformTextualAnnotationSequence	1	DICOM
+(0040,B034)	DT	AnnotationDateTime	1	DICOM
+(0040,B035)	SQ	DisplayedWaveformSegmentSequence	1	DICOM
+(0040,B036)	DT	SegmentDefinitionDateTime	1	DICOM
+(0040,B037)	SQ	MontageActivationSequence	1	DICOM
+(0040,B038)	DS	MontageActivationTimeOffset	1	DICOM
+(0040,B039)	SQ	WaveformMontageSequence	1	DICOM
+(0040,B03A)	IS	ReferencedMontageChannelNumber	1	DICOM
+(0040,B03B)	LT	MontageName	1	DICOM
+(0040,B03C)	SQ	MontageChannelSequence	1	DICOM
+(0040,B03D)	US	MontageIndex	1	DICOM
+(0040,B03E)	IS	MontageChannelNumber	1	DICOM
+(0040,B03F)	LO	MontageChannelLabel	1	DICOM
+(0040,B040)	SQ	MontageChannelSourceCodeSequence	1	DICOM
+(0040,B041)	SQ	ContributingChannelSourcesSequence	1	DICOM
+(0040,B042)	FL	ChannelWeight	1	DICOM
 (0040,DB00)	CS	TemplateIdentifier	1	DICOM
 (0040,DB73)	UL	ReferencedContentItemIdentifier	1-n	DICOM
 (0040,E001)	ST	HL7InstanceIdentifier	1	DICOM
@@ -2651,6 +2811,7 @@
 (0048,0301)	CS	PixelOriginInterpretation	1	DICOM
 (0048,0302)	UL	NumberOfOpticalPaths	1	DICOM
 (0048,0303)	UL	TotalPixelMatrixFocalPlanes	1	DICOM
+(0048,0304)	CS	TilesOverlap	1	DICOM
 (0050,0004)	CS	CalibrationImage	1	DICOM
 (0050,0010)	SQ	DeviceSequence	1	DICOM
 (0050,0012)	SQ	ContainerComponentTypeCodeSequence	1	DICOM
@@ -2813,6 +2974,7 @@
 (0066,0002)	SQ	SurfaceSequence	1	DICOM
 (0066,0003)	UL	SurfaceNumber	1	DICOM
 (0066,0004)	LT	SurfaceComments	1	DICOM
+(0066,0005)	FL	SurfaceOffset	1	DICOM
 (0066,0009)	CS	SurfaceProcessing	1	DICOM
 (0066,000A)	FL	SurfaceProcessingRatio	1	DICOM
 (0066,000B)	LO	SurfaceProcessingDescription	1	DICOM
@@ -3121,8 +3283,6 @@
 (0070,1804)	US	VolumetricPresentationInputIndex	1	DICOM
 (0070,1805)	SQ	PresentationStateCompositorComponentSequence	1	DICOM
 (0070,1806)	SQ	WeightingTransferFunctionSequence	1	DICOM
-(0070,1807)	US	WeightingLookupTableDescriptor	3	DICOM
-(0070,1808)	OB	WeightingLookupTableData	1	DICOM
 (0070,1901)	SQ	VolumetricAnnotationSequence	1	DICOM
 (0070,1903)	SQ	ReferencedStructuredContextSequence	1	DICOM
 (0070,1904)	UI	ReferencedContentItem	1	DICOM
@@ -3614,6 +3774,7 @@
 (3002,0133)	SQ	EnergyDerivationCodeSequence	1	DICOM
 (3002,0134)	FD	MaximumCumulativeMetersetExposure	1	DICOM
 (3002,0135)	SQ	AcquisitionInitiationSequence	1	DICOM
+(3002,0136)	SQ	RTConeBeamImagingGeometrySequence	1	DICOM
 (3004,0001)	CS	DVHType	1	DICOM
 (3004,0002)	CS	DoseUnits	1	DICOM
 (3004,0004)	CS	DoseType	1	DICOM
@@ -3623,7 +3784,9 @@
 (3004,000A)	CS	DoseSummationType	1	DICOM
 (3004,000C)	DS	GridFrameOffsetVector	2-n	DICOM
 (3004,000E)	DS	DoseGridScaling	1	DICOM
+(3004,0012)	DS	DoseValue	1	DICOM
 (3004,0014)	CS	TissueHeterogeneityCorrection	1-3	DICOM
+(3004,0016)	SQ	RecommendedIsodoseLevelSequence	1	DICOM
 (3004,0040)	DS	DVHNormalizationPoint	3	DICOM
 (3004,0042)	DS	DVHNormalizationDoseValue	1	DICOM
 (3004,0050)	SQ	DVHSequence	1	DICOM
@@ -3833,6 +3996,7 @@
 (300A,0051)	DS	TableTopVerticalPositionTolerance	1	DICOM
 (300A,0052)	DS	TableTopLongitudinalPositionTolerance	1	DICOM
 (300A,0053)	DS	TableTopLateralPositionTolerance	1	DICOM
+(300A,0054)	UI	TableTopPositionAlignmentUID	1	DICOM
 (300A,0055)	CS	RTPlanRelationship	1	DICOM
 (300A,0070)	SQ	FractionGroupSequence	1	DICOM
 (300A,0071)	IS	FractionGroupNumber	1	DICOM
@@ -4083,6 +4247,7 @@
 (300A,02E8)	FL	CompensatorMillingToolDiameter	1	DICOM
 (300A,02EA)	SQ	IonRangeCompensatorSequence	1	DICOM
 (300A,02EB)	LT	CompensatorDescription	1	DICOM
+(300A,02EC)	CS	CompensatorSurfaceRepresentationFlag	1	DICOM
 (300A,0302)	IS	RadiationMassNumber	1	DICOM
 (300A,0304)	IS	RadiationAtomicNumber	1	DICOM
 (300A,0306)	SS	RadiationChargeState	1	DICOM
@@ -4392,6 +4557,9 @@
 (300A,079C)	SQ	PatientSupportDisplacementSequence	1	DICOM
 (300A,079D)	SQ	DisplacementReferenceLocationCodeSequence	1	DICOM
 (300A,079E)	CS	RTRadiationSetDeliveryUsage	1	DICOM
+(300A,079F)	SQ	PatientTreatmentPreparationSequence	1	DICOM
+(300A,07A0)	SQ	PatientToEquipmentRelationshipSequence	1	DICOM
+(300A,07A1)	SQ	ImagingEquipmentToTreatmentDeliveryDeviceRelationshipSequence	1	DICOM
 (300C,0002)	SQ	ReferencedRTPlanSequence	1	DICOM
 (300C,0004)	SQ	ReferencedBeamSequence	1	DICOM
 (300C,0006)	IS	ReferencedBeamNumber	1	DICOM
@@ -4780,6 +4948,7 @@
 (0010,1000)	LO	RETIRED_OtherPatientIDs	1-n	DICOM/retired
 (0010,1050)	LO	RETIRED_InsurancePlanIdentification	1-n	DICOM/retired
 (0010,1090)	LO	RETIRED_MedicalRecordLocator	1	DICOM/retired
+(0010,2160)	SH	RETIRED_EthnicGroup	1	DICOM/retired
 (0014,0023)	ST	RETIRED_CADFileFormat	1	DICOM/retired
 (0014,0024)	ST	RETIRED_ComponentReferenceSystem	1	DICOM/retired
 (0014,0045)	ST	RETIRED_MaterialPropertiesFileFormatRetired	1	DICOM/retired
@@ -5050,6 +5219,8 @@
 (0070,0051)	US	RETIRED_DisplayedAreaBottomRightHandCornerTrial	2	DICOM/retired
 (0070,0067)	US	RETIRED_GraphicLayerRecommendedDisplayRGBValue	3	DICOM/retired
 (0070,1206)	CS	RETIRED_CompositingMethod	1	DICOM/retired
+(0070,1807)	US	RETIRED_WeightingLookupTableDescriptor	3	DICOM/retired
+(0070,1808)	OB	RETIRED_WeightingLookupTableData	1	DICOM/retired
 (0074,1024)	IS	RETIRED_BeamOrderIndexTrial	1	DICOM/retired
 (0074,1038)	DS	RETIRED_DoubleExposureMetersetTrial	1	DICOM/retired
 (0074,103A)	DS	RETIRED_DoubleExposureFieldDeltaTrial	4	DICOM/retired
@@ -5101,7 +5272,6 @@
 (2130,0060)	SQ	RETIRED_ImageOverlayBoxContentSequence	1	DICOM/retired
 (2130,0080)	SQ	RETIRED_PresentationLUTContentSequence	1	DICOM/retired
 (3004,0010)	SQ	RETIRED_RTDoseROISequence	1	DICOM/retired
-(3004,0012)	DS	RETIRED_DoseValue	1	DICOM/retired
 (3006,0044)	DS	RETIRED_ContourSlabThickness	1	DICOM/retired
 (3006,0045)	DS	RETIRED_ContourOffsetVector	3	DICOM/retired
 (3006,0049)	IS	RETIRED_AttachedContours	1-n	DICOM/retired

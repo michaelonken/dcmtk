@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2000-2023, OFFIS e.V.
+ *  Copyright (C) 2000-2025, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -30,6 +30,13 @@
 #include "dcmtk/dcmsr/dsrcomvl.h"
 #include "dcmtk/dcmsr/dsrimgfr.h"
 #include "dcmtk/dcmsr/dsrimgse.h"
+
+
+// include this file in doxygen documentation
+
+/** @file dsrimgvl.h
+ *  @brief definitions for class DSRImageReferenceValue
+ */
 
 
 /*-----------------------*
@@ -112,24 +119,24 @@ class DCMTK_DCMSR_EXPORT DSRImageReferenceValue
      */
     DSRImageReferenceValue &operator=(const DSRImageReferenceValue &referenceValue);
 
-    /** comparison operator "equal".
-     *  Please note that the optional icon image is not used for comparing the two values.
-     ** @param  referenceValue  image reference value that should be compared to the current one
-     ** @return OFTrue if both image reference values are equal, OFFalse otherwise
-     */
-    OFBool operator==(const DSRImageReferenceValue &referenceValue) const;
-
-    /** comparison operator "not equal".
-     *  Please note that the optional icon image is not used for comparing the two values.
-     ** @param  referenceValue  image reference value that should be compared to the current one
-     ** @return OFTrue if both image reference values are not equal, OFFalse otherwise
-     */
-    OFBool operator!=(const DSRImageReferenceValue &referenceValue) const;
-
     /** clear all internal variables.
      *  Since an empty image reference is invalid the reference becomes invalid afterwards.
      */
     virtual void clear();
+
+    /** check whether values are "equal".
+     *  Please note that the optional icon image is not used for comparing the two values.
+     ** @param  referenceValue  image reference value that should be compared to the current one
+     ** @return OFTrue if both image reference values are equal, OFFalse otherwise
+     */
+    OFBool isEqual(const DSRImageReferenceValue &referenceValue) const;
+
+    /** check whether values are "not equal".
+     *  Please note that the optional icon image is not used for comparing the two values.
+     ** @param  referenceValue  image reference value that should be compared to the current one
+     ** @return OFTrue if both image reference values are not equal, OFFalse otherwise
+     */
+    OFBool isNotEqual(const DSRImageReferenceValue &referenceValue) const;
 
     /** check whether the current image reference value is valid.
      *  The reference value is valid if both SOP class UID and SOP instance UID are valid (see
@@ -154,12 +161,19 @@ class DCMTK_DCMSR_EXPORT DSRImageReferenceValue
      */
     virtual OFBool isSegmentation() const;
 
+    /** check whether an icon image is associated with this image reference.
+     *  This method does not check whether the icon image is valid.
+     ** @return OFTrue if image reference has an icon image, OFFalse otherwise
+     */
+    virtual OFBool hasIconImage() const;
+
     /** print image reference.
      *  The output of a typical image reference value looks like this: (CT image,"1.2.3") or
      *  (CT image,"1.2.3"),(GSPS,"1.2.3.4") if a presentation state is present.
      *  If the SOP class UID is unknown, the UID is printed instead of the related name.
      *  Also, the list of referenced frame/segment numbers is shown, but not the two UIDs of
-     *  the real world value mapping object (if referenced).
+     *  the real world value mapping object (if referenced).  The optional icon image is never
+     *  shown.
      ** @param  stream  output stream to which the image reference value should be printed
      *  @param  flags   flag used to customize the output (see DSRTypes::PF_xxx)
      ** @return status, EC_Normal if successful, an error code otherwise
@@ -193,12 +207,18 @@ class DCMTK_DCMSR_EXPORT DSRImageReferenceValue
      *                       stored.  Value is increased automatically by 1 after a new entry
      *                       has been added.
      *  @param  flags        flag used to customize the output (see DSRTypes::HF_xxx)
+     *  @param  urlPrefix    optional URL prefix used for hyperlink to referenced composite object
+     ** @note Please note that using parameter 'urlPrefix' can lead to security issues, as an
+     *        attacker could misuse it to potentially inject dangerous content into the HTML/XHTML
+     *        output.  The value of this parameter is not checked.  This is also true for derived
+     *        classes.
      ** @return status, EC_Normal if successful, an error code otherwise
      */
     virtual OFCondition renderHTML(STD_NAMESPACE ostream &docStream,
                                    STD_NAMESPACE ostream &annexStream,
                                    size_t &annexNumber,
-                                   const size_t flags) const;
+                                   const size_t flags,
+                                   const char *urlPrefix = NULL) const;
 
     /** create an icon image from the given DICOM image and associate it with this image
      *  reference.
@@ -495,6 +515,12 @@ class DCMTK_DCMSR_EXPORT DSRImageReferenceValue
      */
     OFCondition checkCurrentValue(const OFBool reportWarnings = OFFalse) const;
 
+    /** copy the given icon image to replace the currently stored one.
+     *  The currently stored icon image is always deleted first.
+     *  @param  image  pointer to the icon image to be copied (if not NULL)
+     */
+    void copyIconImage(DicomImage *image);
+
 
   private:
 
@@ -509,6 +535,30 @@ class DCMTK_DCMSR_EXPORT DSRImageReferenceValue
     /// icon image from Icon Image Sequence (optional)
     DicomImage *IconImage;
 };
+
+
+
+/*------------------------*
+ *  comparison operators  *
+ *------------------------*/
+
+/** equality operator.
+ *  Internally, the DSRImageReferenceValue::isEqual() method is used.
+ *  @param  lhs  left-hand side
+ *  @param  rhs  right-hand side
+ *  @return OFTrue if 'lhs' and 'rhs' are equal, OFFalse otherwise
+ */
+DCMTK_DCMSR_EXPORT OFBool operator==(const DSRImageReferenceValue &lhs,
+                                     const DSRImageReferenceValue &rhs);
+
+/** inequality operator.
+ *  Internally, the DSRImageReferenceValue::isNotEqual() method is used.
+ *  @param  lhs  left-hand side
+ *  @param  rhs  right-hand side
+ *  @return OFTrue if 'lhs' and 'rhs' are not equal, OFFalse otherwise
+ */
+DCMTK_DCMSR_EXPORT OFBool operator!=(const DSRImageReferenceValue &lhs,
+                                     const DSRImageReferenceValue &rhs);
 
 
 #endif

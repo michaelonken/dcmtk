@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2002-2024, OFFIS e.V.
+ *  Copyright (C) 2002-2025, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -21,6 +21,7 @@
 
 #include "dcmtk/config/osconfig.h"
 #include "dcmtk/dcmdata/dcrleccd.h"
+#include "dcmtk/ofstd/ofstd.h"
 
 // dcmdata includes
 #include "dcmtk/dcmdata/dcrlecp.h"   /* for class DcmRLECodecParameter */
@@ -51,10 +52,25 @@ OFBool DcmRLECodecDecoder::canChangeCoding(
 {
   E_TransferSyntax myXfer = EXS_RLELossless;
   DcmXfer newRep(newRepType);
-  if (newRep.isNotEncapsulated() && (oldRepType == myXfer)) return OFTrue; // decompress requested
+  if (newRep.usesNativeFormat() && (oldRepType == myXfer))
+    return OFTrue; // decompress requested
 
   // we don't support re-coding for now.
   return OFFalse;
+}
+
+
+Uint16 DcmRLECodecDecoder::decodedBitsAllocated(
+    Uint16 bitsAllocated,
+    Uint16 /* bitsStored */) const
+{
+    // The RLE decoder only supports images where BitsAllocated is a multiple of 8.
+    if ((bitsAllocated < 8)||(bitsAllocated % 8 != 0)) return 0;
+
+    // RLE cannot support more than 120 bits/sample (15 bands) in DICOM
+    if (bitsAllocated > 120) return 0;
+
+    return bitsAllocated;
 }
 
 
@@ -296,7 +312,7 @@ OFCondition DcmRLECodecDecoder::decode(
                     {
                       if (rledecoder.size() < bytesPerStripe)
                       {
-                        DCMDATA_WARN("RLE decoder is finished but has produced insufficient data for this stripe, will continue with next pixel item");
+                        DCMDATA_WARN("Detected fragmented RLE compressed pixel data, which is not allowed in DICOM.");
                         DCMDATA_DEBUG("RLE decoder processes pixel item " << currentItem);
                         result = pixSeq->getItem(pixItem, currentItem++);
                         if (result.good())
@@ -332,6 +348,7 @@ OFCondition DcmRLECodecDecoder::decode(
 
                       if (result.good() || result == EC_StreamNotifyClient)
                       {
+                        DCMDATA_WARN("Detected fragmented RLE compressed pixel data, which is not allowed in DICOM.");
                         DCMDATA_DEBUG("RLE decoder processes pixel item " << currentItem);
                         result = pixSeq->getItem(pixItem, currentItem++);
                       }
@@ -346,6 +363,12 @@ OFCondition DcmRLECodecDecoder::decode(
                     } /* while */
 
                     // last fragment for this RLE stripe
+                    if (inputBytes + byteOffset > fragmentLength)
+                    {
+                        DCMDATA_WARN("stream size in RLE header is wrong, adjusting from " << inputBytes << " to " << fragmentLength-byteOffset << " bytes.");
+                        inputBytes = fragmentLength-byteOffset;
+                    }
+
                     result = rledecoder.decompress(rleData + byteOffset, OFstatic_cast(size_t, inputBytes));
 
                     // special handling for zero pad byte at the end of the RLE stream
@@ -432,7 +455,7 @@ OFCondition DcmRLECodecDecoder::decode(
           if (result.good() && (numberOfFramesPresent || (imageFrames > 1)))
           {
             char numBuf[20];
-            sprintf(numBuf, "%ld", OFstatic_cast(long, imageFrames));
+            OFStandard::snprintf(numBuf, sizeof(numBuf), "%ld", OFstatic_cast(long, imageFrames));
             result = OFstatic_cast(DcmItem *, dataset)->putAndInsertString(DCM_NumberOfFrames, numBuf);
           }
         }
@@ -615,6 +638,11 @@ OFCondition DcmRLECodecDecoder::decodeFrame(
             // if the RLE data is split in multiple fragments. We need to feed
             // data fragment by fragment until the RLE codec has produced
             // sufficient output.
+            if (fragmentLength < byteOffset)
+            {
+              DCMDATA_ERROR("Byte offset in RLE header is wrong.");
+              return EC_CannotChangeRepresentation;
+            }
             bytesToDecode = OFstatic_cast(size_t, fragmentLength - byteOffset);
         }
         else
@@ -633,7 +661,13 @@ OFCondition DcmRLECodecDecoder::decodeFrame(
             bytesToDecode = OFstatic_cast(size_t, inputBytes);
         }
 
-        // last fragment for this RLE stripe
+        // make sure we don't overshoot the buffer size in case of an incorrect byte offset
+        if (fragmentLength < byteOffset + bytesToDecode)
+        {
+          DCMDATA_ERROR("Byte offset in RLE header is wrong.");
+          return EC_CannotChangeRepresentation;
+        }
+
         result = rledecoder.decompress(rleData + byteOffset, bytesToDecode);
 
         // special handling for zero pad byte at the end of the RLE stream
@@ -716,6 +750,10 @@ OFCondition DcmRLECodecDecoder::decodeFrame(
     }
 
     // adjust byte order for uncompressed image to little endian
+    if ((gLocalByteOrder == EBO_BigEndian) && (frameSize & 1))
+    {
+      DCMDATA_WARN("Size of frame buffer is odd, cannot correct byte order for last pixel value");
+    }
     swapIfNecessary(EBO_LittleEndian, gLocalByteOrder, imageData16, frameSize, sizeof(Uint16));
 
     return result;

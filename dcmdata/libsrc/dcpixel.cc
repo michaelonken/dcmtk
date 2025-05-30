@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1997-2023, OFFIS e.V.
+ *  Copyright (C) 1997-2025, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -186,7 +186,7 @@ DcmPixelData::calcElementLength(
     errorFlag = EC_Normal;
     Uint32 elementLength = 0;
 
-    if (xferSyn.isEncapsulated() && (! writeUnencapsulated(xfer)))
+    if (xferSyn.usesEncapsulatedFormat() && (! writeUnencapsulated(xfer)))
     {
         DcmRepresentationListIterator found;
         errorFlag = findConformingEncapsulatedRepresentation(xfer, NULL, found);
@@ -194,7 +194,7 @@ DcmPixelData::calcElementLength(
             elementLength = (*found)->pixSeq->calcElementLength(xfer, enctype);
     }
     else if (existUnencapsulated)
-        elementLength =  DcmPolymorphOBOW::calcElementLength(xfer, enctype);
+        elementLength = DcmPolymorphOBOW::calcElementLength(xfer, enctype);
     else
         errorFlag = EC_RepresentationNotFound;
 
@@ -216,9 +216,9 @@ DcmPixelData::canChooseRepresentation(
     // 1. we have uncompressed data, and target is uncompressed (conversion between uncompressed always possible)
     // 2. we have uncompressed and want compressed, but we are forced to write uncompressed anyway
     // 3. we want to go to compressed, and already have the desired representation available
-    if ((!toType.isEncapsulated() && existUnencapsulated) ||
-        (toType.isEncapsulated() && writeUnencapsulated(repType) && existUnencapsulated) ||
-        (toType.isEncapsulated() && findRepresentationEntry(findEntry, resultIt) == EC_Normal))
+    if ((toType.usesNativeFormat() && existUnencapsulated) ||
+        (toType.usesEncapsulatedFormat() && writeUnencapsulated(repType) && existUnencapsulated) ||
+        (toType.usesEncapsulatedFormat() && findRepresentationEntry(findEntry, resultIt) == EC_Normal))
     {
         // representation found
         result = OFTrue;
@@ -233,9 +233,9 @@ DcmPixelData::canChooseRepresentation(
           // we have uncompressed data, check whether we know how to go from uncompressed to desired compression
           result = DcmCodecList::canChangeCoding(EXS_LittleEndianExplicit, toType.getXfer());
         }
-        else if (toType.isEncapsulated())
+        else if (toType.usesEncapsulatedFormat())
         {
-          // we have already compressed data, check whether we know how to transcode
+          // we have encapsulated data, check whether we know how to transcode
           result = DcmCodecList::canChangeCoding((*original)->repType, toType.getXfer());
           if (!result)
           {
@@ -260,9 +260,9 @@ DcmPixelData::canWriteXfer(
 {
     DcmXfer newXferSyn(newXfer);
     DcmRepresentationListIterator found;
-    OFBool result = existUnencapsulated && (!newXferSyn.isEncapsulated() || writeUnencapsulated(newXfer));
+    OFBool result = existUnencapsulated && (newXferSyn.usesNativeFormat() || writeUnencapsulated(newXfer));
 
-    if (!result && newXferSyn.isEncapsulated())
+    if (!result && newXferSyn.usesEncapsulatedFormat())
         result = (findConformingEncapsulatedRepresentation(newXferSyn, NULL, found) == EC_Normal);
     return result;
 }
@@ -278,8 +278,8 @@ DcmPixelData::chooseRepresentation(
 
     const DcmRepresentationEntry findEntry(repType, repParam, NULL);
     DcmRepresentationListIterator result(repListEnd);
-    if ((!toType.isEncapsulated() && existUnencapsulated) ||
-        (toType.isEncapsulated() && findRepresentationEntry(findEntry, result) == EC_Normal))
+    if ((toType.usesNativeFormat() && existUnencapsulated) ||
+        (toType.usesEncapsulatedFormat() && findRepresentationEntry(findEntry, result) == EC_Normal))
     {
         // representation found
         current = result;
@@ -291,14 +291,14 @@ DcmPixelData::chooseRepresentation(
         if (original == repListEnd)
             l_error = encode(EXS_LittleEndianExplicit, NULL, NULL,
                              toType, repParam, pixelStack);
-        else if (toType.isEncapsulated())
+        else if (toType.usesEncapsulatedFormat())
             l_error = encode((*original)->repType, (*original)->repParam,
                              (*original)->pixSeq, toType, repParam, pixelStack);
         else
             l_error = decode((*original)->repType, (*original)->repParam,
                              (*original)->pixSeq, pixelStack);
     }
-    if (l_error.bad() && toType.isEncapsulated() && existUnencapsulated && writeUnencapsulated(repType))
+    if (l_error.bad() && toType.usesEncapsulatedFormat() && existUnencapsulated && writeUnencapsulated(repType))
         // Encoding failed so this will be written out unencapsulated
         l_error = EC_Normal;
     return l_error;
@@ -478,11 +478,11 @@ DcmPixelData::encode(
     DcmStack & pixelStack)
 {
     OFCondition l_error = EC_CannotChangeRepresentation;
-    if (toType.isEncapsulated())
+    if (toType.usesEncapsulatedFormat())
     {
        DcmPixelSequence * toPixSeq = NULL;
        OFBool removeOldPixelRepresentation = OFFalse;
-       if (fromType.isEncapsulated())
+       if (fromType.usesEncapsulatedFormat())
        {
          l_error = DcmCodecList::encode(fromType.getXfer(), fromParam, fromPixSeq,
                    toType.getXfer(), toParam, toPixSeq, pixelStack, removeOldPixelRepresentation);
@@ -513,7 +513,7 @@ DcmPixelData::encode(
 
        // if it was possible to convert one encapsulated syntax into
        // another directly try it using decoding and encoding!
-       if (l_error.bad() && fromType.isEncapsulated())
+       if (l_error.bad() && fromType.usesEncapsulatedFormat())
        {
            l_error = decode(fromType, fromParam, fromPixSeq, pixelStack);
            if (l_error.good()) l_error = encode(EXS_LittleEndianExplicit, NULL, NULL, toType, toParam, pixelStack);
@@ -559,7 +559,7 @@ DcmPixelData::findConformingEncapsulatedRepresentation(
     // of this pixel data element which meets both
     // the transfer syntax and (if given) the representation
     // parameter (i.e. quality factor for lossy JPEG).
-    if (repTypeSyn.isEncapsulated())
+    if (repTypeSyn.usesEncapsulatedFormat())
     {
         // first we check the current (active) representation if any.
         if ((current != repListEnd) && ((*current)->repType == repType) &&
@@ -617,9 +617,9 @@ DcmPixelData::hasRepresentation(
 {
     DcmXfer repTypeSyn(repType);
     DcmRepresentationListIterator found;
-    if (!repTypeSyn.isEncapsulated() && existUnencapsulated)
+    if (repTypeSyn.usesNativeFormat() && existUnencapsulated)
         return OFTrue;
-    else if (repTypeSyn.isEncapsulated())
+    else if (repTypeSyn.usesEncapsulatedFormat())
         return findConformingEncapsulatedRepresentation(repTypeSyn, repParam, found).good();
     return OFFalse;
 }
@@ -633,7 +633,7 @@ DcmPixelData::getLength(const E_TransferSyntax xfer,
     errorFlag = EC_Normal;
     Uint32 valueLength = 0;
 
-    if (xferSyn.isEncapsulated() && !writeUnencapsulated(xfer))
+    if (xferSyn.usesEncapsulatedFormat() && !writeUnencapsulated(xfer))
     {
         DcmRepresentationListIterator foundEntry;
         errorFlag = findConformingEncapsulatedRepresentation(
@@ -819,15 +819,14 @@ DcmPixelData::read(
         /* create a DcmXfer object based on the transfer syntax which was passed */
         DcmXfer ixferSyn(ixfer);
 
-        /* determine if the pixel data is captured in native (uncompressed) or encapsulated
-         * (compressed) format.  We only derive this information from the length field
-         * which is set to undefined length for encapsulated data because even in
-         * compressed transfer syntaxes the Icon Image Sequence may contain an
-         * uncompressed image.
+        /* determine if the pixel data is captured in native or encapsulated format.
+         * We only derive this information from the length field which is set to
+         * undefined length for encapsulated data because even in compressed transfer
+         * syntaxes the Icon Image Sequence may contain an uncompressed image.
          */
         if (getLengthField() == DCM_UndefinedLength)
         {
-            /* the pixel data is captured in encapsulated (compressed) format */
+            /* the pixel data is captured in encapsulated (e.g. compressed) format */
 
             /* if the transfer state is ERW_init, we need to prepare */
             /* the reading of the pixel data from the stream. */
@@ -841,14 +840,15 @@ DcmPixelData::read(
                 existUnencapsulated = OFFalse;
                 setTransferState(ERW_inWork);
 
-                if (! ixferSyn.isEncapsulated())
+                if (! ixferSyn.usesEncapsulatedFormat())
                 {
-                  /* Special case: we have encountered a compressed image
-                   * although we're decoding an uncompressed transfer syntax.
-                   * This could be a compressed image stored without meta-header.
-                   * For now, we just accept the data element; however, any attempt
-                   * to write the dataset will fail because no suitable decoder
-                   * is known.
+                  /* Special case: we have encountered encapsulated format for
+                   * the pixel data (undefined element length) although we're
+                   * decoding a non-encapsulated transfer syntax. This could e.g.
+                   * be a compressed image stored without meta-header. For now,
+                   * we just accept the data element; however, any attempt to
+                   * write the dataset will fail because no suitable decoder is
+                   * known.
                    */
                 }
             }
@@ -875,11 +875,11 @@ DcmPixelData::read(
                 recalcVR();
                 existUnencapsulated = OFTrue;
 
-                if (ixferSyn.isEncapsulated())
+                if (ixferSyn.usesEncapsulatedFormat())
                 {
-                  /* Special case: we have encountered an uncompressed image
-                   * although we're decoding an encapsulated transfer syntax.
-                   * This is probably an icon image.
+                  /* Special case: we have encountered native format for the pixel
+                   * data (explicit element length) although we're decoding an
+                   * encapsulated transfer syntax. This is probably an icon image.
                    */
                   alwaysUnencapsulated = OFTrue;
                 }
@@ -930,7 +930,8 @@ DcmPixelData::removeOriginalRepresentation(
     OFCondition l_error = EC_Normal;
     DcmXfer repTypeSyn(repType);
 
-    if (!repTypeSyn.isEncapsulated())
+    /* native format or referenced pixel data */
+    if (!repTypeSyn.usesEncapsulatedFormat())
     {
         if (original != repListEnd)
         {
@@ -947,6 +948,7 @@ DcmPixelData::removeOriginalRepresentation(
     }
     else
     {
+        /* encapsulated format */
         DcmRepresentationListIterator result;
         DcmRepresentationEntry findEntry(repType, repParam, NULL);
         if (findRepresentationEntry(findEntry, result) == EC_Normal)
@@ -984,7 +986,8 @@ DcmPixelData::removeRepresentation(
     OFCondition l_error = EC_Normal;
     DcmXfer repTypeSyn(repType);
 
-    if (!repTypeSyn.isEncapsulated())
+    /* native format or referenced pixel data */
+    if (!repTypeSyn.usesEncapsulatedFormat())
     {
         if (original != repListEnd && existUnencapsulated)
         {
@@ -996,6 +999,7 @@ DcmPixelData::removeRepresentation(
     }
     else
     {
+        /* encapsulated format */
         DcmRepresentationListIterator result;
         DcmRepresentationEntry findEntry(repType, repParam, NULL);
         if (findRepresentationEntry(findEntry, result) == EC_Normal)
@@ -1063,11 +1067,11 @@ OFCondition DcmPixelData::write(
   if (getTransferState() == ERW_notInitialized) errorFlag = EC_IllegalCall;
   else
   {
-    // check if the output transfer syntax is encapsulated
-    // and we are not requested to write an uncompressed dataset
+    // check if the output transfer syntax is encapsulated and
+    // we are not requested to write an uncompressed dataset,
     // for example because this is within an Icon Image Sequence
     DcmXfer xferSyn(oxfer);
-    if (xferSyn.isEncapsulated() && (! writeUnencapsulated(oxfer)))
+    if (xferSyn.usesEncapsulatedFormat() && (! writeUnencapsulated(oxfer)))
     {
       // write encapsulated representation (i.e., compressed image)
       if (getTransferState() == ERW_init)
@@ -1129,7 +1133,7 @@ OFCondition DcmPixelData::writeSignatureFormat(
   else if (getTag().isSignable())
   {
     DcmXfer xferSyn(oxfer);
-    if (xferSyn.isEncapsulated() && (! writeUnencapsulated(oxfer)))
+    if (xferSyn.usesEncapsulatedFormat() && (! writeUnencapsulated(oxfer)))
     {
       if (getTransferState() == ERW_init)
       {
@@ -1273,7 +1277,7 @@ OFBool DcmPixelData::writeUnencapsulated(const E_TransferSyntax xfer)
 
     if (alwaysUnencapsulated)
         return OFTrue;
-    if (DcmXfer(xfer).isEncapsulated()) {
+    if (DcmXfer(xfer).usesEncapsulatedFormat()) {
         DcmRepresentationListIterator found;
         OFCondition cond = findConformingEncapsulatedRepresentation(xfer, NULL, found);
         if (cond.good()) {
@@ -1294,27 +1298,77 @@ OFCondition DcmPixelData::writeJson(STD_NAMESPACE ostream &out,
     // check if we have an empty uncompressed value field.
     // We never encode that as BulkDataURI.
     OFBool emptyValue = OFFalse;
-    if ((current == repListEnd) && existUnencapsulated && (getLengthField() == 0))
+    if ((current == repListEnd) && existUnencapsulated && (getLength() == 0))
     {
       emptyValue = OFTrue;
     }
 
-    // now check if the pixel data will be written as
-    // BulkDataURI, which is possible for both uncompressed
-    // and encapsulated pixel data.
-    OFString value;
-    if ((! emptyValue) && format.asBulkDataURI(getTag(), value))
+    // determine the length either of the pixel sequence or of the uncompressed pixel data
+    Uint32 len = 0;
+    if (current == repListEnd) len = getLength();
+    else if ((*current)->pixSeq != NULL) len = (*current)->pixSeq->getLength();
+
+    // check if the pixel data should be written as BulkDataURI
+    if (((! emptyValue) || (current != repListEnd)) && format.asBulkDataURI(getTag(), len))
     {
-        /* write JSON Opener */
-        writeJsonOpener(out, format);
+        // We should write the pixel data as bulk data. Now check whether
+        // we are dealing with encapsulated or unencapsulated data
+        if ((current == repListEnd) && existUnencapsulated)
+        {
+            // Current pixel data representation is unencapsulated.
+            // Write JSON Opener
+            writeJsonOpener(out, format);
 
-        /* return defined BulkDataURI */
-        format.printBulkDataURIPrefix(out);
-        DcmJsonFormat::printString(out, value);
+            // adjust byte order to little endian
+            Uint8 *byteValues = OFstatic_cast(Uint8 *, getValue(EBO_LittleEndian));
 
-        /* write JSON Closer */
-        writeJsonCloser(out, format);
-        return EC_Normal;
+            // write as bulk data
+            OFCondition status = format.writeBulkData(out, getLengthField(), byteValues);
+
+            // write JSON Closer
+            writeJsonCloser(out, format);
+            return status;
+        }
+        else if (current != repListEnd)
+        {
+            // Current pixel data representation is encapsulated.
+            // Access the parent item to check the number of frames
+            DcmItem *parentItem = getParentItem();
+            if (parentItem == NULL)
+            {
+                // something is fishy with this dataset
+                DCMDATA_WARN("DcmPixelData: Unable to access parent dataset for pixel data object");
+                return EC_CannotWriteBulkDataFile;
+            }
+
+            // check NumberOfFrames attribute, default to 1 if absent or unreadable
+            Sint32 imageFrames = 1;
+            if (parentItem->findAndGetSint32(DCM_NumberOfFrames, imageFrames).bad()) imageFrames = 1;
+            if (imageFrames != 1)
+            {
+                DCMDATA_WARN("Encapsulated multi-frame images cannot be represented in JSON");
+                return EC_CannotWriteJsonMultiframe;
+            }
+
+            // (*current)->pixSeq is not NULL at this point, we have checked this earlier in this method
+            DcmPixelSequence *currentPixelSequence = (*current)->pixSeq;
+
+            // write JSON Opener
+            writeJsonOpener(out, format);
+
+            // delegate the JSON conversion to the pixel sequence
+            OFCondition status = currentPixelSequence->writeJson(out, format);
+
+            // write JSON Closer
+            writeJsonCloser(out, format);
+            return status;
+        }
+        else
+        {
+            // something is fishy with this dataset
+            DCMDATA_WARN("DcmPixelData: apparently there is neither compressed nor uncompressed data");
+            return EC_CannotWriteJsonInlineBinary;
+        }
     }
 
     // No bulk data URI, we're supposed to write as InlineBinary.
@@ -1352,3 +1406,21 @@ OFCondition DcmPixelData::writeJson(STD_NAMESPACE ostream &out,
     // pixel data is encapsulated, return error
     return EC_CannotWriteJsonInlineBinary;
 }
+
+
+Uint16 DcmPixelData::decodedBitsAllocated(
+      Uint16 bitsAllocated,
+      Uint16 bitsStored) const
+{
+    if (bitsStored > bitsAllocated) return 0;
+    if (existUnencapsulated || (original == repListEnd))
+    {
+        // we have uncompressed pixel data or pixel data is empty
+        return DcmElement::decodedBitsAllocated(bitsAllocated, bitsStored);
+    }
+    else
+    {
+       return DcmCodecList::decodedBitsAllocated((*original)->repType, bitsAllocated, bitsStored);
+    }
+}
+

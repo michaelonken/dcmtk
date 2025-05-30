@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2002-2023, OFFIS e.V.
+ *  Copyright (C) 2002-2025, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -113,9 +113,9 @@ class DCMTK_DCMDATA_EXPORT DicomDirInterface
      */
     enum E_ApplicationProfile
     {
-        /// General Purpose Interchange on CD-R or DVD-RAM Media (STD-GEN-CD/DVD-RAM)
+        /// General Purpose Interchange on CD-R, DVD-RAM or BD Media (STD-GEN-CD/DVD-RAM/BD)
         AP_GeneralPurpose,
-        /// default application profile: General Purpose Interchange on CD-R or DVD-RAM Media
+        /// default application profile: General Purpose Interchange on CD-R, DVD-RAM or BD Media
         AP_Default = AP_GeneralPurpose,
         /// General Purpose DVD Interchange with JPEG (STD-GEN-DVD-JPEG)
         AP_GeneralPurposeDVDJPEG,
@@ -583,7 +583,7 @@ class DCMTK_DCMDATA_EXPORT DicomDirInterface
 
     /** get name/identifier associated with the given application profile
      *  @param profile media storage application profile
-     *  @return name of the application profile (e.g. "STD-GEN-CD/DVD-RAM")
+     *  @return name of the application profile (e.g. "STD-GEN-CD/DVD-RAM/BD")
      */
     static const char *getProfileName(const E_ApplicationProfile profile);
 
@@ -803,6 +803,19 @@ class DCMTK_DCMDATA_EXPORT DicomDirInterface
                                                 DcmFileFormat *fileformat,
                                                 const OFString &referencedFileID,
                                                 const OFFilename &sourceFilename);
+
+    /** create or update waveform presentation state record and copy required values
+     *  from dataset
+     *  @param record record to be updated, use NULL to create a new one
+     *  @param fileformat DICOM dataset of the current file
+     *  @param referencedFileID value of the Referenced File ID attribute
+     *  @param sourceFilename name of the source DICOM file
+     *  @return pointer to new or updated record, NULL if an error occurred
+     */
+    DcmDirectoryRecord *buildWfPresentationRecord(DcmDirectoryRecord *record,
+                                                  DcmFileFormat *fileformat,
+                                                  const OFString &referencedFileID,
+                                                  const OFFilename &sourceFilename);
 
     /** create or update waveform record and copy required values from dataset
      *  @param record record to be updated, use NULL to create a new one

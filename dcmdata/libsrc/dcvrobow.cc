@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1994-2021, OFFIS e.V.
+ *  Copyright (C) 1994-2025, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -21,14 +21,12 @@
 
 
 #include "dcmtk/config/osconfig.h"    /* make sure OS specific configuration is included first */
-
+#include "dcmtk/dcmdata/dcvrobow.h"
 #include "dcmtk/ofstd/ofstd.h"
 #include "dcmtk/ofstd/ofstream.h"
 #include "dcmtk/ofstd/ofuuid.h"
 #include "dcmtk/ofstd/offile.h"
-
 #include "dcmtk/dcmdata/dcjson.h"
-#include "dcmtk/dcmdata/dcvrobow.h"
 #include "dcmtk/dcmdata/dcdeftag.h"
 #include "dcmtk/dcmdata/dcswap.h"
 #include "dcmtk/dcmdata/dcuid.h"      /* for UID generation */
@@ -100,7 +98,7 @@ int DcmOtherByteOtherWord::compare(const DcmElement& rhs) const
      * swapping is applied as necessary. */
     void* thisData = myThis->getValue();
     void* rhsData = myRhs->getValue();
-    return memcmp(thisData, rhsData, thisLength);
+    return compareValues(thisData, rhsData, thisLength);
 }
 
 
@@ -244,7 +242,7 @@ void DcmOtherByteOtherWord::printPixel(STD_NAMESPACE ostream &out,
         if (pixelCounter != NULL)
         {
             char num[20];
-            sprintf(num, "%ld", OFstatic_cast(long, (*pixelCounter)++));
+            OFStandard::snprintf(num, sizeof(num), "%ld", OFstatic_cast(long, (*pixelCounter)++));
             fname += num;
         }
         fname += ".raw";
@@ -284,7 +282,10 @@ void DcmOtherByteOtherWord::printPixel(STD_NAMESPACE ostream &out,
                             DCMDATA_WARN("DcmOtherByteOtherWord: Some bytes were not written: " << (tobewritten - written));
                     }
                 }
-                fclose(file);
+                if (fclose(file))
+                {
+                    DCMDATA_WARN("DcmOtherByteOtherWord: Closing the output file for pixel data failed, file may be incomplete");
+                }
             } else {
                 DCMDATA_WARN("DcmOtherByteOtherWord: Can't open output file for pixel data: " << fname);
             }
@@ -566,7 +567,7 @@ OFCondition DcmOtherByteOtherWord::getOFString(OFString &stringVal,
         {
             /* ... and convert it to a character string (hex mode) */
             char buffer[32];
-            sprintf(buffer, "%4.4hx", uint16Val);
+            OFStandard::snprintf(buffer, sizeof(buffer), "%4.4hx", uint16Val);
             /* assign result */
             stringVal = buffer;
         }
@@ -578,7 +579,7 @@ OFCondition DcmOtherByteOtherWord::getOFString(OFString &stringVal,
         {
             /* ... and convert it to a character string (hex mode) */
             char buffer[32];
-            sprintf(buffer, "%2.2hx", OFstatic_cast(unsigned short, uint8Val));
+            OFStandard::snprintf(buffer, sizeof(buffer), "%2.2hx", OFstatic_cast(unsigned short, uint8Val));
             /* assign result */
             stringVal = buffer;
         }
@@ -657,7 +658,8 @@ OFBool DcmOtherByteOtherWord::canWriteXfer(const E_TransferSyntax newXfer,
                                            const E_TransferSyntax /*oldXfer*/)
 {
     DcmXfer newXferSyn(newXfer);
-    return (getTag() != DCM_PixelData) || !newXferSyn.isEncapsulated();
+    /* pixel data can only be written in native format */
+    return (getTag() != DCM_PixelData) || newXferSyn.usesNativeFormat();
 }
 
 
@@ -846,31 +848,44 @@ OFCondition DcmOtherByteOtherWord::writeXML(STD_NAMESPACE ostream &out,
 OFCondition DcmOtherByteOtherWord::writeJson(STD_NAMESPACE ostream &out,
                                              DcmJsonFormat &format)
 {
+    OFCondition result = EC_Normal;
+
     /* write JSON Opener */
     writeJsonOpener(out, format);
+
     /* for an empty value field, we do not need to do anything */
     if (getLengthField() > 0)
     {
-        OFString value;
-        if (format.asBulkDataURI(getTag(), value))
-        {
-            /* return defined BulkDataURI */
-            format.printBulkDataURIPrefix(out);
-            DcmJsonFormat::printString(out, value);
-        }
-        else
-        {
-            /* encode binary data as Base64 */
-            format.printInlineBinaryPrefix(out);
-            out << "\"";
-            /* adjust byte order to little endian */
-            Uint8 *byteValues = OFstatic_cast(Uint8 *, getValue(EBO_LittleEndian));
-            OFStandard::encodeBase64(out, byteValues, OFstatic_cast(size_t, getLengthField()));
-            out << "\"";
-        }
+        /* adjust byte order to little endian */
+        Uint8 *byteValues = OFstatic_cast(Uint8 *, getValue(EBO_LittleEndian));
+        result = format.writeBinaryAttribute(out, getTag(), getLengthField(), byteValues);
     }
+
     /* write JSON Closer */
     writeJsonCloser(out, format);
-    /* always report success */
-    return EC_Normal;
+    return result;
+}
+
+
+// ********************************
+
+int DcmOtherByteOtherWord::compareValues(const void* myValue,
+                                         const void* rhsValue,
+                                         const unsigned long valLength) const
+{
+    /* check for null pointers before comparing */
+    if (myValue == OFnullptr || rhsValue == OFnullptr)
+    {
+        /* handle null pointers appropriately, e.g., treat null as less than non-null */
+        if (myValue == OFnullptr && rhsValue == OFnullptr)
+            return 0; // both are null, considered equal
+        else if (myValue == OFnullptr)
+            return -1; // null is less than non-null
+        else
+            return 1; // non-null is greater than null
+    }
+    else {
+        /* Proceed with the comparison */
+        return memcmp(myValue, rhsValue, valLength);
+    }
 }

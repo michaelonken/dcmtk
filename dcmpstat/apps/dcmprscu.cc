@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 1999-2023, OFFIS e.V.
+ *  Copyright (C) 1999-2025, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -30,22 +30,14 @@ BEGIN_EXTERN_C
 #else
 #define dirent direct
 #define NAMELEN(dirent) (dirent)->d_namlen
-#ifdef HAVE_SYS_NDIR_H
-#include <sys/ndir.h>
-#endif
 #ifdef HAVE_SYS_DIR_H
 #include <sys/dir.h>
-#endif
-#ifdef HAVE_NDIR_H
-#include <ndir.h>
 #endif
 #endif
 #ifdef HAVE_IO_H
 #include <io.h>
 #endif
-#ifdef HAVE_FCNTL_H
 #include <fcntl.h>      /* for O_RDONLY */
-#endif
 END_EXTERN_C
 
 #include "dcmtk/ofstd/ofstream.h"
@@ -110,6 +102,7 @@ static OFBool         targetSupports12bit   = OFTrue;
 static OFBool         targetPLUTinFilmSession = OFFalse;
 static OFBool         targetRequiresMatchingLUT   = OFTrue;
 static OFBool         targetPreferSCPLUTRendering = OFFalse;
+static T_ASC_ProtocolFamily targetProtocol  = ASC_AF_Default;
 static OFBool         deletePrintJobs       = OFFalse;
 static OFBool         deleteTerminateJobs   = OFFalse;
 static OFBool         useTLS                = OFFalse;
@@ -221,7 +214,7 @@ static OFCondition spoolStoredPrintFile(
 
     result = printHandler.negotiateAssociation(
       tlayer, dvi.getNetworkAETitle(),
-      targetAETitle, targetHostname, targetPort, targetMaxPDU,
+      targetAETitle, targetHostname, targetPort, targetProtocol, targetMaxPDU,
       targetSupportsPLUT, targetSupportsAnnotation, targetImplicitOnly);
 
     if (result.bad())
@@ -395,7 +388,7 @@ static OFBool readValuePair(FILE *infile, OFString& key, OFString& value)
   {
     c = fgetc(infile);
     if ((c==EOF)||(c==13)||(c==10)) finished = OFTrue;
-    else if (isspace(c))
+    else if (OFStandard::isspace(OFstatic_cast(char, c)))
     {
       if (mode==1) mode=2;
       else if (mode==3) value += (char)c;
@@ -801,6 +794,7 @@ int main(int argc, char *argv[])
     targetPLUTinFilmSession     = dvi.getTargetPrinterPresentationLUTinFilmSession(opt_printer);
     targetRequiresMatchingLUT   = dvi.getTargetPrinterPresentationLUTMatchRequired(opt_printer);
     targetPreferSCPLUTRendering = dvi.getTargetPrinterPresentationLUTPreferSCPRendering(opt_printer);
+    targetProtocol              = dvi.getTargetProtocol(opt_printer);
     deletePrintJobs             = dvi.getSpoolerDeletePrintJobs();
     deleteTerminateJobs         = dvi.getSpoolerAlwaysDeleteTerminateJobs();
     useTLS                      = dvi.getTargetUseTLS(opt_printer);
@@ -999,6 +993,12 @@ int main(int argc, char *argv[])
       OFLOG_INFO(dcmprscuLogger, "  options       : disable post-1993 VRs");
     else
       OFLOG_INFO(dcmprscuLogger, "  options       : none");
+
+    if (targetProtocol == ASC_AF_INET) OFLOG_INFO(dcmprscuLogger,  "  protocol version: IPv4 only");
+    else if (targetProtocol == ASC_AF_INET6) OFLOG_INFO(dcmprscuLogger,  "  protocol version: IPv6 only");
+    else if (targetProtocol == ASC_AF_UNSPEC) OFLOG_INFO(dcmprscuLogger,  "  protocol version: determined via DNS");
+    else OFLOG_INFO(dcmprscuLogger,  "  protocol version: default");
+
     OFLOG_INFO(dcmprscuLogger, "  12-bit xfer   : " << (targetSupports12bit ? "supported" : "not supported"));
     OFLOG_INFO(dcmprscuLogger, "  present.lut   : " << (targetSupportsPLUT ? "supported" : "not supported"));
     OFLOG_INFO(dcmprscuLogger, "  annotation    : " << (targetSupportsAnnotation ? "supported" : "not supported"));

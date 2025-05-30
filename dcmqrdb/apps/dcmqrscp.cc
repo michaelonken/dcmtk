@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1993-2024, OFFIS e.V.
+ *  Copyright (C) 1993-2025, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -25,9 +25,7 @@ BEGIN_EXTERN_C
 #ifdef HAVE_SYS_FILE_H
 #include <sys/file.h>
 #endif
-#ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
-#endif
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
 #endif
@@ -58,6 +56,7 @@ END_EXTERN_C
 #include "dcmtk/dcmdata/dcostrmz.h"    /* for dcmZlibCompressionLevel */
 #include "dcmtk/ofstd/ofgrp.h"
 #include "dcmtk/ofstd/ofpwd.h"
+#include "dcmtk/ofstd/ofstd.h"
 #include "dcmtk/dcmtls/tlsopt.h"       /* for DcmTLSOptions */
 
 #ifdef WITH_SQL_DATABASE
@@ -95,7 +94,7 @@ static void mangleAssociationProfileKey(OFString& key)
 {
   for (size_t ui = 0; ui < key.size();)
   {
-    if (!isspace(key[ui]))
+    if (!OFStandard::isspace(key[ui]))
     {
       key[ui] = OFstatic_cast(char, toupper(key[ui]));
       ++ui;
@@ -130,7 +129,6 @@ main(int argc, char *argv[])
 #endif
 
   OFCommandLine cmd;
-
   cmd.setParamColumn(LONGCOL + SHORTCOL + 4);
   cmd.addParam("port", "tcp/ip port number to listen on\n(default: in config file)", OFCmdParam::PM_Optional);
 
@@ -257,10 +255,10 @@ main(int argc, char *argv[])
       cmd.addOption("--dimse-timeout",          "-td",  1, "[s]econds: integer (default: unlimited)",
                                                            "timeout for DIMSE messages");
       OFString opt4 = "[n]umber of bytes: integer (";
-      sprintf(tempstr, "%ld", (long)ASC_MINIMUMPDUSIZE);
+      OFStandard::snprintf(tempstr, sizeof(tempstr), "%ld", (long)ASC_MINIMUMPDUSIZE);
       opt4 += tempstr;
       opt4 += "..";
-      sprintf(tempstr, "%ld", (long)ASC_MAXIMUMPDUSIZE);
+      OFStandard::snprintf(tempstr, sizeof(tempstr), "%ld", (long)ASC_MAXIMUMPDUSIZE);
       opt4 += tempstr;
       opt4 += ")";
       cmd.addOption("--max-pdu",                "-pdu", 1, opt4.c_str(),
@@ -366,6 +364,14 @@ main(int argc, char *argv[])
           tlsOptions.printSupportedCiphersuites(app, COUT);
           return 0;
         }
+
+        // check if the command line contains the --list-profiles option
+        if (tlsOptions.listOfProfilesRequested(cmd))
+        {
+            tlsOptions.printSupportedTLSProfiles(app, COUT);
+            return 0;
+        }
+
       }
 
       /* command line parameters and options */
@@ -789,6 +795,7 @@ main(int argc, char *argv[])
 
       // evaluate (most of) the TLS command line options (if we are compiling with OpenSSL)
       tlsOptions.parseArguments(app, cmd);
+      options.secureConnectionRequested_ = tlsOptions.secureConnectionRequested();
     }
 
     /* print resource identifier */
@@ -943,10 +950,10 @@ main(int argc, char *argv[])
       /* since dcmqrscp is usually terminated with SIGTERM or the like,
        * we write back an updated random seed after every association handled.
        */
-      cond = tlsOptions.writeRandomSeed();
-      if (cond.bad()) {
+      const OFCondition cond2 = tlsOptions.writeRandomSeed();
+      if (cond2.bad()) {
           // failure to write back the random seed is a warning, not an error
-          OFLOG_WARN(dcmqrscpLogger, DimseCondition::dump(temp_str, cond));
+          OFLOG_WARN(dcmqrscpLogger, DimseCondition::dump(temp_str, cond2));
       }
     }
 

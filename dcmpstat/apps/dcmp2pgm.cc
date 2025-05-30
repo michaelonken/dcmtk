@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1998-2023, OFFIS e.V.
+ *  Copyright (C) 1998-2024, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -36,6 +36,7 @@
 #include "dcmtk/ofstd/ofcmdln.h"
 #include "dcmtk/ofstd/ofconapp.h"
 #include "dcmtk/dcmdata/dcuid.h"      /* for dcmtk version name */
+#include "dcmtk/ofstd/ofstd.h"
 
 #ifdef WITH_ZLIB
 #include <zlib.h>     /* for zlibVersion() */
@@ -352,7 +353,7 @@ static void dumpPresentationState(DVPresentationState &ps)
       {
         oss << "        columns=" << overlayWidth << " rows=" << overlayHeight << " left="
             << overlayLeft << " top=" << overlayTop << OFendl;
-        sprintf(overlayfile, "ovl_%02d%02d.pgm", (int)layer+1, (int)ovlidx+1);
+        OFStandard::snprintf(overlayfile, sizeof(overlayfile), "ovl_%02d%02d.pgm", (int)layer+1, (int)ovlidx+1);
         oss << "        filename=\"" << overlayfile << "\"";
 
         ofile = fopen(overlayfile, "wb");
@@ -363,7 +364,7 @@ static void dumpPresentationState(DVPresentationState &ps)
             oss << " - written." << OFendl;
           else
             oss << " -write error-" << OFendl;
-          fclose(ofile);
+          if (fclose(ofile)) oss << "Error while closing the file, content may be incomplete." << OFendl;;
         } else oss << " -write error-" << OFendl;
       } else {
         oss << "        unable to access overlay data!" << OFendl;
@@ -544,9 +545,9 @@ int main(int argc, char *argv[])
                 {
                     OFLOG_DEBUG(dcmp2pgmLogger, "writing PGM file: " << opt_pgmName);
                     fprintf(outfile, "P5\n%ld %ld 255\n", width, height);
-                    if (fwrite(pixelData, OFstatic_cast(size_t, width), OFstatic_cast(size_t, height), outfile) != OFstatic_cast(size_t, height))
+                    if (fwrite(pixelData, OFstatic_cast(size_t, width), OFstatic_cast(size_t, height), outfile) != OFstatic_cast(size_t, height)
+                        || fclose(outfile) != 0)
                         OFLOG_FATAL(dcmp2pgmLogger, "Can't write output data to file.");
-                    fclose(outfile);
                 } else {
                     OFLOG_FATAL(dcmp2pgmLogger, "Can't create output file.");
                     return 10;

@@ -23,11 +23,11 @@
 #define CONCATENATIONCREATOR_H
 
 #include "dcmtk/config/osconfig.h"
+#include "dcmtk/dcmdata/dcsequen.h"
 #include "dcmtk/ofstd/ofcond.h"
 #include "dcmtk/ofstd/offile.h"
-#include "dcmtk/dcmdata/dcvr.h"
-#include "dcmtk/dcmiod/iodtypes.h"
 #include "dcmtk/dcmfg/fgdefine.h"
+#include "dcmtk/dcmiod/iodtypes.h"
 
 class DcmItem;
 class DcmSequenceOfItems;

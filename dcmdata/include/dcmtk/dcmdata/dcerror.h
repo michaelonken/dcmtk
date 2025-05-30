@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1994-2022, OFFIS e.V.
+ *  Copyright (C) 1994-2025, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -80,7 +80,8 @@ const unsigned short OFM_dcmect   = 35;
  *  These constants can be used in addition to the general purpose ones
  *  defined in module ofstd.
  */
-//@{
+///@{
+
 /// Invalid tag
 extern DCMTK_DCMDATA_EXPORT const OFConditionConst EC_InvalidTag;
 /// Tag not found
@@ -185,10 +186,16 @@ extern DCMTK_DCMDATA_EXPORT const OFConditionConst EC_SOPClassMismatch;
 extern DCMTK_DCMDATA_EXPORT const OFConditionConst EC_UnknownUIDName;
 /// Cannot write IS/DS string as JSON number
 extern DCMTK_DCMDATA_EXPORT const OFConditionConst EC_CannotWriteStringAsJsonNumber;
+/// Cannot write bulk data file
+extern DCMTK_DCMDATA_EXPORT const OFConditionConst EC_CannotWriteBulkDataFile;
+/// JSON encoding not supported for encapsulated multi-frame pixel data
+extern DCMTK_DCMDATA_EXPORT const OFConditionConst EC_CannotWriteJsonMultiframe;
 
-//@}
+///@}
 
-// status code constants
+/** @name status code constants for module dcmdata.
+ */
+///@{
 
 /// error, cannot select specific character set
 extern DCMTK_DCMDATA_EXPORT const unsigned short EC_CODE_CannotSelectCharacterSet;
@@ -198,5 +205,7 @@ extern DCMTK_DCMDATA_EXPORT const unsigned short EC_CODE_CannotConvertCharacterS
 extern DCMTK_DCMDATA_EXPORT const unsigned short EC_CODE_CannotConvertToXML;
 /// error, cannot determine start fragment (of compressed pixel data)
 extern DCMTK_DCMDATA_EXPORT const unsigned short EC_CODE_CannotDetermineStartFragment;
+
+///@}
 
 #endif /* !DCERROR_H */

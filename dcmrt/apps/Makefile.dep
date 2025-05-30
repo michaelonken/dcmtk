@@ -5,12 +5,12 @@ drtdump.o: drtdump.cc ../../config/include/dcmtk/config/osconfig.h \
  ../../ofstd/include/dcmtk/ofstd/ofcast.h \
  ../../ofstd/include/dcmtk/ofstd/ofexport.h \
  ../../ofstd/include/dcmtk/ofstd/ofstdinc.h \
- ../../ofstd/include/dcmtk/ofstd/ofstream.h \
  ../../ofstd/include/dcmtk/ofstd/ofcmdln.h \
  ../../ofstd/include/dcmtk/ofstd/ofexbl.h \
  ../../ofstd/include/dcmtk/ofstd/oftraits.h \
  ../../ofstd/include/dcmtk/ofstd/oflist.h \
  ../../ofstd/include/dcmtk/ofstd/ofstring.h \
+ ../../ofstd/include/dcmtk/ofstd/ofstream.h \
  ../../ofstd/include/dcmtk/ofstd/ofconsol.h \
  ../../ofstd/include/dcmtk/ofstd/ofthread.h \
  ../../ofstd/include/dcmtk/ofstd/offile.h \
@@ -21,7 +21,6 @@ drtdump.o: drtdump.cc ../../config/include/dcmtk/config/osconfig.h \
  ../../ofstd/include/dcmtk/ofstd/diag/useafree.def \
  ../../ofstd/include/dcmtk/ofstd/diag/pop.def \
  ../../ofstd/include/dcmtk/ofstd/oflimits.h \
- ../../config/include/dcmtk/config/arith.h \
  ../../ofstd/include/dcmtk/ofstd/oferror.h \
  ../../ofstd/include/dcmtk/ofstd/ofexit.h \
  ../include/dcmtk/dcmrt/drtdose.h ../include/dcmtk/dcmrt/drttypes.h \
@@ -57,6 +56,7 @@ drtdump.o: drtdump.cc ../../config/include/dcmtk/config/osconfig.h \
  ../../dcmdata/include/dcmtk/dcmdata/dcxfer.h \
  ../../dcmdata/include/dcmtk/dcmdata/dcvr.h \
  ../../ofstd/include/dcmtk/ofstd/ofglobal.h \
+ ../../ofstd/include/dcmtk/ofstd/ofdeprec.h \
  ../../dcmdata/include/dcmtk/dcmdata/dcistrma.h \
  ../../dcmdata/include/dcmtk/dcmdata/dcostrma.h \
  ../../dcmdata/include/dcmtk/dcmdata/dcuid.h \

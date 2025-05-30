@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2008-2023, OFFIS e.V.
+ *  Copyright (C) 2008-2024, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -21,8 +21,8 @@
  */
 
 #include "dcmtk/config/osconfig.h" /* make sure OS specific configuration is included first */
-
 #include "dcmtk/dcmdata/dcpath.h"
+#include "dcmtk/ofstd/ofstd.h"
 #include "dcmtk/dcmdata/dcsequen.h"
 
 /*******************************************************************/
@@ -120,11 +120,11 @@ OFString DcmPath::toString() const
         else if ((vr == EVR_item) || (vr == EVR_dataset))
         {
 #ifdef PRIu32
-            sprintf(buf, "[%" PRIu32 "]", (*it)->m_itemNo);
+            OFStandard::snprintf(buf, sizeof(buf), "[%" PRIu32 "]", (*it)->m_itemNo);
 #elif SIZEOF_LONG == 8
-            sprintf(buf, "[%u]", (*it)->m_itemNo);
+            OFStandard::snprintf(buf, sizeof(buf), "[%u]", (*it)->m_itemNo);
 #else
-            sprintf(buf, "[%lu]", (*it)->m_itemNo);
+            OFStandard::snprintf(buf, sizeof(buf), "[%lu]", (*it)->m_itemNo);
 #endif
             pathStr.append(buf);
             it++;
@@ -151,6 +151,23 @@ OFBool DcmPath::containsGroup(const Uint16 groupNo) const
         if ((node == NULL) || (node->m_obj == NULL))
             return OFFalse;
         if (node->m_obj->getGTag() == groupNo)
+            return OFTrue;
+        it++;
+    }
+    return OFFalse;
+}
+
+// Checks whether an invalid group number is used in the path's path nodes
+OFBool DcmPath::containsInvalidGroup() const
+{
+    OFListConstIterator(DcmPathNode*) it        = m_path.begin();
+    OFListConstIterator(DcmPathNode*) endOfList = m_path.end();
+    while (it != endOfList)
+    {
+        DcmPathNode* node = *it;
+        if ((node == NULL) || (node->m_obj == NULL))
+            return OFFalse;
+        if (!node->m_obj->getTag().getTagKey().hasValidGroup())
             return OFTrue;
         it++;
     }
@@ -291,13 +308,13 @@ OFCondition DcmPath::separatePathNodes(const OFString& path, OFList<OFString>& r
             else
             {
 #ifdef PRIu32
-                if (sprintf(buf, "[%" PRIu32 "]", itemNo) < 2)
+                if (OFStandard::snprintf(buf, sizeof(buf), "[%" PRIu32 "]", itemNo) < 2)
                     return EC_IllegalParameter;
 #elif SIZEOF_LONG == 8
-                if (sprintf(buf, "[%u]", itemNo) < 2)
+                if (OFStandard::snprintf(buf, sizeof(buf), "[%u]", itemNo) < 2)
                     return EC_IllegalParameter;
 #else
-                if (sprintf(buf, "[%lu]", itemNo) < 2)
+                if (OFStandard::snprintf(buf, sizeof(buf), "[%lu]", itemNo) < 2)
                     return EC_IllegalParameter;
 #endif
                 result.push_back(buf);
@@ -310,7 +327,7 @@ OFCondition DcmPath::separatePathNodes(const OFString& path, OFList<OFString>& r
             status = parseTagFromPath(pathStr, tag);
             if (status.bad())
                 return status;
-            if (sprintf(buf, "(%04X,%04X)", tag.getGroup(), tag.getElement()) != 11)
+            if (OFStandard::snprintf(buf, sizeof(buf), "(%04X,%04X)", tag.getGroup(), tag.getElement()) != 11)
                 return EC_IllegalParameter;
             result.push_back(buf);
             nextIsItem = OFTrue;

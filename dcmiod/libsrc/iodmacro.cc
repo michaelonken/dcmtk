@@ -29,6 +29,7 @@
 #include "dcmtk/dcmdata/dcvrsh.h"
 #include "dcmtk/dcmdata/dcvruc.h"
 #include "dcmtk/dcmdata/dcuid.h"
+#include "dcmtk/ofstd/ofstd.h"
 
 // --------------------------- Code Sequence Macro ---------------------------
 
@@ -111,7 +112,7 @@ void CodeSequenceMacro::resetRules()
                      OFTrue /*overwrite old rule*/);
     m_Rules->addRule(new IODRule(DCM_LongCodeValue, "1", "1C", getName(), DcmIODTypes::IE_UNDEFINED),
                      OFTrue /*overwrite old rule*/);
-    m_Rules->addRule(new IODRule(DCM_CodingSchemeDesignator, "1", "1", getName(), DcmIODTypes::IE_UNDEFINED),
+    m_Rules->addRule(new IODRule(DCM_CodingSchemeDesignator, "1", "1C", getName(), DcmIODTypes::IE_UNDEFINED),
                      OFTrue /*overwrite old rule*/);
     m_Rules->addRule(new IODRule(DCM_CodingSchemeVersion, "1", "1C", getName(), DcmIODTypes::IE_UNDEFINED),
                      OFTrue /*overwrite old rule*/);
@@ -894,7 +895,7 @@ OFCondition ImageSOPInstanceReferenceMacro::addReferencedFrameNumber(const Uint1
         val += "\\";
     }
     char buf[10];
-    sprintf(buf, "%u", value);
+    OFStandard::snprintf(buf, sizeof(buf), "%u", value);
     val += buf;
     return ReferencedFrameNumber.putOFStringArray(val);
 }

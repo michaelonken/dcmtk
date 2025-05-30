@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1996-2021, OFFIS e.V.
+ *  Copyright (C) 1996-2025, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -166,12 +166,7 @@ class DiInputPixelTemplate
      */
     virtual ~DiInputPixelTemplate()
     {
-#if defined(HAVE_STD__NOTHROW) && defined(HAVE_NOTHROW_DELETE)
-        /* use a non-throwing delete (if available) */
         operator delete[] (Data, std::nothrow);
-#else
-        delete[] Data;
-#endif
     }
 
 #include DCMTK_DIAGNOSTIC_PUSH
@@ -189,6 +184,7 @@ class DiInputPixelTemplate
             T2 *p = Data;
             unsigned long i;
             const double absrange = getAbsMaxRange();
+            const double absmin = getAbsMinimum();
             const unsigned long ocnt = (absrange <= 10000000.0) ? OFstatic_cast(unsigned long, absrange) : 0 /* no LUT */;
             Uint8 *lut = NULL;
             if ((sizeof(T2) <= 2) && (ocnt > 0) && (Count > 3 * ocnt)) // optimization criteria
@@ -198,7 +194,7 @@ class DiInputPixelTemplate
                 {
                     DCMIMGLE_DEBUG("using optimized routine with additional LUT");
                     OFBitmanipTemplate<Uint8>::zeroMem(lut, ocnt);
-                    Uint8 *q = lut - OFstatic_cast(T2, getAbsMinimum());
+                    Uint8 *q = lut - OFstatic_cast(T2, absmin);
                     for (i = Count; i != 0; --i)                       // fill lookup table
                         *(q + *(p++)) = 1;
                     q = lut;
@@ -206,7 +202,7 @@ class DiInputPixelTemplate
                     {
                         if (*(q++) != 0)
                         {
-                            MinValue[0] = OFstatic_cast(T2, OFstatic_cast(double, i) + getAbsMinimum());
+                            MinValue[0] = OFstatic_cast(T2, OFstatic_cast(double, i) + absmin);
                             break;
                         }
                     }
@@ -215,7 +211,7 @@ class DiInputPixelTemplate
                     {
                         if (*(--q) != 0)
                         {
-                            MaxValue[0] = OFstatic_cast(T2, OFstatic_cast(double, i - 1) + getAbsMinimum());
+                            MaxValue[0] = OFstatic_cast(T2, OFstatic_cast(double, i - 1) + absmin);
                             break;
                         }
                     }
@@ -226,24 +222,24 @@ class DiInputPixelTemplate
                     } else {                                           // calculate min/max for selected range
                         OFBitmanipTemplate<Uint8>::zeroMem(lut, ocnt);
                         p = Data + PixelStart;
-                        q = lut - OFstatic_cast(T2, getAbsMinimum());
-                        for (i = PixelCount; i != 0; --i)                  // fill lookup table
+                        q = lut - OFstatic_cast(T2, absmin);
+                        for (i = PixelCount; i != 0; --i)              // fill lookup table
                             *(q + *(p++)) = 1;
                         q = lut;
-                        for (i = 0; i < ocnt; ++i)                         // search for minimum
+                        for (i = 0; i < ocnt; ++i)                     // search for minimum
                         {
                             if (*(q++) != 0)
                             {
-                                MinValue[1] = OFstatic_cast(T2, OFstatic_cast(double, i) + getAbsMinimum());
+                                MinValue[1] = OFstatic_cast(T2, OFstatic_cast(double, i) + absmin);
                                 break;
                             }
                         }
                         q = lut + ocnt;
-                        for (i = ocnt; i != 0; --i)                         // search for maximum
+                        for (i = ocnt; i != 0; --i)                    // search for maximum
                         {
                             if (*(--q) != 0)
                             {
-                                MaxValue[1] = OFstatic_cast(T2, OFstatic_cast(double, i - 1) + getAbsMinimum());
+                                MaxValue[1] = OFstatic_cast(T2, OFstatic_cast(double, i - 1) + absmin);
                                 break;
                             }
                         }
@@ -386,20 +382,9 @@ class DiInputPixelTemplate
 #endif
             /* allocate temporary buffer, even number of bytes required for getUncompressedFrame() */
             const Uint32 extraByte = ((sizeof(T1) == 1) && (count_T1 & 1)) ? 1 : 0;
-#ifdef HAVE_STD__NOTHROW
+
             /* use a non-throwing new here (if available) because the allocated buffer can be huge */
             pixel = new (std::nothrow) T1[count_T1 + extraByte];
-#else
-            /* make sure that the pointer is set to NULL in case of error */
-            try
-            {
-                pixel = new T1[count_T1 + extraByte];
-            }
-            catch (STD_NAMESPACE bad_alloc const &)
-            {
-                pixel = NULL;
-            }
-#endif
             if (pixel != NULL)
             {
                 if (uncompressed)
@@ -462,20 +447,9 @@ class DiInputPixelTemplate
 //          # old code: Count = ((lengthBytes * 8) + bitsAllocated - 1) / bitsAllocated;
             Count = 8 * length_B1 + (8 * length_B2 + bitsAllocated - 1) / bitsAllocated;
             unsigned long i;
-#ifdef HAVE_STD__NOTHROW
+
             /* use a non-throwing new here (if available) because the allocated buffer can be huge */
             Data = new (std::nothrow) T2[Count];
-#else
-            /* make sure that the pointer is set to NULL in case of error */
-            try
-            {
-                Data = new T2[Count];
-            }
-            catch (STD_NAMESPACE bad_alloc const &)
-            {
-                Data = NULL;
-            }
-#endif
             if (Data != NULL)
             {
                 DCMIMGLE_TRACE("Input length: " << lengthBytes << " bytes, Pixel count: " << Count
@@ -643,6 +617,13 @@ class DiInputPixelTemplate
                             skip -= times * bitsof_T1;
                         }
                     }
+                    /* fill the remaining entry (if any) with the smallest value that is possible */
+                    if (q < Data + Count)
+                    {
+                        DCMIMGLE_TRACE("not enough data, filling last entry of input buffer with value = " << getAbsMinimum());
+                        *q = OFstatic_cast(T2, getAbsMinimum());
+                    }
+
                 }
             } else
                 DCMIMGLE_DEBUG("cannot allocate memory buffer for 'Data' in DiInputPixelTemplate::convert()");
@@ -653,12 +634,7 @@ class DiInputPixelTemplate
         if (deletePixel)
         {
             /* delete temporary buffer */
-#if defined(HAVE_STD__NOTHROW) && defined(HAVE_NOTHROW_DELETE)
-            /* use a non-throwing delete (if available) */
             operator delete[] (pixel, std::nothrow);
-#else
-            delete[] pixel;
-#endif
         }
     }
 

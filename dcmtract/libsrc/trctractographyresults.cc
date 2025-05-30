@@ -1,6 +1,6 @@
   /*
  *
- *  Copyright (C) 2016-2018, Open Connections GmbH
+ *  Copyright (C) 2016-2025, Open Connections GmbH
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation are maintained by
@@ -70,14 +70,6 @@ OFCondition TrcTractographyResults::loadDataset(
   DcmDataset& dataset,
   TrcTractographyResults*& tract)
 {
-  DcmXfer xfer = dataset.getOriginalXfer();
-  // If the original transfer is encapsulated and we do not already have an uncompressed version, decompress or reject the file
-  if (xfer.isEncapsulated())
-  {
-    DCMTRACT_ERROR("Cannot load dataset since it is compressed, transfer syntax: " << xfer.getXferName());
-    return IOD_EC_CannotDecompress;
-  }
-
   tract = new TrcTractographyResults();
   if (tract == NULL)
   {
@@ -211,6 +203,10 @@ OFCondition TrcTractographyResults::write(DcmItem &dataset)
   // SOP Common Module
   // Common Instance Reference Module
   if (result.good()) result = DcmIODCommon::write(dataset);
+
+  // Write Tractography Results Series attributes which is not covered by a specific class
+  // but part of "this" class
+  if (result.good()) result = IODComponent::write(*getData(), *getRules(), dataset, "TractographyResultsSeries", getValueCheckOnWrite());
 
   return result;
 }

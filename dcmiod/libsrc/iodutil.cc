@@ -23,7 +23,7 @@
 #include "dcmtk/dcmiod/iodutil.h"
 #include "dcmtk/dcmdata/dctypes.h" // logger
 #include "dcmtk/dcmiod/iodrules.h"
-
+#include "dcmtk/dcmiod/iodtypes.h"
 #include "dcmtk/dcmdata/dcdeftag.h"
 #include "dcmtk/dcmdata/dcdicent.h"
 #include "dcmtk/dcmdata/dcdict.h"
@@ -43,7 +43,7 @@ OFCondition DcmIODUtil::getAndCheckElementFromDataset(
     DcmStack stack;
     const DcmTagKey tagKey = delem.getTag();
     OFCondition result     = dataset.search(tagKey, stack, ESM_fromHere, OFFalse /*searchIntoSub*/);
-    if (result.good())
+    if (result.good() && stack.top()->isElement())
     {
         /* copy object from search stack */
         result = delem.copyFrom(*stack.top());
@@ -76,7 +76,7 @@ OFCondition DcmIODUtil::getAndCheckElementFromDataset(DcmItem& dataset,
 
     DcmStack stack;
     OFCondition result = dataset.search(tagKey, stack, ESM_fromHere, OFFalse /*searchIntoSub*/);
-    if (result.good())
+    if (result.good() && stack.top()->isElement())
     {
         /* copy object from search stack */
         delem = OFstatic_cast(DcmElement*, stack.top()->clone());
@@ -643,7 +643,7 @@ const DcmTagKey DcmIODUtil::parseTagKey(const OFString& keyString)
 OFCondition DcmIODUtil::decompress(DcmDataset& dset)
 {
     DcmXfer xfer = dset.getOriginalXfer();
-    if (xfer.isEncapsulated())
+    if (xfer.isPixelDataCompressed())
     {
         if (EC_Normal != dset.chooseRepresentation(EXS_LittleEndianExplicit, NULL))
         {
@@ -692,89 +692,135 @@ OFCondition DcmIODUtil::extractBinaryFrames(Uint8* pixData,
                                             const size_t bitsPerFrame,
                                             OFVector<DcmIODTypes::FrameBase*>& results)
 {
-    // Will hold the bit position (0-7) that the current frame starts from. The
-    // first frame will always start at bit 0.
-    Uint8 bitShift = 0;
-    // Compute length in bytes we need to consider for each frame.
-    size_t frameLengthBytes = bitsPerFrame / 8;
-    // If the number of bits is not dividable by 8, we need part of an extra
-    // byte in the end. Since we like to set the unused bits to 0 in such a last
-    // byte to 0, remember the number.
-    size_t overlapBits = (8 - (bitsPerFrame % 8)) % 8;
-    // Add an extra byte if we we fill a partial byte in the end
-    if (overlapBits != 0)
-        frameLengthBytes++;
-    // Points to current reading position within pixData
-    Uint8* readPos = pixData;
-    // Loop over each frame and copy it to Frame structures
-    for (size_t f = 0; f < numFrames; f++)
+    if (pixData == NULL)
     {
-        // Create frame with correct length and copy 1:1 from pixel data.
-        // frameLengthBytes is the number of bytes we need to copy for each frame and always
-        // same as number of pixels (since we have 1 byte per pixel in this case) as required
-        // by the constructor.
-        DcmIODTypes::Frame<Uint8>* frame = new DcmIODTypes::Frame<Uint8>(frameLengthBytes);
-        if (!frame->m_pixData)
+        DCMIOD_ERROR("Cannot extract frames from NULL pixel data");
+        return EC_IllegalParameter;
+    }
+    if (numFrames == 0)
+    {
+        DCMIOD_ERROR("Cannot extract frames from 0 frames");
+        return EC_IllegalParameter;
+    }
+    if (bitsPerFrame == 0)
+    {
+        DCMIOD_ERROR("Cannot extract frames with 0 bits per frame");
+        return EC_IllegalParameter;
+    }
+    // pixData contains all frames in a single buffer. Each frame is bitsPerFrame bits long.
+    // We need to extract each frame into a separate buffer (results vector). Every frame
+    // in the input takes bitsPerFrame bits, and pixData's bytes are filled from left to right,
+    // with bits filled from right to left (!). This means that the first frame's first bit
+    // is the bit on the right of the first byte in pixData, and the last frame's last bit is
+    // the bit on the left of the last byte in pixData. However, the last frame's last bit
+    // can be in the middle of a byte. The resulting frame contains an exact copy of each
+    // frame, however, the last byte of each frame is padded with 0s to make it a full byte.
+    // E.g. if the last frame occupies only 3 bits of the last required byte, the last byte
+    // of the frame will be padded with 5 0s on the left side of the that byte (since as said, bits
+    // are filled from right to left).
+    // Calculate number of bytes per frame
+    size_t bytesPerFrame = bitsPerFrame / 8;
+    if (bitsPerFrame % 8 != 0)
+    {
+        bytesPerFrame++; // If bitsPerFrame is not a multiple of 8, we need one more byte
+    }
+    // Reserve memory for results
+    results.reserve(numFrames);
+    for (size_t i = 0; i < numFrames; i++)
+    {
+        Uint8* frameData = new Uint8[bytesPerFrame];
+        if (frameData == NULL)
         {
-            delete frame;
+            DCMIOD_ERROR("Memory exhausted while extracting frames");
             return EC_MemoryExhausted;
         }
-        memcpy(frame->m_pixData, readPos, frame->getLengthInBytes());
-        // ---------------------------------------------------------
-        // Remove bits in first byte from former frame if necessary:
-        // ---------------------------------------------------------
-        // If we have been copying too much, i.e the first bits of this frame
-        // actually belong to the former frame, shift the whole frame this amount
-        // of bits to the left in order to shift the superfluous bits out, i.e.
-        // make frame start at byte boundary.
-        if (bitShift > 0)
+        memset(frameData, 0, bytesPerFrame); // Initialize to 0
+        DcmIODTypes::Frame<Uint8>* frame = new DcmIODTypes::Frame<Uint8>();
+        if (frame == NULL)
         {
-            DcmIODUtil::alignFrameOnByteBoundary(frame->m_pixData, frame->getLengthInBytes(), 8 - bitShift);
+            DCMIOD_ERROR("Memory exhausted while extracting frames");
+            delete[] frameData;
+            return EC_MemoryExhausted;
         }
-        // -------------------------------------------------------
-        // Mask out (set 0) bits of last byte if not used by frame
-        // -------------------------------------------------------
-        // Adapt last byte by masking out unused bits (i.e. those belonging to next frame).
-        // A reader should ignore those unused bits anyway.
-        frame->m_pixData[frame->getLengthInBytes() - 1] = OFstatic_cast(unsigned char, (frame->m_pixData[frame->getLengthInBytes() - 1] << overlapBits)) >> overlapBits;
-        // Store frame
+        frame->m_pixData = frameData;
+        frame->m_numPixels = bytesPerFrame;
         results.push_back(frame);
-        // Compute the bitshift created by this frame
-        bitShift = (8 - ((f + 1) * bitsPerFrame) % 8) % 8;
-        // If the previous byte read has not been used completely, i.e. it contains
-        // also bytes of the next frame, rewind read position to the previous byte
-        // that was partially read. Otherwise skip to the next full byte.
-        if (bitShift > 0)
-        {
+    }
 
-            readPos = readPos + frame->getLengthInBytes() - 1;
-        }
-        else
+    // Extract frames
+    size_t bitsLeftInInputByte = 8;
+    size_t bitsLeftInTargetByte = 8;
+    size_t bitsLeftInFrame = bitsPerFrame;
+    size_t inputByteIndex = 0;
+    size_t targetFrameIndex = 0;
+    size_t targetByteIndex = 0;
+    // Iterate over bits in input data (byte per byte, from left to right, and within byte from right to left)
+    for (size_t i = 0; i < numFrames * bitsPerFrame; i++)
+    {
+        // Get current bit
+        Uint8 bit = (pixData[inputByteIndex] >> (8 - bitsLeftInInputByte)) & 0x01;
+
+        // Set bit in current frame to to position calculated from bitsLeftInTargetByte
+        OFstatic_cast(Uint8*, results[targetFrameIndex]->getPixelData())[targetByteIndex] |= (bit << (8 - bitsLeftInTargetByte));
+
+        // Move to next bit
+        bitsLeftInInputByte--;
+        bitsLeftInFrame--;
+        bitsLeftInTargetByte--;
+
+        // If we have processed all bits in the current byte, move to next byte
+        if (bitsLeftInInputByte == 0)
         {
-            readPos = readPos + frame->getLengthInBytes();
+            bitsLeftInInputByte = 8;
+            inputByteIndex++;
+        }
+        // If we have processed all bits in the current frame, move to next frame,
+        // and also start new target frame
+        if (bitsLeftInFrame == 0)
+        {
+            bitsLeftInFrame = bitsPerFrame;
+            targetFrameIndex++;
+            targetByteIndex = 0;
+            bitsLeftInTargetByte = 8;
+        }
+        // Advance to next target byte if we have filled the current one
+        if (bitsLeftInTargetByte == 0)
+        {
+            bitsLeftInTargetByte = 8;
+            targetByteIndex++;
         }
     }
     return EC_Normal;
 }
 
-void DcmIODUtil::alignFrameOnByteBoundary(Uint8* buf, size_t bufLen, Uint8 numBits)
+
+void DcmIODUtil::resetConditionIfCheckDisabled(OFCondition& result, const OFBool checkValue, DcmElement& elem)
 {
-    if (numBits > 7)
+    if (!checkValue)
     {
-        DCMIOD_ERROR("Invalid input data: alignFrameOnByteBoundary() can only shift 0-7 bits");
-        return;
+        if ( (result == EC_ValueRepresentationViolated) ||
+             (result == EC_MaximumLengthViolated) ||
+             (result == EC_InvalidCharacter) ||
+             (result == EC_ValueMultiplicityViolated) )
+        {
+            // print element to string
+            OFOStringStream oss;
+            oss << elem.getTag() << " " << DcmVR(elem.getVR()).getVRName() << " ";
+            oss << DcmTag(elem.getTag()).getTagName() << " ";
+            if (elem.getLength() > 1024)
+            {
+                oss << "(value too long for printing)";
+            }
+            {
+                OFString val;
+                elem.getOFString(val, 0, OFTrue);
+                oss << "[" << val << "]";
+            }
+
+            DCMIOD_DEBUG("Ignoring error (" << result.text() <<") when checking element: " << oss.str().c_str());
+            result = EC_Normal;
+        }
     }
-    for (size_t x = 0; x < bufLen - 1; x++)
-    {
-        // Shift current byte
-        buf[x] = OFstatic_cast(unsigned char, buf[x]) >> numBits;
-        // isolate portion of next byte that must be shifted into current byte
-        Uint8 next = (buf[x + 1] << (8 - numBits));
-        // Take over portion from next byte
-        buf[x] |= next;
-    }
-    // Shift last byte manually
-    buf[bufLen - 1] = OFstatic_cast(unsigned char, buf[bufLen - 1]) >> numBits;
 }
 
 

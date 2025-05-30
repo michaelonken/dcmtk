@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2000-2023, OFFIS e.V.
+ *  Copyright (C) 2000-2025, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -89,9 +89,8 @@ DSRImageReferenceValue::DSRImageReferenceValue(const DSRImageReferenceValue &ref
 {
     /* do not check values since this would be unexpected to the user */
 
-    /* create copy of icon image (if any), first frame only */
-    if (referenceValue.IconImage != NULL)
-        IconImage = referenceValue.IconImage->createDicomImage(0 /*fstart*/, 1 /*fcount*/);
+    /* create copy of icon image (if any) */
+    copyIconImage(referenceValue.IconImage);
 }
 
 
@@ -124,32 +123,10 @@ DSRImageReferenceValue &DSRImageReferenceValue::operator=(const DSRImageReferenc
         SegmentList = referenceValue.SegmentList;
         PresentationState = referenceValue.PresentationState;
         RealWorldValueMapping = referenceValue.RealWorldValueMapping;
-        /* create copy of icon image (if any), first frame only */
-        IconImage = (referenceValue.IconImage != NULL) ? referenceValue.IconImage->createDicomImage(0 /*fstart*/, 1 /*fcount*/) : NULL;
+        /* create copy of icon image (if any) */
+        copyIconImage(referenceValue.IconImage);
     }
     return *this;
-}
-
-
-OFBool DSRImageReferenceValue::operator==(const DSRImageReferenceValue &referenceValue) const
-{
-    /* the optional icon image is not used for comparison */
-    return DSRCompositeReferenceValue::operator==(referenceValue) &&
-           (FrameList == referenceValue.FrameList) &&
-           (SegmentList == referenceValue.SegmentList) &&
-           (PresentationState == referenceValue.PresentationState) &&
-           (RealWorldValueMapping == referenceValue.RealWorldValueMapping);
-}
-
-
-OFBool DSRImageReferenceValue::operator!=(const DSRImageReferenceValue &referenceValue) const
-{
-    /* the optional icon image is not used for comparison */
-    return DSRCompositeReferenceValue::operator!=(referenceValue) ||
-           (FrameList != referenceValue.FrameList) ||
-           (SegmentList != referenceValue.SegmentList) ||
-           (PresentationState != referenceValue.PresentationState) ||
-           (RealWorldValueMapping != referenceValue.RealWorldValueMapping);
 }
 
 
@@ -161,6 +138,28 @@ void DSRImageReferenceValue::clear()
     PresentationState.clear();
     RealWorldValueMapping.clear();
     deleteIconImage();
+}
+
+
+OFBool DSRImageReferenceValue::isEqual(const DSRImageReferenceValue &referenceValue) const
+{
+    /* the optional icon image is not used for comparison */
+    return DSRCompositeReferenceValue::isEqual(referenceValue) &&
+           (FrameList == referenceValue.FrameList) &&
+           (SegmentList == referenceValue.SegmentList) &&
+           (PresentationState == referenceValue.PresentationState) &&
+           (RealWorldValueMapping == referenceValue.RealWorldValueMapping);
+}
+
+
+OFBool DSRImageReferenceValue::isNotEqual(const DSRImageReferenceValue &referenceValue) const
+{
+    /* the optional icon image is not used for comparison */
+    return DSRCompositeReferenceValue::isNotEqual(referenceValue) ||
+           (FrameList != referenceValue.FrameList) ||
+           (SegmentList != referenceValue.SegmentList) ||
+           (PresentationState != referenceValue.PresentationState) ||
+           (RealWorldValueMapping != referenceValue.RealWorldValueMapping);
 }
 
 
@@ -179,6 +178,12 @@ OFBool DSRImageReferenceValue::isShort(const size_t flags) const
 OFBool DSRImageReferenceValue::isSegmentation() const
 {
     return isSegmentationObject(SOPClassUID);
+}
+
+
+OFBool DSRImageReferenceValue::hasIconImage() const
+{
+    return (IconImage != NULL);
 }
 
 
@@ -441,10 +446,11 @@ OFCondition DSRImageReferenceValue::writeItem(DcmItem &dataset) const
 OFCondition DSRImageReferenceValue::renderHTML(STD_NAMESPACE ostream &docStream,
                                                STD_NAMESPACE ostream &annexStream,
                                                size_t &annexNumber,
-                                               const size_t flags) const
+                                               const size_t flags,
+                                               const char *urlPrefix) const
 {
     /* reference: image */
-    docStream << "<a href=\"" << HTML_HYPERLINK_PREFIX_FOR_CGI;
+    docStream << "<a href=\"" << (urlPrefix == NULL ? DEFAULT_HTML_HYPERLINK_PREFIX_FOR_COMPOSITE_OBJECTS : urlPrefix);
     docStream << "?image=" << SOPClassUID << "+" << SOPInstanceUID;
     /* reference: pstate */
     if (PresentationState.isValid())
@@ -631,6 +637,8 @@ OFCondition DSRImageReferenceValue::setValue(const DSRImageReferenceValue &refer
         /* ignore status (return value) since the references are optional */
         setPresentationState(referenceValue.PresentationState, check);
         setRealWorldValueMapping(referenceValue.RealWorldValueMapping, check);
+        /* create copy of icon image (if any) */
+        copyIconImage(referenceValue.IconImage);
     }
     return result;
 }
@@ -688,8 +696,9 @@ OFBool DSRImageReferenceValue::appliesToSegment(const Uint16 segmentNumber) cons
 
 OFBool DSRImageReferenceValue::isSegmentationObject(const OFString &sopClassUID) const
 {
-    /* check for all segmentation SOP classes (according to DICOM PS 3.6-2023c) */
-    return (sopClassUID == UID_SegmentationStorage) || (sopClassUID == UID_SurfaceSegmentationStorage);
+    /* check for all segmentation SOP classes (according to DICOM PS 3.6-2024d) */
+    return (sopClassUID == UID_SegmentationStorage) || (sopClassUID == UID_SurfaceSegmentationStorage) ||
+           (sopClassUID == UID_HeightMapSegmentationStorage) || (sopClassUID == UID_LabelMapSegmentationStorage);
 }
 
 
@@ -780,4 +789,32 @@ OFCondition DSRImageReferenceValue::checkCurrentValue(const OFBool reportWarning
     if (result.good())
         result = checkListData(SOPClassUID, FrameList, SegmentList, reportWarnings);
     return result;
+}
+
+
+void DSRImageReferenceValue::copyIconImage(DicomImage *image)
+{
+    /* first, delete the current icon image */
+    delete IconImage;
+    /* then create a copy of the given icon image (first frame only) */
+    if (image != NULL)
+        IconImage = image->createDicomImage(0 /*fstart*/, 1 /*fcount*/);
+    else
+        IconImage = NULL;
+}
+
+
+// comparison operators
+
+OFBool operator==(const DSRImageReferenceValue &lhs,
+                  const DSRImageReferenceValue &rhs)
+{
+    return lhs.isEqual(rhs);
+}
+
+
+OFBool operator!=(const DSRImageReferenceValue &lhs,
+                  const DSRImageReferenceValue &rhs)
+{
+    return lhs.isNotEqual(rhs);
 }

@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1996-2021, OFFIS e.V.
+ *  Copyright (C) 1996-2025, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -21,12 +21,13 @@
 
 
 #include "dcmtk/config/osconfig.h"
+#include "dcmtk/dcmimgle/diimage.h"
+
 #include "dcmtk/dcmdata/dctypes.h"
 #include "dcmtk/dcmdata/dcdeftag.h"
 #include "dcmtk/dcmdata/dcswap.h"
 #include "dcmtk/dcmdata/dcuid.h"
 
-#include "dcmtk/dcmimgle/diimage.h"
 #include "dcmtk/dcmimgle/diinpxt.h"
 #include "dcmtk/dcmimgle/didocu.h"
 #include "dcmtk/dcmimgle/diutils.h"
@@ -548,12 +549,18 @@ void DiImage::convertPixelData()
     {
         const unsigned long fsize = OFstatic_cast(unsigned long, Rows) * OFstatic_cast(unsigned long, Columns) *
             OFstatic_cast(unsigned long, SamplesPerPixel);
-        if ((BitsAllocated < 1) || (BitsStored < 1) || (BitsAllocated < BitsStored) ||
-            (BitsStored > OFstatic_cast(Uint16, HighBit + 1)))
+        if ((BitsAllocated < 1) || (BitsStored < 1))
         {
             ImageStatus = EIS_InvalidValue;
-            DCMIMGLE_ERROR("invalid values for 'BitsAllocated' (" << BitsAllocated << "), "
-                << "'BitsStored' (" << BitsStored << ") and/or 'HighBit' (" << HighBit << ")");
+            DCMIMGLE_ERROR("invalid value(s) for 'BitsAllocated' (" << BitsAllocated << "), "
+                << "and/or 'BitsStored' (" << BitsStored << ")");
+            return;
+        }
+        else if ((BitsAllocated < BitsStored) || (BitsAllocated <= HighBit) || ((BitsStored - 1) > HighBit))
+        {
+            ImageStatus = EIS_InvalidValue;
+            DCMIMGLE_ERROR("invalid combination of values for 'BitsAllocated' (" << BitsAllocated << "), "
+                << "'BitsStored' (" << BitsStored << ") and 'HighBit' (" << HighBit << ")");
             return;
         }
         else if ((evr == EVR_OB) && (BitsStored <= 8))
@@ -773,9 +780,9 @@ int DiImage::writeFrameToDataset(DcmItem &dataset,
             dataset.tagExists(DCM_VOILUTSequence))
         {
             delete dataset.remove(DCM_VOILUTSequence);
-            sprintf(buffer, "%lu", DicomImageClass::maxval(bitsStored, 0) / 2);
+            OFStandard::snprintf(buffer, sizeof(buffer), "%lu", DicomImageClass::maxval(bitsStored, 0) / 2);
             dataset.putAndInsertString(DCM_WindowCenter, buffer);
-            sprintf(buffer, "%lu", DicomImageClass::maxval(bitsStored, 0));
+            OFStandard::snprintf(buffer, sizeof(buffer), "%lu", DicomImageClass::maxval(bitsStored, 0));
             dataset.putAndInsertString(DCM_WindowWidth, buffer);
         }
         delete dataset.remove(DCM_WindowCenterWidthExplanation);
@@ -882,7 +889,7 @@ int DiImage::writeBMP(FILE *stream,
                 result = 1;
         }
         /* delete pixel data */
-        delete OFstatic_cast(char *, data);     // type cast necessary to avoid compiler warnings using gcc >2.95
+        delete[] OFstatic_cast(char *, data);
     }
     return result;
 }

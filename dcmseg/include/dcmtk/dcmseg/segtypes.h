@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2015-2024, Open Connections GmbH
+ *  Copyright (C) 2015-2025, Open Connections GmbH
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation are maintained by
@@ -67,7 +67,7 @@ const Uint32 DCM_SEG_MAX_FRAMES = 2147483647; // 2^31-1
  *  These error codes can be used in addition to the general purpose
  *  codes defined in module dcmdata.
  */
-//@{
+///@{
 
 /// error: specified functional group is already existing
 extern DCMTK_DCMSEG_EXPORT const OFConditionConst SG_EC_MaxSegmentsReached;
@@ -83,6 +83,8 @@ extern DCMTK_DCMSEG_EXPORT const OFConditionConst SG_EC_NotEnoughData;
 extern DCMTK_DCMSEG_EXPORT const OFConditionConst SG_EC_MaxFramesReached;
 /// error: invalid bit depth
 extern DCMTK_DCMSEG_EXPORT const OFConditionConst SG_EC_InvalidBitDepth;
+
+///@}
 
 /** General purpose class hiding global functions, constants and types in the
  *  segmentation context from the global namespace.

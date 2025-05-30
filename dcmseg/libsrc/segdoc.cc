@@ -797,12 +797,18 @@ OFCondition DcmSegmentation::addFrame(T* pixData)
         switch (m_SegmentationType)
         {
             case DcmSegTypes::ST_BINARY:
+            {
+                if (sizeof(T) != 1) // 8 bit pixel data
+                {
+                    DCMSEG_ERROR("Cannot add frame: 16 bit pixel data expected but 8 bit pixel data provided");
+                    result = IOD_EC_InvalidPixelData;
+                    break;
+                }
+                // Pack the binary frame
                 frame = DcmSegUtils::packBinaryFrame(pixData, rows, cols);
                 if (!frame)
-                {
                     result = IOD_EC_CannotInsertFrame;
-                }
-                break;
+            }
             case DcmSegTypes::ST_FRACTIONAL:
             case DcmSegTypes::ST_LABELMAP:
             {
@@ -1584,14 +1590,9 @@ OFCondition DcmSegmentation::writeByteBasedFrames(T* pixData)
 
 OFCondition DcmSegmentation::writeBinaryFrames(Uint8* pixData, Uint16 rows, Uint16 cols, const size_t pixDataLength)
 {
-    // Holds the pixels for all frames. Each bit represents a pixel which is either
-    // 1 (part of segment) or 0 (not part of segment. All frames are directly
-    // concatenated, i.e. there are no unused bits between the frames.
-    memset(pixData, 0, pixDataLength);
-
     // Fill Pixel Data Element
-    concatFrames(m_Frames, pixData, rows * cols);
-    return EC_Normal;
+    // Compute size of all bit-packed frames in bytes
+    return DcmSegUtils::concatBinaryFrames(m_Frames, rows, cols, pixData, pixDataLength);
 }
 
 OFCondition DcmSegmentation::writeSegmentationImageModule(DcmItem& dataset)
@@ -1973,16 +1974,16 @@ OFCondition DcmSegmentation::decompress(DcmDataset& dset)
     // If the original transfer syntax could have been lossy, print warning
     if (dset.hasRepresentation(EXS_LittleEndianExplicit, NULL))
     {
-        if (xfer.isEncapsulated() && (xfer != EXS_RLELossless) && (xfer != EXS_DeflatedLittleEndianExplicit))
+        if (xfer.isPixelDataCompressed() && (xfer != EXS_RLELossless))
         {
             DCMSEG_WARN("Dataset has been compressed using a (possibly) lossy compression scheme (ignored)");
         }
     }
-    // If the original transfer is encapsulated and we do not already have an uncompressed version, decompress or reject
-    // the file
-    else if (xfer.isEncapsulated())
+    // If the original transfer syntax refers to compressed pixel data and we do not
+    // already have an uncompressed version, decompress or reject the file
+    else if (xfer.isPixelDataCompressed())
     {
-        // RLE compression is fine (truly lossless). Deflated is handled internally by DCMTK.
+        // RLE compression is fine (truly lossless)
         if (xfer == EXS_RLELossless)
         {
             DCMSEG_DEBUG("DICOM file is RLE-compressed, converting to uncompressed transfer syntax first");
@@ -1998,64 +1999,64 @@ OFCondition DcmSegmentation::decompress(DcmDataset& dset)
     return result;
 }
 
-OFCondition
-DcmSegmentation::concatFrames(OFVector<DcmIODTypes::FrameBase*> frames, Uint8* pixData, const size_t bitsPerFrame)
-{
-    // Writing position within the pixData memory
-    Uint8* writePos                                       = pixData;
-    OFVector<DcmIODTypes::FrameBase*>::iterator baseFrame = frames.begin();
-    if ((*baseFrame)->bytesPerPixel() > 1)
-    {
-        DCMSEG_ERROR(
-            "Internal error, cannot concatenate frames for 8-bit pixel data (binary segmentations only support 1 bit)");
-        ;
-        return IOD_EC_InvalidPixelData;
-    }
-    Uint8 freeBits  = 0;
-    Uint8 firstByte = 0;
-    // Iterate over frames and copy each to pixData memory
-    for (size_t f = 0; baseFrame != frames.end(); f++)
-    {
-        DCMSEG_DEBUG("Packing segmentation frame #" << f + 1 << "/" << frames.size());
-        // Backup first byte of the destination since it may contain bits of the
-        // previous frame; mask out those bits not belonging to previous frame.
-        // This will potentially create some empty bits on the left of the byte,
-        // that the current frame can use to store the its own first bits.
-        firstByte                        = OFstatic_cast(unsigned char, (writePos[0] << freeBits)) >> freeBits;
-        DcmIODTypes::Frame<Uint8>* frame = OFstatic_cast(DcmIODTypes::Frame<Uint8>*, *baseFrame);
-        memcpy(writePos, (*frame).getPixelDataTyped(), (*frame).getLengthInBytes());
-        // If the previous frame left over some unused bits, shift the current frame
-        // that number of bits to the left, and restore the original bits of the
-        // previous frame that are overwritten by the shifting operation.
-        if (freeBits > 0)
-        {
-            DcmSegUtils::alignFrameOnBitPosition(writePos, (*frame).getLengthInBytes(), 8 - freeBits);
-            writePos[0] |= firstByte;
-        }
-        // Compute free bits left over from this frame in the previous byte written
-        freeBits = (8 - (((f + 1) * bitsPerFrame) % 8)) % 8;
-        // If we have free bits, the previous byte written to will be the first byte
-        // we write to for the next frame. Otherwise start with a fresh destination
-        // byte.
-        if (freeBits > 0)
-        {
-            writePos = writePos + (*frame).getLengthInBytes() - 1;
-        }
-        else
-        {
-            writePos = writePos + (*frame).getLengthInBytes();
-        }
-        // Next frame
-        baseFrame++;
-    }
-    // Through shifting we can have non-zero bits within the unused bits of the
-    // last byte. Fill them with zeros (though not required by the standard).
-    if (freeBits > 0)
-    {
-        *writePos = (OFstatic_cast(unsigned char, *writePos) >> freeBits) << freeBits;
-    }
-    return EC_Normal;
-}
+// OFCondition
+// DcmSegmentation::concatFrames(OFVector<DcmIODTypes::FrameBase*> frames, Uint8* pixData, const size_t bitsPerFrame)
+// {
+//     // Writing position within the pixData memory
+//     Uint8* writePos                                       = pixData;
+//     OFVector<DcmIODTypes::FrameBase*>::iterator baseFrame = frames.begin();
+//     if ((*baseFrame)->bytesPerPixel() > 1)
+//     {
+//         DCMSEG_ERROR(
+//             "Internal error, cannot concatenate frames for 8-bit pixel data (binary segmentations only support 1 bit)");
+//         ;
+//         return IOD_EC_InvalidPixelData;
+//     }
+//     Uint8 freeBits  = 0;
+//     Uint8 firstByte = 0;
+//     // Iterate over frames and copy each to pixData memory
+//     for (size_t f = 0; baseFrame != frames.end(); f++)
+//     {
+//         DCMSEG_DEBUG("Packing segmentation frame #" << f + 1 << "/" << frames.size());
+//         // Backup first byte of the destination since it may contain bits of the
+//         // previous frame; mask out those bits not belonging to previous frame.
+//         // This will potentially create some empty bits on the left of the byte,
+//         // that the current frame can use to store the its own first bits.
+//         firstByte                        = OFstatic_cast(unsigned char, (writePos[0] << freeBits)) >> freeBits;
+//         DcmIODTypes::Frame<Uint8>* frame = OFstatic_cast(DcmIODTypes::Frame<Uint8>*, *baseFrame);
+//         memcpy(writePos, (*frame).getPixelDataTyped(), (*frame).getLengthInBytes());
+//         // If the previous frame left over some unused bits, shift the current frame
+//         // that number of bits to the left, and restore the original bits of the
+//         // previous frame that are overwritten by the shifting operation.
+//         if (freeBits > 0)
+//         {
+//             DcmSegUtils::alignFrameOnBitPosition(writePos, (*frame).getLengthInBytes(), 8 - freeBits);
+//             writePos[0] |= firstByte;
+//         }
+//         // Compute free bits left over from this frame in the previous byte written
+//         freeBits = (8 - (((f + 1) * bitsPerFrame) % 8)) % 8;
+//         // If we have free bits, the previous byte written to will be the first byte
+//         // we write to for the next frame. Otherwise start with a fresh destination
+//         // byte.
+//         if (freeBits > 0)
+//         {
+//             writePos = writePos + (*frame).getLengthInBytes() - 1;
+//         }
+//         else
+//         {
+//             writePos = writePos + (*frame).getLengthInBytes();
+//         }
+//         // Next frame
+//         baseFrame++;
+//     }
+//     // Through shifting we can have non-zero bits within the unused bits of the
+//     // last byte. Fill them with zeros (though not required by the standard).
+//     if (freeBits > 0)
+//     {
+//         *writePos = (OFstatic_cast(unsigned char, *writePos) >> freeBits) << freeBits;
+//     }
+//     return EC_Normal;
+// }
 
 
 OFString DcmSegmentation::determineColorModel()

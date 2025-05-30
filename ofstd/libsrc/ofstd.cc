@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2001-2024, OFFIS e.V.
+ *  Copyright (C) 2001-2025, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -54,8 +54,9 @@
  *  is" without express or implied warranty.
  *
  *
- *  The code for OFStandard::ftoa has been derived from an implementation
- *  which carries the following copyright notice:
+ *  The code for OFStandard::ftoa that is used when DCMTK is compiled
+ *  with the macro ENABLE_OLD_OFSTD_FTOA_IMPLEMENTATION has been derived
+ *  from an implementation that carries the following copyright notice:
  *
  *  Copyright (c) 1988 Regents of the University of California.
  *  All rights reserved.  See COPYRIGHT file for details.
@@ -115,31 +116,22 @@ END_EXTERN_C
 
 
 #include <cmath>
+#include <clocale>
 #include <cstring>       /* for memset() */
 #include <sstream>
 
 BEGIN_EXTERN_C
-#ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>    /* for stat() */
-#endif
 #ifdef HAVE_IO_H
 #include <io.h>          /* for access() on Win32 */
 #endif
-#ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>   /* for opendir() and closedir() */
-#endif
 #ifdef HAVE_DIRENT_H
 #include <dirent.h>      /* for opendir() and closedir() */
 #else
 #define dirent direct
-#ifdef HAVE_SYS_NDIR_H
-#include <sys/ndir.h>
-#endif
 #ifdef HAVE_SYS_DIR_H
 #include <sys/dir.h>
-#endif
-#ifdef HAVE_NDIR_H
-#include <ndir.h>
 #endif
 #endif
 #ifdef HAVE_FNMATCH_H
@@ -186,6 +178,58 @@ END_EXTERN_C
 #include "dcmtk/ofstd/ofgrp.h"
 #include "dcmtk/ofstd/ofpwd.h"
 #include "dcmtk/ofstd/ofoption.h"
+
+// check mutually exclusive feature macros for the implementations of OFStandard::atof() and OFStandard::ftoa()
+
+#if defined (ENABLE_IOSTREAM_BASED_ATOF_IMPLEMENTATION) && defined (ENABLE_CSTDIO_BASED_ATOF_IMPLEMENTATION)
+#error The macros ENABLE_IOSTREAM_BASED_ATOF_IMPLEMENTATION and ENABLE_CSTDIO_BASED_ATOF_IMPLEMENTATION must not both be defined
+#endif
+
+#if defined (ENABLE_OLD_OFSTD_ATOF_IMPLEMENTATION) && defined (ENABLE_IOSTREAM_BASED_ATOF_IMPLEMENTATION)
+#error The macros ENABLE_OLD_OFSTD_ATOF_IMPLEMENTATION and ENABLE_IOSTREAM_BASED_ATOF_IMPLEMENTATION must not both be defined
+#endif
+
+#if defined (ENABLE_OLD_OFSTD_ATOF_IMPLEMENTATION) && defined (ENABLE_CSTDIO_BASED_ATOF_IMPLEMENTATION)
+#error The macros ENABLE_OLD_OFSTD_ATOF_IMPLEMENTATION and ENABLE_CSTDIO_BASED_ATOF_IMPLEMENTATION must not both be defined
+#endif
+
+#if defined (ENABLE_IOSTREAM_BASED_FTOA_IMPLEMENTATION) && defined (ENABLE_CSTDIO_BASED_FTOA_IMPLEMENTATION)
+#error The macros ENABLE_IOSTREAM_BASED_FTOA_IMPLEMENTATION and ENABLE_CSTDIO_BASED_FTOA_IMPLEMENTATION must not both be defined
+#endif
+
+#if defined (ENABLE_OLD_OFSTD_FTOA_IMPLEMENTATION) && defined (ENABLE_IOSTREAM_BASED_FTOA_IMPLEMENTATION)
+#error The macros ENABLE_OLD_OFSTD_FTOA_IMPLEMENTATION and ENABLE_IOSTREAM_BASED_FTOA_IMPLEMENTATION must not both be defined
+#endif
+
+#if defined (ENABLE_OLD_OFSTD_FTOA_IMPLEMENTATION) && defined (ENABLE_CSTDIO_BASED_FTOA_IMPLEMENTATION)
+#error The macros ENABLE_OLD_OFSTD_FTOA_IMPLEMENTATION and ENABLE_CSTDIO_BASED_FTOA_IMPLEMENTATION must not both be defined
+#endif
+
+// define defaults for OFStandard::atof() and OFStandard::ftoa()
+#if !defined(ENABLE_OLD_OFSTD_ATOF_IMPLEMENTATION) && !defined(ENABLE_IOSTREAM_BASED_ATOF_IMPLEMENTATION) && !defined(ENABLE_CSTDIO_BASED_ATOF_IMPLEMENTATION)
+#ifdef _WIN32
+// on Windows, the iostream-based implementation of atof is extremely slow,
+// and we do have a locale independent version of sscanf. Use this version.
+#define ENABLE_CSTDIO_BASED_ATOF_IMPLEMENTATION
+#else
+// on other platforms, we assume that the iobased-implementation, being the
+// cleanest one, is appropriate. This is known to be the case for gcc and clang with glibc.
+#define ENABLE_IOSTREAM_BASED_ATOF_IMPLEMENTATION
+#endif
+#endif
+
+#if !defined(ENABLE_OLD_OFSTD_FTOA_IMPLEMENTATION) && !defined(ENABLE_IOSTREAM_BASED_FTOA_IMPLEMENTATION) && !defined(ENABLE_CSTDIO_BASED_FTOA_IMPLEMENTATION)
+#ifdef _WIN32
+// on Windows, the iostream-based implementation of atof is extremely slow,
+// and we do have a locale independent version of sprintf, called _snprintf_s_l.
+// Use this version.
+#define ENABLE_CSTDIO_BASED_FTOA_IMPLEMENTATION
+#else
+// on other platforms, we assume that the iobased-implementation, being the
+// cleanest one, is appropriate. This is known to be the case for gcc and clang with glibc.
+#define ENABLE_IOSTREAM_BASED_FTOA_IMPLEMENTATION
+#endif
+#endif
 
 // maximum number of repetitions for EAI_AGAIN
 #define DCMTK_MAX_EAI_AGAIN_REPETITIONS 5
@@ -302,37 +346,7 @@ int OFStandard::vsnprintf(char *str, size_t size, const char *format, va_list ap
     return ::vsnprintf(str, size, format, ap);
 #endif /* _MSC_VER < 1900 */
 #else /* _MSC_VER */
-#ifdef HAVE_VSNPRINTF
     return ::vsnprintf(str, size, format, ap);
-#else /* HAVE_VSNPRINTF */
-#ifdef DCMTK_ENABLE_UNSAFE_VSNPRINTF
-    // This implementation internally uses sprintf (which is inherently unsafe).
-    // It allocates a buffer that is 1 kByte larger than "size",
-    // formats the string into that buffer, and then uses strlcpy() to
-    // copy the formatted string into the output buffer, truncating if necessary.
-    // This will work in most cases, since few snprintf calls should overrun
-    // the provided buffer by more than 1K, but it can be easily abused by
-    // a malicious attacker to cause a buffer overrun.
-    //
-    // Therefore, this implementation should only be used as a "last resort"
-    // and we strongly advise against using it in production code.
-    // The macro "DCMTK_ENABLE_UNSAFE_VSNPRINTF" must explicitly be defined
-    // by the used to enable this implementation.
-    int count = -1;
-    if (size != 0)
-    {
-      char *buf = new char[size+1024];
-      count = ::vsprintf(buf, format, ap);
-      OFStandard::strlcpy(str, buf, size);
-      delete[] buf;
-    }
-    return count;
-#warning Using unsafe implementation of vsnprintf(3)
-#else /* DCMTK_ENABLE_UNSAFE_VSNPRINTF */
-    return -1;
-#error vsnprintf(3) not found. Use different compiler or compile with DCMTK_ENABLE_UNSAFE_VSNPRINTF (unsafe!)
-#endif /* DCMTK_ENABLE_UNSAFE_VSNPRINTF */
-#endif /* HAVE_VSNPRINTF */
 #endif /* _MSC_VER */
 }
 
@@ -370,7 +384,7 @@ const char *OFStandard::strerror(const int errnum,
                                  const size_t /*buflen*/)
 {
     // we only have strerror() which is thread unsafe on Posix platforms, but thread safe on Windows
-    return STDIO_NAMESPACE strerror(errnum);
+    return :: strerror(errnum);
 }
 #endif
 
@@ -425,7 +439,6 @@ OFBool OFStandard::pathExists(const OFFilename &pathName)
     /* check for valid path name (avoid NULL or empty string) */
     if (!pathName.isEmpty())
     {
-#if HAVE_ACCESS
         /* check existence with "access()" */
 #if defined(WIDE_CHAR_FILE_IO_FUNCTIONS) && defined(_WIN32)
         /* check whether to use the wide-char version of the API function */
@@ -434,31 +447,6 @@ OFBool OFStandard::pathExists(const OFFilename &pathName)
         else
 #endif
             result = (access(pathName.getCharPointer(), F_OK) == 0);
-#else /* HAVE_ACCESS */
-#ifdef HAVE_WINDOWS_H
-        /* get file attributes */
-        DWORD fileAttr;
-#if defined(WIDE_CHAR_FILE_IO_FUNCTIONS) && defined(_WIN32)
-        /* check whether to use the wide-char version of the API function */
-        if (pathName.usesWideChars())
-            fileAttr = GetFileAttributesW(pathName.getWideCharPointer());
-        else
-#endif
-            fileAttr = GetFileAttributes(pathName.getCharPointer());
-        result = (fileAttr != 0xffffffff);
-#else /* HAVE_WINDOWS_H */
-#ifdef HAVE_SYS_STAT_H
-        /* check existence with "stat()" */
-        struct stat stat_buf;
-        result = (stat(pathName.getCharPointer(), &stat_buf) == 0);
-#else
-        /* try to open the given "file" (or directory) in read-only mode */
-        OFFile file;
-        result = file.fopen(pathName, "r");
-        file.fclose();
-#endif /* HAVE_SYS_STAT_H */
-#endif /* HAVE_WINDOWS_H */
-#endif /* HAVE_ACCESS */
     }
     return result;
 }
@@ -535,7 +523,6 @@ OFBool OFStandard::isReadable(const OFFilename &pathName)
     /* check for valid path name (avoid NULL or empty string) */
     if (!pathName.isEmpty())
     {
-#if HAVE_ACCESS
         /* check whether the path is readable using "access()" */
 #if defined(WIDE_CHAR_FILE_IO_FUNCTIONS) && defined(_WIN32)
         /* check whether to use the wide-char version of the API function */
@@ -544,11 +531,6 @@ OFBool OFStandard::isReadable(const OFFilename &pathName)
         else
 #endif
             result = (access(pathName.getCharPointer(), R_OK) == 0);
-#else /* HAVE_ACCESS */
-        /* try to open the given "file" (or directory) in read-only mode */
-        OFFile file;
-        result = file.fopen(pathName, "r");
-#endif /* HAVE_ACCESS */
 }
     return result;
 }
@@ -560,7 +542,6 @@ OFBool OFStandard::isWriteable(const OFFilename &pathName)
     /* check for valid path name (avoid NULL or empty string) */
     if (!pathName.isEmpty())
     {
-#if HAVE_ACCESS
         /* check whether the path is writable using "access()" */
 #if defined(WIDE_CHAR_FILE_IO_FUNCTIONS) && defined(_WIN32)
         /* check whether to use the wide-char version of the API function */
@@ -569,11 +550,6 @@ OFBool OFStandard::isWriteable(const OFFilename &pathName)
         else
 #endif
             result = (access(pathName.getCharPointer(), W_OK) == 0);
-#else /* HAVE_ACCESS */
-        /* try to open the given "file" (or directory) in write mode */
-        OFFile file;
-        result = file.fopen(pathName, "w");
-#endif /* HAVE_ACCESS */
     }
     return result;
 }
@@ -1474,7 +1450,7 @@ OFBool OFStandard::copyFile(const OFFilename &sourceFilename,
                     numRead = sourceFile.fread(buffer, 1, COPY_FILE_BUFFER_SIZE);
                 } while ((numRead > 0) && ((numWrite = destFile.fwrite(buffer, 1, numRead)) == numRead));
                 /* check for any errors */
-                if ((sourceFile.error() == 0) && (destFile.error() == 0))
+                if ((sourceFile.error() == 0) && (destFile.error() == 0) && (destFile.fclose() == 0))
                     status = OFTrue;
             }
         }
@@ -1934,8 +1910,16 @@ double OFStandard::atof(const char *s, OFBool *success)
     // erase leading whitespace
     ss.erase(0, ss.find_first_not_of("\t "));
 
-    // handle NaN as a special case, since iostream does not
+    // handle NaN as a special case, since iostream does not.
+    // sscanf may or may not handle this case internally, depending on the version of the C standard implemented. NaN and inf will be supported in C99.
     if ((ss.length() >= 3) && (ss[0] == 'n' || ss[0] == 'N') && (ss[1] == 'a' || ss[1] == 'A') && (ss[2] == 'n' || ss[2] == 'N'))
+    {
+        if (success) *success = OFTrue;
+        return OFnumeric_limits<double>::quiet_NaN();
+    }
+
+    // handle negative NaN as a special case, since iostream does not
+    if ((ss.length() >= 4) && (ss[0] == '-') && (ss[1] == 'n' || ss[1] == 'N') && (ss[2] == 'a' || ss[2] == 'A') && (ss[3] == 'n' || ss[3] == 'N'))
     {
         if (success) *success = OFTrue;
         return OFnumeric_limits<double>::quiet_NaN();
@@ -1955,6 +1939,8 @@ double OFStandard::atof(const char *s, OFBool *success)
         return -OFnumeric_limits<double>::infinity();
     }
 
+#ifdef ENABLE_IOSTREAM_BASED_ATOF_IMPLEMENTATION
+
     // create an input string stream
     STD_NAMESPACE istringstream iss(s);
 
@@ -1964,6 +1950,45 @@ double OFStandard::atof(const char *s, OFBool *success)
 
     // convert string to double and set success flag
     if ((iss >> d) && success) *success = OFTrue;
+
+#else /* ENABLE_IOSTREAM_BASED_ATOF_IMPLEMENTATION */
+
+// This is the implementation in use when ENABLE_CSTDIO_BASED_ATOF_IMPLEMENTATION
+// is defined.
+
+#ifdef _WIN32
+
+    // Windows has a sscanf version where we can explicitly pass a locale
+    _locale_t localeInfo = _create_locale(LC_NUMERIC, "C");
+    if (_sscanf_l(ss.c_str(),"%lf",localeInfo,&d) == 1 && success ) *success = OFTrue;
+    _free_locale(localeInfo);
+
+#else /* _WIN32 */
+
+    // handle the case that the decimal separator expected by sscanf is not "."
+    size_t separator_pos = ss.find('.');
+    if (separator_pos != STD_NAMESPACE string::npos)
+    {
+        struct lconv *loc = localeconv();
+        if (loc && loc->decimal_point && (0 != strcmp(".", loc->decimal_point)))
+        {
+          // current locale is using a different decimal separator.
+          // Replace "." by the separator expected by sscanf.
+          ss.erase(separator_pos, 1);
+          ss.insert(separator_pos, loc->decimal_point);
+        }
+    }
+
+    // note that there is a race condition here. If another thread calls
+    // setlocale() between our calls to localeconv() and sscanf(), then
+    // things may go wrong, i.e. the conversion may yield an incorrect result
+    // because the separator character expected by sscanf has suddenly changed.
+    if (sscanf(ss.c_str(),"%lf",&d) == 1 && success ) *success = OFTrue;
+
+#endif /* _WIN32 */
+
+#endif /* ENABLE_IOSTREAM_BASED_ATOF_IMPLEMENTATION */
+
   }
   return d;
 }
@@ -2018,7 +2043,7 @@ double OFStandard::atof(const char *s, OFBool *success)
     int fracExp = 0;
 
     // Strip off leading blanks and check for a sign.
-    while (isspace(OFstatic_cast(unsigned char, *p))) ++p;
+    while (OFStandard::isspace(*p)) ++p;
 
     if (*p == '-')
     {
@@ -2188,29 +2213,22 @@ double OFStandard::atof(const char *s, OFBool *success)
 
 #endif /* ENABLE_OLD_OFSTD_ATOF_IMPLEMENTATION */
 
+/* binary "and" mask for format flags */
+#define FTOA_FORMAT_MASK 0x03
+/* default precision is 6 digits */
+#define FTOA_DEFPREC 6
 /* 11-bit exponent (VAX G floating point) is 308 decimal digits */
 #define FTOA_MAXEXP          308
 /* 128 bit fraction takes up 39 decimal digits; max reasonable precision */
 #define FTOA_MAXFRACT        39
-/* default precision */
-#define FTOA_DEFPREC         6
 /* internal buffer size for ftoa code */
 #define FTOA_BUFSIZE         (FTOA_MAXEXP+FTOA_MAXFRACT+1)
 
-#define FTOA_TODIGIT(c)      ((c) - '0')
-#define FTOA_TOCHAR(n)       ((n) + '0')
+#ifndef ENABLE_OLD_OFSTD_FTOA_IMPLEMENTATION
 
-#define FTOA_FORMAT_MASK 0x03 /* and mask for format flags */
-#define FTOA_FORMAT_E         OFStandard::ftoa_format_e
-#define FTOA_FORMAT_F         OFStandard::ftoa_format_f
-#define FTOA_FORMAT_UPPERCASE OFStandard::ftoa_uppercase
-#define FTOA_ALTERNATE_FORM   OFStandard::ftoa_alternate
-#define FTOA_LEFT_ADJUSTMENT  OFStandard::ftoa_leftadj
-#define FTOA_ZEROPAD          OFStandard::ftoa_zeropad
+#ifndef ENABLE_IOSTREAM_BASED_FTOA_IMPLEMENTATION
 
-#ifdef DISABLE_OFSTD_FTOA
-
-void OFStandard::ftoa(
+static void ftoa_convert(
   char *dst,
   size_t siz,
   double val,
@@ -2218,9 +2236,7 @@ void OFStandard::ftoa(
   int width,
   int prec)
 {
-  // this version of the function uses sprintf to format the output string.
-  // Since we have to assemble the sprintf format string, this version might
-  // even be slower than the alternative implementation.
+  // this version of the function uses snprintf to format the output string.
 
   char buf[FTOA_BUFSIZE];
   OFString s("%"); // this will become the format string
@@ -2243,39 +2259,229 @@ void OFStandard::ftoa(
   }
 
   // determine format character
-  if (flags & FTOA_FORMAT_UPPERCASE)
+  if (flags & OFStandard::ftoa_uppercase)
   {
-    if ((flags & FTOA_FORMAT_MASK) == FTOA_FORMAT_E) fmtch = 'E';
-    else if ((flags & FTOA_FORMAT_MASK) == FTOA_FORMAT_F) fmtch = 'f'; // there is no uppercase for 'f'
-    else fmtch = 'G';
+    if ((flags & FTOA_FORMAT_MASK) == OFStandard::ftoa_format_e) fmtch = 'E';
+    else if ((flags & FTOA_FORMAT_MASK) == OFStandard::ftoa_format_f) fmtch = 'f'; // there is no uppercase for 'f'
+    else
+    {
+      fmtch = 'G';
+    }
   }
   else
   {
-    if ((flags & FTOA_FORMAT_MASK) == FTOA_FORMAT_E) fmtch = 'e';
-    else if ((flags & FTOA_FORMAT_MASK) == FTOA_FORMAT_F) fmtch = 'f';
-    else fmtch = 'g';
+    if ((flags & FTOA_FORMAT_MASK) == OFStandard::ftoa_format_e) fmtch = 'e';
+    else if ((flags & FTOA_FORMAT_MASK) == OFStandard::ftoa_format_f) fmtch = 'f';
+    else
+    {
+      fmtch = 'g';
+    }
   }
 
-  if (flags & FTOA_ALTERNATE_FORM) s += "#";
-  if (flags & FTOA_LEFT_ADJUSTMENT) s += "-";
-  if (flags & FTOA_ZEROPAD) s += "0";
+  if (flags & OFStandard::ftoa_alternate) s += "#";
+  if (flags & OFStandard::ftoa_leftadj) s += "-";
+  if (flags & OFStandard::ftoa_zeropad) s += "0";
   if (width > 0)
   {
-    sprintf(buf, "%d", width);
+    OFStandard::snprintf(buf, sizeof(buf), "%d", width);
     s += buf;
   }
   if (prec >= 0)
   {
-    sprintf(buf, ".%d", prec);
+    OFStandard::snprintf(buf, sizeof(buf), ".%d", prec);
     s += buf;
   }
   s += fmtch;
 
-  sprintf(buf, s.c_str(), val);
-  OFStandard::strlcpy(dst, buf, siz);
+#ifdef _WIN32
+
+#ifdef HAVE__SET_OUTPUT_FORMAT
+  // The old Microsoft Visual C Runtime (MSVCRT) used in VS 2013 and older
+  // prints 3 exponent digits by default.  This call changes this.
+  // This function does not exist anymore in the Universal C Runtime
+  // used by VS 2015 or newer, but is still used by MinGW64.
+  _set_output_format(_TWO_DIGIT_EXPONENT);
+#endif
+
+  // Windows has an sprintf version where we can explicitly pass a locale
+  _locale_t localeInfo = _create_locale(LC_NUMERIC, "C");
+  _snprintf_s_l(dst, siz, _TRUNCATE, s.c_str(), localeInfo, val);
+  _free_locale(localeInfo);
+
+#else /* _WIN32 */
+
+  // On other platforms, we use snprintf() and fix the decimal separator afterwards
+  OFStandard::snprintf(dst, siz, s.c_str(), val);
+
+  // adjust for the decimal separator of the locale, which may be different from '.'
+  // Since the locale may change at any time, we try doing this without actually accessing the current locale info
+  char *c = dst;
+  size_t c_len = siz; // remaining buffer size
+  OFBool replaced = OFFalse;
+  while (*c)
+  {
+    if (*c == 0) return; // end of string
+    if (*c == '.') return; // decimal separator is '.', nothing to do
+    if (*c == ',') // decimal separator is ','; adjust and return
+    {
+      *c = '.';
+      return;
+    }
+
+    // since the string is null terminated, c+1 must exist if *c is not null
+    if ((*c == OFstatic_cast(char, 0xd9) && *(c+1) == OFstatic_cast(char, 0xab)) ||
+        (*c == OFstatic_cast(char, 0xab) && *(c+1) == OFstatic_cast(char, 0xd9))) // decimal separator is <U066B> in big endian or little endian byte order
+    {
+      *c = '.'; // replace first byte with '.'
+      ++c;
+      --c_len;
+      // c_len cannot be zero at this point, but we check anyway
+      if (c_len > 0) memmove(c, c+1,  c_len - 1); // move rest of the string one byte ahead. memmove works with overlapping memory areas.
+      return;
+    }
+
+    if ((*c >= '0' && *c <= '9') ||
+       (*c == '-') || (*c == '+') ||
+       (*c == 'E') || (*c == 'e') || (*c == ' '))
+    {
+      // not a decimal separator, skip
+      ++c;
+      --c_len;
+    }
+    else
+    {
+      // unknown character. We assume this is a decimal separator.
+      // We also assume that it might be a multi-byte UTF-8 sequence. We replace the
+      // first unknown character with '.', then continue and delete all other unknown characters.
+      if (replaced)
+      {
+        // this is not the first unknown character. Delete character, then continue.
+        if (c_len > 0) memmove(c, c+1,  c_len - 1); // move rest of the string one byte ahead. memmove works with overlapping memory areas.
+        // we do not advance c here, continue at this position with the now shorter remaining string
+      }
+      else
+      {
+        // this is the first unknown character. Replace with '.'
+        *c = '.';
+        ++c;
+        --c_len;
+        replaced = OFTrue;
+      }
+    }
+  }
+#endif /* _WIN32 */
 }
 
-#else
+#else /* ENABLE_IOSTREAM_BASED_FTOA_IMPLEMENTATION */
+
+// This is the implementation in use when ENABLE_CSTDIO_BASED_FTOA_IMPLEMENTATION
+// is defined.
+
+static void ftoa_convert(
+  char *dst,
+  size_t siz,
+  double val,
+  unsigned int flags,
+  int width,
+  int prec)
+{
+  // if target string is NULL or zero bytes long, bail out.
+  if (!dst || !siz) return;
+
+  // check if val is NAN
+  if (OFMath::isnan(val))
+  {
+    OFStandard::strlcpy(dst, "nan", siz);
+    return;
+  }
+
+  // check if val is infinity
+  if (OFMath::isinf(val))
+  {
+    if (val < 0)
+        OFStandard::strlcpy(dst, "-inf", siz);
+        else OFStandard::strlcpy(dst, "inf", siz);
+    return;
+  }
+
+  // create an output string stream
+  STD_NAMESPACE ostringstream oss;
+
+  // create a locale object for the C locale and activate it in the stream
+  STD_NAMESPACE locale mylocale("C");
+  oss.imbue(mylocale);
+
+  // set width
+  if (width > 0) oss << STD_NAMESPACE setw(width);
+
+  // set adjustment
+  if (flags & OFStandard::ftoa_leftadj) oss << STD_NAMESPACE left;
+
+  // set precision
+  if (prec < 0) prec = FTOA_DEFPREC;
+  oss << STD_NAMESPACE setprecision(prec);
+
+  // set uppercase
+  if (flags & OFStandard::ftoa_uppercase) oss << STD_NAMESPACE uppercase;
+
+  // set alternate form
+  if (flags & OFStandard::ftoa_alternate) oss << STD_NAMESPACE showpoint;
+
+  // set zero padding
+  if (flags & OFStandard::ftoa_zeropad) oss << STD_NAMESPACE setfill('0') << STD_NAMESPACE internal;
+
+  // set scientific vs fixed format
+  if ((flags & FTOA_FORMAT_MASK) == OFStandard::ftoa_format_e) oss << STD_NAMESPACE scientific;
+  else if ((flags & FTOA_FORMAT_MASK) == OFStandard::ftoa_format_f) oss << STD_NAMESPACE fixed;
+
+  // insert the value into the string stream
+  oss << val;
+
+  // create a string object and store the stream content
+  STD_NAMESPACE string os;
+  os = oss.str();
+
+  // copy string into target buffer
+  OFStandard::strlcpy(dst, os.c_str(), siz);
+
+  return;
+}
+
+#endif /* ENABLE_IOSTREAM_BASED_FTOA_IMPLEMENTATION */
+
+void OFStandard::ftoa(
+  char *dst,
+  size_t siz,
+  double val,
+  unsigned int flags,
+  int width,
+  int prec)
+{
+  // special handling for g/G format and precision -2
+  if ((prec == -2) && ((flags & FTOA_FORMAT_MASK) == 0))
+  {
+    // first attempt conversion with precision=16
+    ftoa_convert(dst, siz, val, flags, width, 16);
+
+    // and check if round-trip is exact
+    OFBool success = OFFalse;
+    double d = OFStandard::atof(dst, &success);
+    if (!success || d != val)
+    {
+      // really need precision 17 (DBL_DECIMAL_DIG)
+      ftoa_convert(dst, siz, val, flags, width, 17);
+    }
+  }
+  else
+  {
+    ftoa_convert(dst, siz, val, flags, width, prec);
+  }
+}
+
+#else /* ENABLE_OLD_OFSTD_FTOA_IMPLEMENTATION */
+
+#define FTOA_TODIGIT(c)      ((c) - '0')
+#define FTOA_TOCHAR(n)       ((n) + '0')
 
 /** internal helper class that maintains a string buffer
  *  to which characters can be written. If the string buffer
@@ -2475,7 +2681,7 @@ static int ftoa_convert(double val, int prec, int flags, char *signp, char fmtch
        * if precision required or alternate flag set, add in a
        * decimal point.
        */
-      if (prec || flags & FTOA_ALTERNATE_FORM) *t++ = '.';
+      if (prec || flags & OFStandard::ftoa_alternate) *t++ = '.';
 
       /* if requires more precision and some fraction left */
       if (fract)
@@ -2499,7 +2705,7 @@ eformat:
       if (expcnt)
       {
         *t++ = *++p;
-        if (prec || flags&FTOA_ALTERNATE_FORM)
+        if (prec || flags&OFStandard::ftoa_alternate)
                 *t++ = '.';
         /* if requires more precision and some integer left */
         for (; prec && ++p < endp; --prec)
@@ -2527,12 +2733,12 @@ eformat:
                         break;
         }
         *t++ = OFstatic_cast(char, FTOA_TOCHAR(OFstatic_cast(int, tmp)));
-        if (prec || flags&FTOA_ALTERNATE_FORM) *t++ = '.';
+        if (prec || flags&OFStandard::ftoa_alternate) *t++ = '.';
       }
       else
       {
         *t++ = '0';
-        if (prec || flags&FTOA_ALTERNATE_FORM) *t++ = '.';
+        if (prec || flags&OFStandard::ftoa_alternate) *t++ = '.';
       }
 
       /* if requires more precision and some fraction left */
@@ -2553,7 +2759,7 @@ eformat:
       for (; prec--; *t++ = '0');
 
       /* unless alternate flag, trim any g/G format trailing 0's */
-      if (gformat && !(flags&FTOA_ALTERNATE_FORM))
+      if (gformat && !(flags&OFStandard::ftoa_alternate))
       {
         while (t > startp && *--t == '0') /* nothing */;
         if (*t == '.') --t;
@@ -2600,7 +2806,7 @@ eformat:
        * if precision required or alternate flag set, add in a
        * decimal point.  If no digits yet, add in leading 0.
        */
-      if (prec || flags&FTOA_ALTERNATE_FORM)
+      if (prec || flags&OFStandard::ftoa_alternate)
       {
         dotrim = 1;
         *t++ = '.';
@@ -2629,7 +2835,7 @@ eformat:
         }
       }
       /* alternate format, adds 0's for precision, else trim 0's */
-      if (flags&FTOA_ALTERNATE_FORM) for (; prec--; *t++ = '0') /* nothing */;
+      if (flags&OFStandard::ftoa_alternate) for (; prec--; *t++ = '0') /* nothing */;
       else if (dotrim)
       {
         while (t > startp && *--t == '0') /* nothing */;
@@ -2676,16 +2882,16 @@ void OFStandard::ftoa(
   FTOAStringBuffer sb(FTOA_BUFSIZE+1);
 
   // determine format character
-  if (flags & FTOA_FORMAT_UPPERCASE)
+  if (flags & OFStandard::ftoa_uppercase)
   {
-    if ((flags & FTOA_FORMAT_MASK) == FTOA_FORMAT_E) fmtch = 'E';
-    else if ((flags & FTOA_FORMAT_MASK) == FTOA_FORMAT_F) fmtch = 'f'; // there is no uppercase for 'f'
+    if ((flags & FTOA_FORMAT_MASK) == OFStandard::ftoa_format_e) fmtch = 'E';
+    else if ((flags & FTOA_FORMAT_MASK) == OFStandard::ftoa_format_f) fmtch = 'f'; // there is no uppercase for 'f'
     else fmtch = 'G';
   }
   else
   {
-    if ((flags & FTOA_FORMAT_MASK) == FTOA_FORMAT_E) fmtch = 'e';
-    else if ((flags & FTOA_FORMAT_MASK) == FTOA_FORMAT_F) fmtch = 'f';
+    if ((flags & FTOA_FORMAT_MASK) == OFStandard::ftoa_format_e) fmtch = 'e';
+    else if ((flags & FTOA_FORMAT_MASK) == OFStandard::ftoa_format_f) fmtch = 'f';
     else fmtch = 'g';
   }
 
@@ -2693,10 +2899,11 @@ void OFStandard::ftoa(
   // so buffer size stays rational.
   if (prec > FTOA_MAXFRACT)
   {
-    if ((fmtch != 'g' && fmtch != 'G') || (flags&FTOA_ALTERNATE_FORM)) fpprec = prec - FTOA_MAXFRACT;
+    if ((fmtch != 'g' && fmtch != 'G') || (flags&OFStandard::ftoa_alternate)) fpprec = prec - FTOA_MAXFRACT;
     prec = FTOA_MAXFRACT;
   }
   else if (prec == -1) prec = FTOA_DEFPREC;
+  else if (prec == -2) prec = 17;
 
   /*
    * softsign avoids negative 0 if val is < 0 and
@@ -2719,12 +2926,12 @@ void OFStandard::ftoa(
   if (softsign) sign = '-';
   char *t = *buf ? buf : buf + 1;
 
-  /* At this point, `t' points to a string which (if not flags&FTOA_LEFT_ADJUSTMENT)
-   * should be padded out to `width' places.  If flags&FTOA_ZEROPAD, it should
+  /* At this point, `t' points to a string which (if not flags&OFStandard::ftoa_leftadj)
+   * should be padded out to `width' places.  If flags&OFStandard::ftoa_zeropad, it should
    * first be prefixed by any sign or other prefix; otherwise, it should be
    * blank padded before the prefix is emitted.  After any left-hand
    * padding, print the string proper, then emit zeroes required by any
-   * leftover floating precision; finally, if FTOA_LEFT_ADJUSTMENT, pad with blanks.
+   * leftover floating precision; finally, if OFStandard::ftoa_leftadj, pad with blanks.
    *
    * compute actual size, so we know how much to pad
    */
@@ -2732,7 +2939,7 @@ void OFStandard::ftoa(
   if (sign) fieldsz++;
 
   /* right-adjusting blank padding */
-  if ((flags & (FTOA_LEFT_ADJUSTMENT|FTOA_ZEROPAD)) == 0 && width)
+  if ((flags & (OFStandard::ftoa_leftadj|OFStandard::ftoa_zeropad)) == 0 && width)
   {
     for (n = fieldsz; n < width; n++) sb.put(' ');
   }
@@ -2741,7 +2948,7 @@ void OFStandard::ftoa(
   if (sign) sb.put(sign);
 
   /* right-adjusting zero padding */
-  if ((flags & (FTOA_LEFT_ADJUSTMENT|FTOA_ZEROPAD)) == FTOA_ZEROPAD)
+  if ((flags & (OFStandard::ftoa_leftadj|OFStandard::ftoa_zeropad)) == OFStandard::ftoa_zeropad)
           for (n = fieldsz; n < width; n++)
                   sb.put('0');
 
@@ -2753,7 +2960,7 @@ void OFStandard::ftoa(
   while (--fpprec >= 0) sb.put('0');
 
   /* left-adjusting padding (always blank) */
-  if (flags & FTOA_LEFT_ADJUSTMENT)
+  if (flags & OFStandard::ftoa_leftadj)
           for (n = fieldsz; n < width; n++)
                   sb.put(' ');
 
@@ -2765,7 +2972,7 @@ void OFStandard::ftoa(
   if (c) OFStandard::strlcpy(dst, c, siz); else *dst = 0;
 }
 
-#endif /* DISABLE_OFSTD_FTOA */
+#endif /* ENABLE_OLD_OFSTD_FTOA_IMPLEMENTATION */
 
 
 unsigned int OFStandard::my_sleep(unsigned int seconds)
@@ -2808,10 +3015,8 @@ long OFStandard::getProcessID()
 {
 #ifdef _WIN32
   return _getpid();
-#elif defined(HAVE_GETPID)
-  return getpid();
 #else
-  return 0; // Workaround for MAC
+  return getpid();
 #endif
 }
 
@@ -2863,7 +3068,6 @@ OFString OFStandard::getHostnameByAddress(const char* addr, int len, int type)
 {
   OFString result;
 
-#ifdef HAVE_GETADDRINFO
   // We have getaddrinfo(). In this case we also presume that we have
   // getnameinfo(), since both functions were introduced together.
   // This is the preferred implementation, being thread-safe and protocol independent.
@@ -2900,51 +3104,22 @@ OFString OFStandard::getHostnameByAddress(const char* addr, int len, int type)
   while ((EAI_AGAIN == err) && (rep-- > 0)) err = getnameinfo(sa, nameinfo_len, hostname, 512, NULL, 0, 0);
   if ((err == 0) && (hostname[0] != '\0')) result = hostname;
 
-#elif defined(HAVE_GETHOSTBYADDR_R)
-  // We do not have getaddrinfo(), but we have a thread-safe gethostbyaddr_r()
-
-  unsigned size = 1024;
-  char *tmp = new char[size];
-  struct hostent *he = NULL;
-  hostent buf;
-  int err = 0;
-  while ((gethostbyaddr_r( addr, len, type, &buf, tmp, size, &he, &err ) == ERANGE) && (size < MAX_NAME))
-  {
-      // increase buffer size
-      delete[] tmp;
-      size *= 2;
-      tmp = new char[size];
-  }
-  if (he && he->h_name) result = he->h_name;
-  delete[] tmp;
-
-#else
-  // Default implementation using gethostbyaddr().
-  // This should work on all Posix systems, but is not thread safe
-  // (except on Windows, which allocates the result in thread-local storage)
-
-  struct hostent *he = gethostbyaddr( addr, len, type );
-  if (he && he->h_name) result = he->h_name;
-
-#endif
   return result;
 }
 
 
-void OFStandard::getAddressByHostname(const char *name, OFSockAddr& result)
+void OFStandard::getAddressByHostname(const char *name, int protocolFamily, OFSockAddr& result)
 {
   result.clear();
   if (NULL == name) return;
 
-#ifdef HAVE_GETADDRINFO
   struct addrinfo *result_list = NULL;
   int err = EAI_AGAIN;
   int rep = DCMTK_MAX_EAI_AGAIN_REPETITIONS;
 
-  // filter for the DNS lookup. Since DCMTK does not yet fully support IPv6,
-  // we only look for IPv4 addresses.
+  // filter for the DNS lookup
   ::addrinfo hint = {};
-  hint.ai_family = AF_INET;
+  hint.ai_family = protocolFamily;
 
   // perform DNS lookup. Repeat while we receive temporary failures.
   while ((EAI_AGAIN == err) && (rep-- > 0)) err = getaddrinfo(name, NULL, &hint, &result_list);
@@ -2959,60 +3134,6 @@ void OFStandard::getAddressByHostname(const char *name, OFSockAddr& result)
     }
     freeaddrinfo(result_list);
   }
-
-#else // HAVE_GETADDRINFO
-
-#ifdef HAVE_GETHOSTBYNAME_R
-  // We do not have getaddrinfo(), but we have a thread-safe gethostbyname_r()
-
-  struct hostent *he = NULL;
-  unsigned bufsize = 1024;
-  char *buf = new char[bufsize];
-  hostent ret;
-  int err = 0;
-  while ((gethostbyname_r( name, &ret, buf, bufsize, &he, &err ) == ERANGE) && (bufsize < MAX_NAME))
-  {
-      // increase buffer size
-      delete[] buf;
-      bufsize *= 2;
-      buf = new char[bufsize];
-  }
-
-#else // HAVE_GETHOSTBYNAME_R
-
-  // Default implementation using gethostbyname().
-  // This should work on all Posix systems, but is not thread safe
-  // (except on Windows, which allocates the result in thread-local storage)
-
-  struct hostent *he = gethostbyname(name);
-
-#endif // HAVE_GETHOSTBYNAME_R
-
-  if (he)
-  {
-    if (he->h_addrtype == AF_INET)
-    {
-      result.setFamily(AF_INET);
-      struct sockaddr_in *result_sa = result.getSockaddr_in();
-      // copy IP address into result struct
-      memcpy (&result_sa->sin_addr, he->h_addr, he->h_length);
-    }
-    else if (he->h_addrtype == AF_INET6)
-    {
-      result.setFamily(AF_INET6);
-      struct sockaddr_in6 *result_sa = result.getSockaddr_in6();
-      memcpy (&result_sa->sin6_addr, he->h_addr, he->h_length);
-    }
-    // else we have an unsupported protocol type
-    // and simply leave the result variable empty
-  }
-
-#ifdef HAVE_GETHOSTBYNAME_R
-  delete[] buf;
-#endif
-
-#endif // HAVE_GETADDRINFO
-
 }
 
 
@@ -3224,13 +3345,11 @@ OFString OFStandard::getHostName()
     struct utsname n;
     uname( &n );
     return n.nodename;
-#elif defined(HAVE_GETHOSTNAME)
+#else
     char buf[513];
     gethostname( buf, 512 );
     buf[512] = 0;
     return buf;
-#else
-    return "localhost";
 #endif
 }
 
@@ -3340,6 +3459,24 @@ OFString OFStandard::getDefaultConfigurationDir()
 #endif
 }
 
+
+bool OFStandard::isspace(char ch)
+{
+    // This matches every whitespace character in the default locale,
+    // as documented in https://en.cppreference.com/w/cpp/string/byte/isspace
+    switch (ch)
+    {
+      case ' ':
+      case '\f':
+      case '\n':
+      case '\r':
+      case '\t':
+      case '\v':
+        return true;
+      default:
+        return false;
+    }
+}
 
 #include DCMTK_DIAGNOSTIC_IGNORE_STRICT_ALIASING_WARNING
 

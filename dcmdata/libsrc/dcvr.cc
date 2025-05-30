@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1994-2022, OFFIS e.V.
+ *  Copyright (C) 1994-2024, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -24,6 +24,7 @@
 #include "dcmtk/config/osconfig.h"    /* make sure OS specific configuration is included first */
 #include "dcmtk/dcmdata/dcvr.h"
 #include "dcmtk/dcmdata/dctypes.h"
+#include <cstring>
 
 /*
 ** global flags
@@ -76,14 +77,17 @@ void dcmDisableGenerationOfNewVRs()
 ** VR property table
 */
 
-#define DCMVR_PROP_NONE                   0x00
-#define DCMVR_PROP_NONSTANDARD            0x01
-#define DCMVR_PROP_INTERNAL               0x02
-#define DCMVR_PROP_EXTENDEDLENGTHENCODING 0x04
-#define DCMVR_PROP_ISASTRING              0x08
-#define DCMVR_PROP_ISAFFECTEDBYCHARSET    0x10
-#define DCMVR_PROP_ISLENGTHINCHAR         0x20
-#define DCMVR_PROP_UNDEFINEDLENGTH        0x40
+#define DCMVR_PROP_NONE                   0x0000
+#define DCMVR_PROP_NONSTANDARD            0x0001
+#define DCMVR_PROP_INTERNAL               0x0002
+#define DCMVR_PROP_EXTENDEDLENGTHENCODING 0x0004
+#define DCMVR_PROP_ISASTRING              0x0008
+#define DCMVR_PROP_ISAFFECTEDBYCHARSET    0x0010
+#define DCMVR_PROP_ISLENGTHINCHAR         0x0020
+#define DCMVR_PROP_UNDEFINEDLENGTH        0x0040
+#define DCMVR_PROP_ISANUMBER              0x0080
+#define DCMVR_PROP_ISINTEGER              0x0100
+#define DCMVR_PROP_ISUNSIGNED             0x0200
 
 struct DcmVREntry {
     DcmEVR vr;                      // Enumeration Value of Value representation
@@ -106,34 +110,34 @@ static const DcmVREntry DcmVRDict[] = {
     { EVR_AT, "AT", &noDelimiters, sizeof(Uint16), DCMVR_PROP_NONE, 4, 4 },
     { EVR_CS, "CS", &noDelimiters, sizeof(char), DCMVR_PROP_ISASTRING, 0, 16 },
     { EVR_DA, "DA", &noDelimiters, sizeof(char), DCMVR_PROP_ISASTRING, 8, 10 },
-    { EVR_DS, "DS", &noDelimiters, sizeof(char), DCMVR_PROP_ISASTRING, 0, 16 },
+    { EVR_DS, "DS", &noDelimiters, sizeof(char), DCMVR_PROP_ISASTRING | DCMVR_PROP_ISANUMBER, 0, 16 },
     { EVR_DT, "DT", &noDelimiters, sizeof(char), DCMVR_PROP_ISASTRING, 0, 26 },
-    { EVR_FL, "FL", &noDelimiters, sizeof(Float32), DCMVR_PROP_NONE, 4, 4 },
-    { EVR_FD, "FD", &noDelimiters, sizeof(Float64), DCMVR_PROP_NONE, 8, 8 },
-    { EVR_IS, "IS", &noDelimiters, sizeof(char), DCMVR_PROP_ISASTRING, 0, 12 },
+    { EVR_FL, "FL", &noDelimiters, sizeof(Float32), DCMVR_PROP_ISANUMBER, 4, 4 },
+    { EVR_FD, "FD", &noDelimiters, sizeof(Float64), DCMVR_PROP_ISANUMBER, 8, 8 },
+    { EVR_IS, "IS", &noDelimiters, sizeof(char), DCMVR_PROP_ISASTRING | DCMVR_PROP_ISANUMBER | DCMVR_PROP_ISINTEGER, 0, 12 },
     { EVR_LO, "LO", &bsDelimiter, sizeof(char), DCMVR_PROP_ISASTRING | DCMVR_PROP_ISAFFECTEDBYCHARSET | DCMVR_PROP_ISLENGTHINCHAR, 0, 64 },
     { EVR_LT, "LT", &noDelimiters, sizeof(char), DCMVR_PROP_ISASTRING | DCMVR_PROP_ISAFFECTEDBYCHARSET | DCMVR_PROP_ISLENGTHINCHAR, 0, 10240 },
-    { EVR_OB, "OB", &noDelimiters, sizeof(Uint8), DCMVR_PROP_EXTENDEDLENGTHENCODING | DCMVR_PROP_UNDEFINEDLENGTH, 0, 4294967294U },
-    { EVR_OD, "OD", &noDelimiters, sizeof(Float64), DCMVR_PROP_EXTENDEDLENGTHENCODING | DCMVR_PROP_UNDEFINEDLENGTH, 0, 4294967288U },
-    { EVR_OF, "OF", &noDelimiters, sizeof(Float32), DCMVR_PROP_EXTENDEDLENGTHENCODING | DCMVR_PROP_UNDEFINEDLENGTH, 0, 4294967292U },
-    { EVR_OL, "OL", &noDelimiters, sizeof(Uint32), DCMVR_PROP_EXTENDEDLENGTHENCODING | DCMVR_PROP_UNDEFINEDLENGTH, 0, 4294967292U },
-    { EVR_OV, "OV", &noDelimiters, sizeof(Uint64), DCMVR_PROP_EXTENDEDLENGTHENCODING | DCMVR_PROP_UNDEFINEDLENGTH, 0, 4294967288U },
-    { EVR_OW, "OW", &noDelimiters, sizeof(Uint16), DCMVR_PROP_EXTENDEDLENGTHENCODING | DCMVR_PROP_UNDEFINEDLENGTH, 0, 4294967294U },
+    { EVR_OB, "OB", &noDelimiters, sizeof(Uint8), DCMVR_PROP_ISANUMBER | DCMVR_PROP_ISINTEGER | DCMVR_PROP_ISUNSIGNED | DCMVR_PROP_EXTENDEDLENGTHENCODING | DCMVR_PROP_UNDEFINEDLENGTH, 0, 4294967294U },
+    { EVR_OD, "OD", &noDelimiters, sizeof(Float64), DCMVR_PROP_ISANUMBER | DCMVR_PROP_EXTENDEDLENGTHENCODING | DCMVR_PROP_UNDEFINEDLENGTH, 0, 4294967288U },
+    { EVR_OF, "OF", &noDelimiters, sizeof(Float32), DCMVR_PROP_ISANUMBER | DCMVR_PROP_EXTENDEDLENGTHENCODING | DCMVR_PROP_UNDEFINEDLENGTH, 0, 4294967292U },
+    { EVR_OL, "OL", &noDelimiters, sizeof(Uint32), DCMVR_PROP_ISANUMBER | DCMVR_PROP_ISINTEGER | DCMVR_PROP_ISUNSIGNED | DCMVR_PROP_EXTENDEDLENGTHENCODING | DCMVR_PROP_UNDEFINEDLENGTH, 0, 4294967292U },
+    { EVR_OV, "OV", &noDelimiters, sizeof(Uint64), DCMVR_PROP_ISANUMBER | DCMVR_PROP_ISINTEGER | DCMVR_PROP_ISUNSIGNED | DCMVR_PROP_EXTENDEDLENGTHENCODING | DCMVR_PROP_UNDEFINEDLENGTH, 0, 4294967288U },
+    { EVR_OW, "OW", &noDelimiters, sizeof(Uint16), DCMVR_PROP_ISANUMBER | DCMVR_PROP_ISINTEGER | DCMVR_PROP_ISUNSIGNED | DCMVR_PROP_EXTENDEDLENGTHENCODING | DCMVR_PROP_UNDEFINEDLENGTH, 0, 4294967294U },
     { EVR_PN, "PN", &pnDelimiters, sizeof(char), DCMVR_PROP_ISASTRING | DCMVR_PROP_ISAFFECTEDBYCHARSET | DCMVR_PROP_ISLENGTHINCHAR, 0, 64 },
     { EVR_SH, "SH", &bsDelimiter, sizeof(char), DCMVR_PROP_ISASTRING | DCMVR_PROP_ISAFFECTEDBYCHARSET | DCMVR_PROP_ISLENGTHINCHAR, 0, 16 },
-    { EVR_SL, "SL", &noDelimiters, sizeof(Sint32), DCMVR_PROP_NONE, 4, 4 },
+    { EVR_SL, "SL", &noDelimiters, sizeof(Sint32), DCMVR_PROP_ISANUMBER | DCMVR_PROP_ISINTEGER, 4, 4 },
     { EVR_SQ, "SQ", &noDelimiters, 0, DCMVR_PROP_EXTENDEDLENGTHENCODING | DCMVR_PROP_UNDEFINEDLENGTH, 0, 4294967294U },
-    { EVR_SS, "SS", &noDelimiters, sizeof(Sint16), DCMVR_PROP_NONE, 2, 2 },
+    { EVR_SS, "SS", &noDelimiters, sizeof(Sint16), DCMVR_PROP_ISANUMBER | DCMVR_PROP_ISINTEGER, 2, 2 },
     { EVR_ST, "ST", &noDelimiters, sizeof(char), DCMVR_PROP_ISASTRING | DCMVR_PROP_ISAFFECTEDBYCHARSET | DCMVR_PROP_ISLENGTHINCHAR, 0, 1024 },
-    { EVR_SV, "SV", &noDelimiters, sizeof(Sint64), DCMVR_PROP_EXTENDEDLENGTHENCODING, 8, 8 },
+    { EVR_SV, "SV", &noDelimiters, sizeof(Sint64), DCMVR_PROP_ISANUMBER | DCMVR_PROP_ISINTEGER | DCMVR_PROP_EXTENDEDLENGTHENCODING, 8, 8 },
     { EVR_TM, "TM", &noDelimiters, sizeof(char), DCMVR_PROP_ISASTRING, 0, 16 },
     { EVR_UC, "UC", &bsDelimiter, sizeof(char), DCMVR_PROP_ISASTRING | DCMVR_PROP_EXTENDEDLENGTHENCODING | DCMVR_PROP_ISAFFECTEDBYCHARSET, 0, 4294967294U },
     { EVR_UI, "UI", &noDelimiters, sizeof(char), DCMVR_PROP_ISASTRING, 0, 64 },
-    { EVR_UL, "UL", &noDelimiters, sizeof(Uint32), DCMVR_PROP_NONE, 4, 4 },
-    { EVR_UR, "UR", &noDelimiters, sizeof(char), DCMVR_PROP_ISASTRING|DCMVR_PROP_EXTENDEDLENGTHENCODING, 0, 4294967294U },
-    { EVR_US, "US", &noDelimiters, sizeof(Uint16), DCMVR_PROP_NONE, 2, 2 },
+    { EVR_UL, "UL", &noDelimiters, sizeof(Uint32), DCMVR_PROP_ISANUMBER | DCMVR_PROP_ISINTEGER | DCMVR_PROP_ISUNSIGNED, 4, 4 },
+    { EVR_UR, "UR", &noDelimiters, sizeof(char), DCMVR_PROP_ISASTRING | DCMVR_PROP_EXTENDEDLENGTHENCODING, 0, 4294967294U },
+    { EVR_US, "US", &noDelimiters, sizeof(Uint16), DCMVR_PROP_ISANUMBER | DCMVR_PROP_ISINTEGER | DCMVR_PROP_ISUNSIGNED, 2, 2 },
     { EVR_UT, "UT", &noDelimiters, sizeof(char), DCMVR_PROP_ISASTRING | DCMVR_PROP_EXTENDEDLENGTHENCODING | DCMVR_PROP_ISAFFECTEDBYCHARSET, 0, 4294967294U },
-    { EVR_UV, "UV", &noDelimiters, sizeof(Uint64), DCMVR_PROP_EXTENDEDLENGTHENCODING, 8, 8 },
+    { EVR_UV, "UV", &noDelimiters, sizeof(Uint64), DCMVR_PROP_ISANUMBER | DCMVR_PROP_ISINTEGER | DCMVR_PROP_ISUNSIGNED | DCMVR_PROP_EXTENDEDLENGTHENCODING, 8, 8 },
     { EVR_ox, "ox", &noDelimiters, sizeof(Uint8), DCMVR_PROP_NONSTANDARD | DCMVR_PROP_EXTENDEDLENGTHENCODING | DCMVR_PROP_UNDEFINEDLENGTH, 0, 4294967294U },
     { EVR_px, "px", &noDelimiters, sizeof(Uint8), DCMVR_PROP_NONSTANDARD | DCMVR_PROP_EXTENDEDLENGTHENCODING | DCMVR_PROP_UNDEFINEDLENGTH, 0, 4294967294U },
     { EVR_xs, "xs", &noDelimiters, sizeof(Uint16), DCMVR_PROP_NONSTANDARD, 2, 2 },
@@ -150,7 +154,7 @@ static const DcmVREntry DcmVRDict[] = {
     { EVR_dirRecord, "dr_EVR_dirRecord", &noDelimiters, 0, DCMVR_PROP_NONSTANDARD | DCMVR_PROP_INTERNAL, 0, 0 },
 
     { EVR_pixelSQ, "ps_EVR_pixelSQ", &noDelimiters, sizeof(Uint8), DCMVR_PROP_NONSTANDARD | DCMVR_PROP_INTERNAL, 0, DCM_UndefinedLength },
-    /* Moved from internal use to non standard only: necessary to distinguish from "normal" OB */
+    /* Moved from internal use to non-standard only: necessary to distinguish from "normal" OB */
     { EVR_pixelItem, "pi", &noDelimiters, sizeof(Uint8), DCMVR_PROP_NONSTANDARD, 0, DCM_UndefinedLength },
 
     /* EVR_UNKNOWN (i.e. "future" VRs) should be mapped to UN or OB */
@@ -164,9 +168,11 @@ static const DcmVREntry DcmVRDict[] = {
     /* Overlay Data - only used in ident() */
     { EVR_OverlayData, "OverlayData", &noDelimiters, 0, DCMVR_PROP_INTERNAL, 0, DCM_UndefinedLength },
 
-    /* illegal VRs, we assume no extended length coding */
+    /* unknown (probably invalid) VR, we assume no extended length coding */
     { EVR_UNKNOWN2B, "??", &noDelimiters, sizeof(Uint8), DCMVR_PROP_NONSTANDARD | DCMVR_PROP_INTERNAL, 0, DCM_UndefinedLength },
 
+    /* invalid VR - only used internally, e.g. to abort parsing a data set */
+    { EVR_invalid, "--", &noDelimiters, 0, DCMVR_PROP_NONSTANDARD | DCMVR_PROP_INTERNAL, 0, DCM_UndefinedLength }
 };
 
 static const int DcmVRDict_DIM = OFstatic_cast(int, sizeof(DcmVRDict) / sizeof(DcmVREntry));
@@ -213,43 +219,67 @@ DcmVR::setVR(DcmEVR evr)
     if ((OFstatic_cast(int, evr) >= 0) && (OFstatic_cast(int, evr) < DcmVRDict_DIM)) {
         vr = evr;
     } else {
-        vr = EVR_UNKNOWN;
+        vr = EVR_invalid;
     }
 }
 
 void
 DcmVR::setVR(const char* vrName)
 {
-    vr = EVR_UNKNOWN;   /* default */
-    if (vrName != NULL)
+    vr = EVR_invalid;   /* default */
+    /* Make sure that the passed character string is not empty */
+    if ((vrName != NULL) && (*vrName != '\0'))
     {
-        int found = OFFalse;
-        int i = 0;
-        for (i = 0; (!found && (i < DcmVRDict_DIM)); i++)
-        {
-            /* We only compare the first two characters of the passed string and
-             * never accept a VR that is labeled for internal use only.
-             */
-            if ((strncmp(vrName, DcmVRDict[i].vrName, 2) == 0) &&
-                !(DcmVRDict[i].propertyFlags & DCMVR_PROP_INTERNAL))
-            {
-                found = OFTrue;
-                vr = DcmVRDict[i].vr;
-            }
-        }
+        /* Extract the first two characters from the passed string */
+        const char c1 = *vrName;
+        const char c2 = *(vrName + 1);
+
         /* Workaround: There have been reports of systems transmitting
          * illegal VR strings in explicit VR (i.e. "??") without using
-         * extended length fields. This is particularly bad because the
-         * DICOM committee has announced that all future VRs will use
-         * extended length. In order to distinguish between these two
-         * variants, we treat all unknown VRs consisting of uppercase
-         * letters as "real" future VRs (and thus assume extended length).
-         * All other VR strings are treated as "illegal" VRs.
+         * extended length fields.
          */
-        char c1 = *vrName;
-        char c2 = (c1) ? (*(vrName + 1)) : ('\0');
-        if ((c1 == '?') && (c2 == '?')) vr = EVR_UNKNOWN2B;
-        if (!found && ((c1 < 'A') || (c1 > 'Z') || (c2 < 'A') || (c2 > 'Z'))) vr = EVR_UNKNOWN2B;
+        if ((c1 == '?') && (c2 == '?'))
+        {
+            /* We assume a 2-byte length field. */
+            vr = EVR_UNKNOWN2B;
+        } else {
+            OFBool found = OFFalse;
+            for (int i = 0; i < DcmVRDict_DIM; i++)
+            {
+                /* We only compare the first two characters of the passed string
+                 * and never accept a VR that is labeled for internal use only.
+                 */
+                if ((DcmVRDict[i].vrName[0] == c1) && (DcmVRDict[i].vrName[1] == c2) &&
+                    ((DcmVRDict[i].propertyFlags & DCMVR_PROP_INTERNAL) == 0))
+                {
+                    vr = DcmVRDict[i].vr;
+                    found = OFTrue;
+                    break;
+                }
+            }
+            if (!found)
+            {
+                /* More workarounds: The VR is unknown (or not yet supported).
+                 * The DICOM committee has announced that all future VRs will
+                 * use extended length.  Therefore, we treat all unknown VR
+                 * strings consisting of uppercase letters as "real" future VRs
+                 * (and thus assume extended length).
+                 * For other unknown VR strings that use characters in a range
+                 * of 32 to 127, we assume a 2-byte length field.
+                 * All other VR strings are treated as invalid VRs (default).
+                 */
+                if ((c1 >= 'A') && (c1 <= 'Z') && (c2 >= 'A') && (c2 <= 'Z'))
+                {
+                    /* Possible future VR, we assume a 4-byte length field. */
+                    vr = EVR_UNKNOWN;
+                }
+                else if ((c1 >= 32) && (c1 <= 127) && (c2 >= 32) && (c2 <= 127))
+                {
+                    /* Non-standard VR, we assume a 2-byte length field. */
+                    vr = EVR_UNKNOWN2B;
+                }
+            }
+        }
     }
 }
 
@@ -286,7 +316,7 @@ DcmVR::getValidEVR() const
     ** If the generation of post-1993 VRs is not globally enabled then use OB instead.
     ** We may not want to generate these "new" VRs if other software cannot handle it.
     */
-    DcmEVR oldVR = evr;
+    const DcmEVR oldVR = evr;
     switch (evr) {
         case EVR_UN:
             if (!dcmEnableUnknownVRGeneration.get())
@@ -404,8 +434,19 @@ DcmVR::getVRName() const
 const char*
 DcmVR::getValidVRName() const
 {
-    DcmVR avr(getValidEVR());
-    return avr.getVRName();
+    return DcmVR(getValidEVR()).getVRName();
+}
+
+OFBool
+DcmVR::isInvalid() const
+{
+    return (vr == EVR_invalid);
+}
+
+OFBool
+DcmVR::isUnknown() const
+{
+    return (vr == EVR_UNKNOWN) || (vr == EVR_UNKNOWN2B);
 }
 
 OFBool
@@ -425,6 +466,27 @@ OFBool
 DcmVR::isaString() const
 {
     return (DcmVRDict[vr].propertyFlags & DCMVR_PROP_ISASTRING) ? OFTrue : OFFalse;
+}
+
+/* returns true if VR represents a number */
+OFBool
+DcmVR::isaNumber() const
+{
+    return (DcmVRDict[vr].propertyFlags & DCMVR_PROP_ISANUMBER) ? OFTrue : OFFalse;
+}
+
+/* returns true if VR represents an integer number */
+OFBool
+DcmVR::isInteger() const
+{
+    return (DcmVRDict[vr].propertyFlags & DCMVR_PROP_ISINTEGER) ? OFTrue : OFFalse;
+}
+
+/* returns true if VR represents an unsigned number */
+OFBool
+DcmVR::isUnsigned() const
+{
+    return (DcmVRDict[vr].propertyFlags & DCMVR_PROP_ISUNSIGNED) ? OFTrue : OFFalse;
 }
 
 /*
@@ -460,7 +522,7 @@ DcmVR::getMaxValueLength() const
 OFBool
 DcmVR::isEquivalent(const DcmVR& avr) const
 {
-    DcmEVR evr = avr.getEVR();
+    const DcmEVR evr = avr.getEVR();
     if (vr == evr) return OFTrue;
 
     OFBool result = OFFalse;

@@ -1,8 +1,14 @@
 # Minimum CMake version required
-cmake_minimum_required(VERSION 3.0.0...3.27.9 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.7.0...3.31.2 FATAL_ERROR)
 
 # Declare project
 project(DCMTK)
+if(NOT DEFINED CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD "11" CACHE STRING "Set C++ standard to be used (98,11,14,17,20)")
+else()
+  set(CMAKE_CXX_STANDARD ${CMAKE_CXX_STANDARD} CACHE STRING "Set C++ standard to be used (98,11,14,17,20)")
+endif()
+mark_as_advanced(CMAKE_CXX_STANDARD)
 
 #-----------------------------------------------------------------------------
 # General project settings to configure DCMTK build process
@@ -12,7 +18,7 @@ project(DCMTK)
 set(DCMTK_MODULES ofstd oflog oficonv dcmdata dcmimgle
   dcmimage dcmjpeg dcmjpls dcmtls dcmnet dcmsr
   dcmsign dcmwlm dcmqrdb dcmpstat dcmrt dcmiod dcmfg
-  dcmseg dcmtract dcmpmap dcmect
+  dcmseg dcmtract dcmpmap dcmect dcmapps
   CACHE STRING "List of modules that should be built.")
 
 # Provide an interface target to elegantly include the config directory
@@ -45,12 +51,6 @@ include(CMake/dcmtkPrepare.cmake NO_POLICY_SCOPE)
 configure_file("${DCMTK_SOURCE_DIR}/CMake/osconfig.h.in"
                "${DCMTK_BINARY_DIR}/config/include/dcmtk/config/osconfig.h")
 
-#-----------------------------------------------------------------------------
-# Prepare arith.h
-#-----------------------------------------------------------------------------
-
-INSPECT_FUNDAMENTAL_ARITHMETIC_TYPES()
-
 # ----------------------------------------------------------------------------
 # Unit test related configuration/setup
 # ----------------------------------------------------------------------------
@@ -60,7 +60,7 @@ if(CMAKE_CROSSCOMPILING)
     set(DCMTK_RUN_CTEST_SCRIPT "${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/dcmtkCTestRunWine.cmake" CACHE INTERNAL "path to the CMake script for launching a unit test as a detached Wine process in the prepared wineprefix")
   elseif(ANDROID)
     set(DCMTK_RUN_CTEST_SCRIPT "${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/dcmtkCTestRunAndroid.cmake" CACHE INTERNAL "path to the CMake script for launching a unit test via the android emulator")
-  else()
+  elseif(NOT CMAKE_CROSSCOMPILING_EMULATOR)
     message(WARNING "Emulation for your target platform is not available, CTest will not be able to execute the unit tests!")
   endif()
 else()
@@ -89,7 +89,6 @@ include(CMake/dcmtkAfterModules.cmake NO_POLICY_SCOPE)
 
 # Install global headers
 install(FILES "${DCMTK_BINARY_DIR}/config/include/dcmtk/config/osconfig.h"
-              "${DCMTK_BINARY_DIR}/config/include/dcmtk/config/arith.h"
         DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/dcmtk/config"
         COMPONENT include)
 

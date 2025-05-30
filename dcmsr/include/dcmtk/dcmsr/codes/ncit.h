@@ -1,12 +1,12 @@
 /*
  *
- *  Copyright (C) 2015-2024, J. Riesmeier, Oldenburg, Germany
+ *  Copyright (C) 2015-2025, J. Riesmeier, Oldenburg, Germany
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  Header file with NCI Thesaurus Code Definitions (Coding Scheme "NCIt")
  *
- *  Generated automatically from DICOM PS 3.16-2024a
- *  File created on 2024-02-22 13:38:40 by J. Riesmeier
+ *  Generated automatically from DICOM PS 3.16-2025b
+ *  File created on 2025-04-15 12:18:33 by J. Riesmeier
  *
  */
 
@@ -34,7 +34,7 @@
  *  code definitions  *
  *--------------------*/
 
-// total number of codes: 51
+// total number of codes: 58
 // - retired: 0
 // - no name: 0
 // - not unique: 0
@@ -51,7 +51,7 @@
 #define CODE_NCIt_IndexLesion                                              DSRBasicCodedEntry("C110961", "NCIt", "Index lesion")
 #define CODE_NCIt_EnhancingLesion                                          DSRBasicCodedEntry("C113842", "NCIt", "Enhancing Lesion")
 #define CODE_NCIt_RANO                                                     DSRBasicCodedEntry("C114879", "NCIt", "RANO")
-#define CODE_NCIt_DCFPyL_F18                                               DSRBasicCodedEntry("C116352", "NCIt", "DCFPyL F^18^")
+#define CODE_NCIt_Piflufolastat_F18                                        DSRBasicCodedEntry("C116352", "NCIt", "Piflufolastat F^18^")
 #define CODE_NCIt_Technetium99mTrofolastat                                 DSRBasicCodedEntry("C116887", "NCIt", "Technetium^99m Trofolastat")
 #define CODE_NCIt_PSMA11_Ga68                                              DSRBasicCodedEntry("C118961", "NCIt", "PSMA-11 Ga^68^")
 #define CODE_NCIt_Sarcosine_C11                                            DSRBasicCodedEntry("C122684", "NCIt", "Sarcosine C^11^")
@@ -59,6 +59,7 @@
 #define CODE_NCIt_4Kscore                                                  DSRBasicCodedEntry("C142184", "NCIt", "4Kscore")
 #define CODE_NCIt_SoftTissueSarcoma_excludingRhabdomyosarcoma              DSRBasicCodedEntry("C148457", "NCIt", "Soft tissue sarcoma, excluding rhabdomyosarcoma")
 #define CODE_NCIt_Cryoablation                                             DSRBasicCodedEntry("C15215", "NCIt", "Cryoablation")
+#define CODE_NCIt_PAXgeneTissueSystem                                      DSRBasicCodedEntry("C185113", "NCIt", "PAXgene Tissue System")
 #define CODE_NCIt_166Holmium                                               DSRBasicCodedEntry("C1943", "NCIt", "^166^Holmium")
 #define CODE_NCIt_MouseMammaryFatPad                                       DSRBasicCodedEntry("C22550", "NCIt", "Mouse mammary fat pad")
 #define CODE_NCIt_Middle                                                   DSRBasicCodedEntry("C25569", "NCIt", "Middle")
@@ -83,6 +84,12 @@
 #define CODE_NCIt_FocusedUltrasoundAblation                                DSRBasicCodedEntry("C68681", "NCIt", "Focused ultrasound ablation")
 #define CODE_NCIt_UnitConversionFactor                                     DSRBasicCodedEntry("C70774", "NCIt", "Unit Conversion Factor")
 #define CODE_NCIt_MedicalProductExpirationDate                             DSRBasicCodedEntry("C70854", "NCIt", "Medical Product Expiration Date")
+#define CODE_NCIt_FitzpatrickSkinTypeI                                     DSRBasicCodedEntry("C74569", "NCIt", "Fitzpatrick Skin Type I")
+#define CODE_NCIt_FitzpatrickSkinTypeII                                    DSRBasicCodedEntry("C74570", "NCIt", "Fitzpatrick Skin Type II")
+#define CODE_NCIt_FitzpatrickSkinTypeIII                                   DSRBasicCodedEntry("C74571", "NCIt", "Fitzpatrick Skin Type III")
+#define CODE_NCIt_FitzpatrickSkinTypeIV                                    DSRBasicCodedEntry("C74572", "NCIt", "Fitzpatrick Skin Type IV")
+#define CODE_NCIt_FitzpatrickSkinTypeV                                     DSRBasicCodedEntry("C74573", "NCIt", "Fitzpatrick Skin Type V")
+#define CODE_NCIt_FitzpatrickSkinTypeVI                                    DSRBasicCodedEntry("C74574", "NCIt", "Fitzpatrick Skin Type VI")
 #define CODE_NCIt_CardiotonicAgent                                         DSRBasicCodedEntry("C78322", "NCIt", "Cardiotonic agent")
 #define CODE_NCIt_NonEnhancingLesion                                       DSRBasicCodedEntry("C81175", "NCIt", "Non-Enhancing Lesion")
 #define CODE_NCIt_ImagingRegionOfInterest                                  DSRBasicCodedEntry("C85402", "NCIt", "Imaging Region of Interest")

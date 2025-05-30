@@ -1,12 +1,12 @@
 /*
  *
- *  Copyright (C) 2015-2024, J. Riesmeier, Oldenburg, Germany
+ *  Copyright (C) 2015-2025, J. Riesmeier, Oldenburg, Germany
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  Source file for class CID218_QuantitativeImageFeature
  *
- *  Generated automatically from DICOM PS 3.16-2023e
- *  File created on 2024-01-12 09:54:34 by J. Riesmeier
+ *  Generated automatically from DICOM PS 3.16-2025b
+ *  File created on 2025-04-15 12:51:50 by J. Riesmeier
  *
  */
 
@@ -18,6 +18,7 @@
 
 // general information on CID 218 (Quantitative Image Feature)
 #define CONTEXT_GROUP_NUMBER  "218"
+#define CONTEXT_GROUP_KEYWORD "QuantitativeImageFeature"
 #define CONTEXT_GROUP_VERSION "20200920"
 #define CONTEXT_GROUP_UID     "1.2.840.10008.6.1.1269"
 #define CONTEXT_GROUP_TYPE    OFTrue  /* extensible */
@@ -27,7 +28,7 @@ CID218_QuantitativeImageFeature::CodeList *CID218_QuantitativeImageFeature::Code
 
 
 CID218_QuantitativeImageFeature::CID218_QuantitativeImageFeature(const DSRCodedEntryValue &selectedValue)
-  : DSRContextGroup(CONTEXT_GROUP_NUMBER, "DCMR", CONTEXT_GROUP_VERSION, CONTEXT_GROUP_UID, selectedValue)
+  : DSRContextGroup(CONTEXT_GROUP_NUMBER, "DCMR", CONTEXT_GROUP_KEYWORD, CONTEXT_GROUP_VERSION, CONTEXT_GROUP_UID, selectedValue)
 {
     setExtensible(CONTEXT_GROUP_TYPE);
 }
@@ -35,7 +36,7 @@ CID218_QuantitativeImageFeature::CID218_QuantitativeImageFeature(const DSRCodedE
 
 CID218_QuantitativeImageFeature::CID218_QuantitativeImageFeature(const EnumType selectedValue,
                                                                  const OFBool enhancedEncodingMode)
-  : DSRContextGroup(CONTEXT_GROUP_NUMBER, "DCMR", CONTEXT_GROUP_VERSION, CONTEXT_GROUP_UID, getCodedEntry(selectedValue, enhancedEncodingMode))
+  : DSRContextGroup(CONTEXT_GROUP_NUMBER, "DCMR", CONTEXT_GROUP_KEYWORD, CONTEXT_GROUP_VERSION, CONTEXT_GROUP_UID, getCodedEntry(selectedValue, enhancedEncodingMode))
 {
     setExtensible(CONTEXT_GROUP_TYPE);
 }
@@ -460,6 +461,8 @@ CID218_QuantitativeImageFeature::CodeList &CID218_QuantitativeImageFeature::getC
         Codes->insert(OFMake_pair(VolumeOfBoundingThreeDimensionalRegion, DSRBasicCodedEntry("121219", "DCM", "Volume of bounding three dimensional region")));
         Codes->insert(OFMake_pair(VolumeOfMesh, DSRBasicCodedEntry("RNU0", "IBSI", "Volume of Mesh")));
         Codes->insert(OFMake_pair(VolumeFromVoxelSummation, DSRBasicCodedEntry("YEKZ", "IBSI", "Volume from Voxel Summation")));
+        Codes->insert(OFMake_pair(NumberOfPixels, DSRBasicCodedEntry("130922", "DCM", "Number of pixels")));
+        Codes->insert(OFMake_pair(NumberOfVoxels, DSRBasicCodedEntry("130923", "DCM", "Number of voxels")));
         Codes->insert(OFMake_pair(SurfaceToVolumeRatio, DSRBasicCodedEntry("2PR5", "IBSI", "Surface to Volume Ratio")));
         Codes->insert(OFMake_pair(Compactness1, DSRBasicCodedEntry("SKGS", "IBSI", "Compactness 1")));
         Codes->insert(OFMake_pair(Compactness2, DSRBasicCodedEntry("BQWJ", "IBSI", "Compactness 2")));

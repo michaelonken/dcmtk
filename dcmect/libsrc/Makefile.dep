@@ -13,9 +13,9 @@ enhanced_ct.o: enhanced_ct.cc \
  ../../oflog/include/dcmtk/oflog/loglevel.h \
  ../../ofstd/include/dcmtk/ofstd/ofvector.h \
  ../../ofstd/include/dcmtk/ofstd/oftypes.h \
- ../../ofstd/include/dcmtk/ofstd/ofstream.h \
  ../../oflog/include/dcmtk/oflog/tstring.h \
  ../../ofstd/include/dcmtk/ofstd/ofstring.h \
+ ../../ofstd/include/dcmtk/ofstd/ofstream.h \
  ../../oflog/include/dcmtk/oflog/tchar.h \
  ../../oflog/include/dcmtk/oflog/spi/apndatch.h \
  ../../oflog/include/dcmtk/oflog/appender.h \
@@ -46,7 +46,6 @@ enhanced_ct.o: enhanced_ct.cc \
  ../../ofstd/include/dcmtk/ofstd/ofstd.h \
  ../../ofstd/include/dcmtk/ofstd/oflist.h \
  ../../ofstd/include/dcmtk/ofstd/oflimits.h \
- ../../config/include/dcmtk/config/arith.h \
  ../../ofstd/include/dcmtk/ofstd/oferror.h \
  ../../dcmdata/include/dcmtk/dcmdata/dctypes.h \
  ../../dcmdata/include/dcmtk/dcmdata/dcdefine.h \
@@ -56,6 +55,7 @@ enhanced_ct.o: enhanced_ct.cc \
  ../../dcmdata/include/dcmtk/dcmdata/dcerror.h \
  ../../dcmdata/include/dcmtk/dcmdata/dcxfer.h \
  ../../dcmdata/include/dcmtk/dcmdata/dcvr.h \
+ ../../ofstd/include/dcmtk/ofstd/ofdeprec.h \
  ../../dcmdata/include/dcmtk/dcmdata/dctag.h \
  ../../dcmdata/include/dcmtk/dcmdata/dctagkey.h \
  ../../ofstd/include/dcmtk/ofstd/diag/ignrattr.def \
@@ -95,19 +95,13 @@ enhanced_ct.o: enhanced_ct.cc \
  ../../dcmiod/include/dcmtk/dcmiod/modimagepixelvariant.h \
  ../../dcmiod/include/dcmtk/dcmiod/modimagepixelbase.h \
  ../../ofstd/include/dcmtk/ofstd/ofvriant.h \
- ../../ofstd/include/dcmtk/ofstd/variadic/variant.h \
- ../../ofstd/include/dcmtk/ofstd/variadic/helpers.h \
- ../../ofstd/include/dcmtk/ofstd/ofalign.h \
- ../../ofstd/include/dcmtk/ofstd/diag/cnvrsn.def \
- ../../ofstd/include/dcmtk/ofstd/diag/vsprfw.def \
- ../../ofstd/include/dcmtk/ofstd/diag/arrybnds.def \
- ../../ofstd/include/dcmtk/ofstd/diag/unrefprm.def \
+ ../../ofstd/include/dcmtk/ofstd/diag/stralias.def \
  ../../dcmiod/include/dcmtk/dcmiod/modacquisitioncontext.h \
  ../../dcmiod/include/dcmtk/dcmiod/modenhequipment.h \
  ../../dcmiod/include/dcmtk/dcmiod/modimagepixel.h \
  ../../dcmiod/include/dcmtk/dcmiod/modmultiframedimension.h \
  ../../dcmiod/include/dcmtk/dcmiod/modmultiframefg.h \
- ../../dcmiod/include/dcmtk/dcmiod/modsynchronisation.h \
+ ../../dcmiod/include/dcmtk/dcmiod/modsynchronization.h \
  ../../dcmdata/include/dcmtk/dcmdata/dcvrdt.h \
  ../../ofstd/include/dcmtk/ofstd/ofdatime.h \
  ../../ofstd/include/dcmtk/ofstd/ofdate.h \
@@ -138,9 +132,9 @@ types.o: types.cc ../../config/include/dcmtk/config/osconfig.h \
  ../../oflog/include/dcmtk/oflog/loglevel.h \
  ../../ofstd/include/dcmtk/ofstd/ofvector.h \
  ../../ofstd/include/dcmtk/ofstd/oftypes.h \
- ../../ofstd/include/dcmtk/ofstd/ofstream.h \
  ../../oflog/include/dcmtk/oflog/tstring.h \
  ../../ofstd/include/dcmtk/ofstd/ofstring.h \
+ ../../ofstd/include/dcmtk/ofstd/ofstream.h \
  ../../oflog/include/dcmtk/oflog/tchar.h \
  ../../oflog/include/dcmtk/oflog/spi/apndatch.h \
  ../../oflog/include/dcmtk/oflog/appender.h \

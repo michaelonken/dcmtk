@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1999-2024, OFFIS e.V.
+ *  Copyright (C) 1999-2025, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -22,15 +22,9 @@
 #include "dcmtk/config/osconfig.h"    /* make sure OS specific configuration is included first */
 
 BEGIN_EXTERN_C
-#ifdef HAVE_FCNTL_H
 #include <fcntl.h>       /* for O_RDONLY */
-#endif
-#ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>   /* required for sys/stat.h */
-#endif
-#ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>    /* for stat, fstat */
-#endif
 END_EXTERN_C
 
 #include "dcmtk/dcmpstat/dvpsdef.h"     /* for constants */
@@ -47,6 +41,7 @@ END_EXTERN_C
 #include "dcmtk/dcmnet/dcmlayer.h"
 #include "dcmtk/dcmdata/dcfilefo.h"
 #include "dcmtk/dcmpstat/dcmpstat.h"
+#include "dcmtk/dcmpstat/dvpsri.h"     /* for dcmPresentationStateValidationMode */
 
 #ifdef WITH_OPENSSL
 #include "dcmtk/dcmtls/tlstrans.h"
@@ -95,21 +90,11 @@ static void cleanChildren()
 {
 #ifdef HAVE_WAITPID
     int stat_loc;
-#elif defined(HAVE_WAIT3)
-    struct rusage rusage;
-    int        status;
-#endif
-
-#if defined(HAVE_WAITPID) || defined(HAVE_WAIT3)
     int child = 1;
     int options = WNOHANG;
     while (child > 0)
     {
-#ifdef HAVE_WAITPID
         child = (int)(waitpid(-1, &stat_loc, options));
-#elif defined(HAVE_WAIT3)
-        child = wait3(&status, options, &rusage);
-#endif
         if (child < 0)
         {
             if (errno != ECHILD)
@@ -864,11 +849,24 @@ int main(int argc, char *argv[])
     unsigned short networkPort    = dvi.getTargetPort(opt_cfgID);
     unsigned long  networkMaxPDU  = dvi.getTargetMaxPDU(opt_cfgID);
     const char *networkAETitle    = dvi.getTargetAETitle(opt_cfgID);
+    const char *validationMode    = dvi.getTargetValidationMode(opt_cfgID);
     if (networkAETitle==NULL) networkAETitle = dvi.getNetworkAETitle();
     unsigned short messagePort    = dvi.getMessagePort();   /* port number for IPC */
     OFBool keepMessagePortOpen    = dvi.getMessagePortKeepOpen();
     OFBool useTLS = dvi.getTargetUseTLS(opt_cfgID);
     OFBool notifyTermination      = OFTrue;  // notify IPC server of application termination
+
+    if (validationMode)
+    {
+      OFString vmode(validationMode);
+      if (vmode == "STD") dcmPresentationStateValidationMode.set(DVPSReferencedImage::CVM_standard);
+      else if (vmode == "RELATED") dcmPresentationStateValidationMode.set(DVPSReferencedImage::CVM_accept_Presentation_and_Processing);
+      else if (vmode == "RELAXED") dcmPresentationStateValidationMode.set(DVPSReferencedImage::CVM_accept_all);
+      else
+      {
+        OFLOG_WARN(dcmpsrcvLogger, "unknown validation mode '" << vmode << "', ignoring");
+      }
+    }
 
 #ifdef WITH_OPENSSL
     /* TLS directory */

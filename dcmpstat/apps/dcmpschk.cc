@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2000-2023, OFFIS e.V.
+ *  Copyright (C) 2000-2024, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -28,6 +28,8 @@
 #include "dcmtk/dcmdata/dctk.h"        /* for class DcmDataset */
 #include "dcmtk/dcmnet/dul.h"
 #include "dcmtk/dcmpstat/dcmpstat.h"   /* for DcmPresentationState */
+#include "dcmtk/dcmpstat/dvpsri.h"     /* for dcmPresentationStateValidationMode */
+#include "dcmtk/ofstd/ofstd.h"
 
 #ifdef WITH_ZLIB
 #include <zlib.h>                      /* for zlibVersion() */
@@ -122,7 +124,7 @@ static void printResult(
         if (dobj != NULL && dobj->getTag() != DCM_Item)
         {
             char buf[128];
-            sprintf(buf, "(%04x,%04x).",
+            OFStandard::snprintf(buf, sizeof(buf), "(%04x,%04x).",
                     (unsigned)dobj->getGTag(),
                     (unsigned)dobj->getETag());
             tmp += buf;
@@ -167,13 +169,13 @@ static const char* streamvm(const DcmDictEntry *e)
 {
     static char buf[256];
     if (e->isFixedSingleVM()) {
-        sprintf(buf, "%d", e->getVMMax());
+        OFStandard::snprintf(buf, sizeof(buf), "%d", e->getVMMax());
     } else if (e->isVariableRangeVM()) {
-        sprintf(buf, "%d-n", e->getVMMin());
+        OFStandard::snprintf(buf, sizeof(buf), "%d-n", e->getVMMin());
     } else if (e->isFixedRangeVM()){
-        sprintf(buf, "%d-%d", e->getVMMin(), e->getVMMax());
+        OFStandard::snprintf(buf, sizeof(buf), "%d-%d", e->getVMMin(), e->getVMMax());
     } else {
-        sprintf(buf, "?(%d-%d)?", e->getVMMin(), e->getVMMax());
+        OFStandard::snprintf(buf, sizeof(buf), "?(%d-%d)?", e->getVMMin(), e->getVMMax());
     }
     return buf;
 }
@@ -186,15 +188,15 @@ static const char* streamLengthOfValue(DcmVR& vr)
     Uint32 undefLen = DCM_UndefinedLength;
 
     if (min==max) {
-        sprintf(buf, "%d bytes fixed length", (int)min);
+        OFStandard::snprintf(buf, sizeof(buf), "%d bytes fixed length", (int)min);
     } else if (min==0) {
         if (max==undefLen) {
-            sprintf(buf, "unrestricted length");
+            OFStandard::snprintf(buf, sizeof(buf), "unrestricted length");
         } else {
-            sprintf(buf, "%d bytes maximum", (int)max);
+            OFStandard::snprintf(buf, sizeof(buf), "%d bytes maximum", (int)max);
         }
     } else {
-        sprintf(buf, "range %d-%d bytes length", (int)min, (int)max);
+        OFStandard::snprintf(buf, sizeof(buf), "range %d-%d bytes length", (int)min, (int)max);
     }
     return buf;
 }
@@ -652,7 +654,11 @@ static OFString printAttribute(
     OFOStringStream str;
 
     ec = dset->search(key, stack, ESM_fromHere, OFFalse);
-    elem = (DcmElement*) stack.top();
+    if (ec.good() && stack.top()->isElement())
+    {
+        elem = (DcmElement*) stack.top();
+    }
+
     if (elem)
         elem->print(str, DCMTypes::PF_shortenLongTagValues);
     else
@@ -906,7 +912,7 @@ static int checkfile(const char *filename)
 }
 
 #define SHORTCOL 3
-#define LONGCOL 12
+#define LONGCOL 18
 
 int main(int argc, char *argv[])
 {
@@ -931,6 +937,11 @@ int main(int argc, char *argv[])
      cmd.addOption("--version",            "print version information and exit", OFCommandLine::AF_Exclusive);
      OFLog::addOptions(cmd);
 
+    cmd.addGroup("validation options:");
+     cmd.addOption("--validate-std",       "images referenced by GSPS must belong to the\nsame SOP class (default)");
+     cmd.addOption("--validate-related",   "images referenced by GSPS may belong to related\n'for presentation' and 'for processing' SOP class");
+     cmd.addOption("--validate-relaxed",   "images referenced by GSPS may be any SOP class");
+
     /* evaluate command line */
     prepareCmdLineArgs(argc, argv, OFFIS_CONSOLE_APPLICATION);
     if (app.parseCommandLine(cmd, argc, argv))
@@ -951,12 +962,20 @@ int main(int argc, char *argv[])
          }
       }
 
+      /* validation options */
+      cmd.beginOptionBlock();
+      if (cmd.findOption("--validate-std")) dcmPresentationStateValidationMode.set(DVPSReferencedImage::CVM_standard);
+      if (cmd.findOption("--validate-related")) dcmPresentationStateValidationMode.set(DVPSReferencedImage::CVM_accept_Presentation_and_Processing);
+      if (cmd.findOption("--validate-relaxed")) dcmPresentationStateValidationMode.set(DVPSReferencedImage::CVM_accept_all);
+      cmd.endOptionBlock();
+
       /* options */
       OFLog::configureFromCommandLine(cmd, app);
     }
 
     /* print resource identifier */
     OFLOG_DEBUG(dcmpschkLogger, rcsid << OFendl);
+
 
     int paramCount = cmd.getParamCount();
     for (int param=1; param <= paramCount; param++)

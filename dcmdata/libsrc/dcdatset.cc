@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1994-2021, OFFIS e.V.
+ *  Copyright (C) 1994-2024, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -707,27 +707,30 @@ OFCondition DcmDataset::saveFile(const OFFilename &fileName,
     if (!fileName.isEmpty())
     {
         DcmWriteCache wcache;
-        DcmOutputStream *fileStream;
+        DcmOutputStream *outStream = NULL;
+        DcmOutputFileStream *fileStream = NULL;
 
         if (fileName.isStandardStream())
         {
             /* use stdout stream */
-            fileStream = new DcmStdoutStream(fileName);
+            outStream = new DcmStdoutStream(fileName);
         } else {
             /* open file for output */
             fileStream = new DcmOutputFileStream(fileName);
+            outStream = fileStream;
         }
 
         /* check stream status */
-        l_error = fileStream->status();
+        l_error = outStream->status();
         if (l_error.good())
         {
             /* write data to file */
             transferInit();
-            l_error = write(*fileStream, writeXfer, encodingType, &wcache, groupLength, padEncoding, padLength, subPadLength);
+            l_error = write(*outStream, writeXfer, encodingType, &wcache, groupLength, padEncoding, padLength, subPadLength);
             transferEnd();
         }
-        delete fileStream;
+        if (l_error.good() && fileStream) l_error = fileStream->fclose();
+        delete outStream;
     }
     return l_error;
 }
@@ -751,7 +754,7 @@ OFCondition DcmDataset::chooseRepresentation(const E_TransferSyntax repType,
     // check if we are attempting to compress but the image contains
     // floating point or double floating point pixel data, which our codecs don't support.
     if ((tagExists(DCM_FloatPixelData, OFTrue) || tagExists(DCM_DoubleFloatPixelData, OFTrue)) &&
-         (fromrep.isEncapsulated() || torep.isEncapsulated()))
+         (fromrep.isPixelDataCompressed() || torep.isPixelDataCompressed()))
     {
         DCMDATA_ERROR("DcmDataset: Unable to compress/decompress floating point pixel data, cannot change representation");
         l_error = EC_CannotChangeRepresentation;
@@ -763,7 +766,7 @@ OFCondition DcmDataset::chooseRepresentation(const E_TransferSyntax repType,
     // transfer syntax also uses a pixel data URL.
     if (tagExists(DCM_PixelDataProviderURL, OFTrue))
     {
-      if (! torep.isReferenced())
+      if (! torep.usesReferencedPixelData())
       {
         DCMDATA_ERROR("DcmDataset: Unable to compress image containing a pixel data provider URL, cannot change representation");
         l_error = EC_CannotChangeRepresentation;
@@ -791,11 +794,11 @@ OFCondition DcmDataset::chooseRepresentation(const E_TransferSyntax repType,
     // If there are no pixel data elements in the dataset, issue a warning
     if (! pixelDataEncountered)
     {
-      if (torep.isEncapsulated() && ! fromrep.isEncapsulated())
+      if (torep.isPixelDataCompressed() && fromrep.isPixelDataUncompressed())
       {
         DCMDATA_WARN("DcmDataset: No pixel data present, nothing to compress");
       }
-      if (! torep.isEncapsulated() && fromrep.isEncapsulated())
+      if (torep.isPixelDataUncompressed() && fromrep.isPixelDataCompressed())
       {
         DCMDATA_WARN("DcmDataset: No pixel data present, nothing to decompress");
       }
@@ -886,7 +889,7 @@ OFCondition DcmDataset::doPostReadChecks()
   if (findAndGetElement(DCM_PixelData, pixData).good())
   {
       Uint32 valueLength = pixData->getLengthField();
-      if (xf.isEncapsulated())
+      if (xf.usesEncapsulatedFormat())
       {
           if (valueLength != DCM_UndefinedLength)
           {
@@ -897,8 +900,8 @@ OFCondition DcmDataset::doPostReadChecks()
                   /* encapsulated pixel data (always encoded with undefined */
                   /* length). Print and return an error. */
                   DCMDATA_ERROR("Found explicit length Pixel Data in top level "
-                  << "dataset with transfer syntax " << xf.getXferName()
-                  << ": Only undefined length permitted");
+                      << "dataset with transfer syntax " << xf.getXferName()
+                      << ": Only undefined length permitted");
                   result = EC_PixelDataExplLengthIllegal;
               }
               else
@@ -907,8 +910,8 @@ OFCondition DcmDataset::doPostReadChecks()
                   /* and behave like as we have the same case as for an */
                   /* icon image, which is always uncompressed (see above). */
                   DCMDATA_WARN("Found explicit length Pixel Data in top level "
-                  << "dataset with transfer syntax " << xf.getXferName()
-                  << ": Only undefined length permitted (ignored on explicit request)");
+                      << "dataset with transfer syntax " << xf.getXferName()
+                      << ": Only undefined length permitted (ignored on explicit request)");
               }
           }
       }

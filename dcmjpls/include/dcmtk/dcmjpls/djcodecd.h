@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2007-2020, OFFIS e.V.
+ *  Copyright (C) 2007-2024, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -170,6 +170,19 @@ public:
     const E_TransferSyntax oldRepType,
     const E_TransferSyntax newRepType) const;
 
+  /** determines the effective value of BitsAllocated that a dataset will have
+   *  after decompression of an image with the given values for bitsAllocated
+   *  and bitsStored. This may differ from the bitsAllocated parameter for example
+   *  if that value is not a multiple of 8. Returns zero if an image with the
+   *  given parameters cannot be decoded with this codec.
+   *  @param bitsAllocated current value of Bits Allocated
+   *  @param bitsStored current value of Bits Stored
+   *  @return value of BitsAllocated after decompression, 0 if no decompression possible
+   */
+  virtual Uint16 decodedBitsAllocated(
+    Uint16 bitsAllocated,
+    Uint16 bitsStored) const;
+
   /** determine color model of the decompressed image
    *  @param fromParam representation parameter of current compressed
    *    representation, may be NULL
@@ -226,6 +239,45 @@ private:
    *  @return EC_Normal if successful, an error code otherwise.
    */
   static OFCondition decodeFrame(
+    DcmPixelSequence * fromPixSeq,
+    const DJLSCodecParameter *cp,
+    DcmItem *dataset,
+    Uint32 frameNo,
+    Uint32& startFragment,
+    void *buffer,
+    Uint32 bufSize,
+    Sint32 imageFrames,
+    Uint16 imageColumns,
+    Uint16 imageRows,
+    Uint16 imageSamplesPerPixel,
+    Uint16 bytesPerSample);
+
+  /** decompresses a single frame from the given pixel sequence and
+   *  stores the result in the given buffer, without adjusting byte order
+   *  @param fromPixSeq compressed pixel sequence
+   *  @param cp codec parameters for this codec
+   *  @param dataset pointer to dataset in which pixel data element is contained
+   *  @param frameNo number of frame, starting with 0 for the first frame
+   *  @param startFragment index of the compressed fragment that contains
+   *    all or the first part of the compressed bitstream for the given frameNo.
+   *    Upon successful return this parameter is updated to contain the index
+   *    of the first compressed fragment of the next frame.
+   *    When unknown, zero should be passed. In this case the decompression
+   *    algorithm will try to determine the index by itself, which will always
+   *    work if frames are decompressed in increasing order from first to last,
+   *    but may fail if frames are decompressed in random order, multiple fragments
+   *    per frame and multiple frames are present in the dataset, and the offset
+   *    table is empty.
+   *  @param buffer pointer to buffer where frame is to be stored
+   *  @param bufSize size of buffer in bytes
+   *  @param imageFrames number of frames in this image
+   *  @param imageColumns number of columns for each frame
+   *  @param imageRows number of rows for each frame
+   *  @param imageSamplesPerPixel number of samples per pixel
+   *  @param bytesPerSample number of bytes per sample
+   *  @return EC_Normal if successful, an error code otherwise.
+   */
+  static OFCondition decodeFrameNoSwap(
     DcmPixelSequence * fromPixSeq,
     const DJLSCodecParameter *cp,
     DcmItem *dataset,

@@ -1,8 +1,10 @@
 # declare executables
-DCMTK_ADD_EXECUTABLE(dcmdata_tests
+DCMTK_ADD_TEST_EXECUTABLE(dcmdata_tests
+  tbytestr.cc
   tchval.cc
   tdict.cc
   telemlen.cc
+  tfrmsiz.cc
   tests.cc
   tfilter.cc
   tgenuid.cc
@@ -28,10 +30,11 @@ DCMTK_ADD_EXECUTABLE(dcmdata_tests
   tvrsv.cc
   tvrui.cc
   tvruv.cc
+  txfer.cc
 )
 
 # make sure executables are linked to the corresponding libraries
-DCMTK_TARGET_LINK_MODULES(dcmdata_tests i2d dcmdata oflog ofstd)
+DCMTK_TARGET_LINK_MODULES(dcmdata_tests i2d)
 
 # This macro parses tests.cc and registers all tests
 DCMTK_ADD_TESTS(dcmdata)

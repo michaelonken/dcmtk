@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2024, OFFIS e.V.
+ *  Copyright (C) 2024-2025, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -85,8 +85,9 @@ OFTEST(dcmect_overflow)
 
     OFTempFile tf(O_RDWR, "", "t_overflow", ".dcm");
     OFCondition result;
-    result = ct->saveFile("output.dcm", EXS_LittleEndianExplicit);
+    result = ct->saveFile(tf.getFilename(), EXS_LittleEndianExplicit);
     OFCHECK_MSG(result == ECT_InvalidPixelInfo, result.text());
+    delete ct;
 }
 
 static EctEnhancedCT *create()

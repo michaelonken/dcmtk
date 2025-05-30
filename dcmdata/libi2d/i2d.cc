@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2007-2022, OFFIS e.V.
+ *  Copyright (C) 2007-2025, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -23,13 +23,15 @@
 #include "dcmtk/config/osconfig.h"   /* make sure OS specific configuration is included first */
 
 #include "dcmtk/dcmdata/libi2d/i2d.h"
+#include "dcmtk/ofstd/ofstd.h"
 #include "dcmtk/dcmdata/dcpxitem.h"
-#include "dcmtk/dcmdata/dcfilefo.h"  /* for DcmFileFormat */
-#include "dcmtk/dcmdata/dcdeftag.h"  /* for DCM_ defines */
-#include "dcmtk/dcmdata/dcuid.h"     /* for SITE_SERIES_UID_ROOT */
-#include "dcmtk/dcmdata/dcpixseq.h"  /* for DcmPixelSequence */
-#include "dcmtk/dcmdata/dcpath.h"    /* for override keys */
-#include "dcmtk/dcmdata/dcmxml/xml2dcm.h"   /* for DcmXMLParseHelper */
+#include "dcmtk/dcmdata/dcfilefo.h"        /* for DcmFileFormat */
+#include "dcmtk/dcmdata/dcdeftag.h"        /* for DCM_ defines */
+#include "dcmtk/dcmdata/dcuid.h"           /* for SITE_SERIES_UID_ROOT */
+#include "dcmtk/dcmdata/dcpixseq.h"        /* for DcmPixelSequence */
+#include "dcmtk/dcmdata/dcpath.h"          /* for override keys */
+#include "dcmtk/dcmdata/dcswap.h"          /* for swapIfNecessary() */
+#include "dcmtk/dcmdata/dcmxml/xml2dcm.h"  /* for DcmXMLParseHelper */
 
 OFLogger DCM_dcmdataLibi2dLogger = OFLog::getLogger("dcmtk.dcmdata.libi2d");
 
@@ -146,7 +148,7 @@ OFCondition Image2Dcm::convertFirstFrame(
 
   // Read and insert pixel data
   m_compressionRatio = 1.0;
-  cond = readAndInsertPixelDataFirstFrame(inputPlug, numberOfFrames, tempDataset.get(), proposedTS, m_compressionRatio);
+  cond = readAndInsertPixelDataFirstFrame(inputPlug, outPlug, numberOfFrames, tempDataset.get(), proposedTS, m_compressionRatio);
   if (cond.bad())
   {
     return cond;
@@ -454,7 +456,7 @@ OFCondition Image2Dcm::incrementInstanceNumber(DcmDataset *targetDset)
     {
       instanceNumber++;
       char buf[100];
-      sprintf(buf, "%ld", OFstatic_cast(long, instanceNumber));
+      OFStandard::snprintf(buf, sizeof(buf), "%ld", OFstatic_cast(long, instanceNumber));
       OFCondition cond = targetDset->putAndInsertOFStringArray(DCM_InstanceNumber, buf);
       if (cond.bad())
         return makeOFCondition(OFM_dcmdata, 18, OF_error, "Unable write Instance Number to dataset");
@@ -583,6 +585,7 @@ OFCondition Image2Dcm::insertEncapsulatedPixelDataNextFrame(
 
 OFCondition Image2Dcm::readAndInsertPixelDataFirstFrame(
   I2DImgSource* imgSource,
+  I2DOutputPlug *outPlug,
   size_t numberOfFrames,
   DcmDataset* dset,
   E_TransferSyntax& outputTS,
@@ -607,7 +610,7 @@ OFCondition Image2Dcm::readAndInsertPixelDataFirstFrame(
   if (m_frameLength > 0) compressionRatio = uncompressedSize / m_frameLength;
 
   DcmXfer transport(outputTS);
-  if (transport.isEncapsulated())
+  if (transport.usesEncapsulatedFormat())
   {
     m_offsetList.clear();
     insertEncapsulatedPixelDataFirstFrame(dset, pixData, m_frameLength, outputTS);
@@ -651,6 +654,22 @@ OFCondition Image2Dcm::readAndInsertPixelDataFirstFrame(
   if (cond.bad())
     return cond;
 
+  if (! outPlug->colorModelPermitted(m_photometricInterpretation, outputTS))
+  {
+      OFString old_photometricInterpretation = m_photometricInterpretation;
+      cond = outPlug->updateColorModel(m_photometricInterpretation, outputTS);
+      DcmXfer xf(outputTS);
+      if (cond.good())
+      {
+          DCMDATA_LIBI2D_WARN("Image2Dcm: photometric interpretation '" << old_photometricInterpretation << "' not permitted for the selected SOP class in '" << xf.getXferName() << "' transfer syntax, using '" << m_photometricInterpretation << "' instead");
+      }
+      else
+      {
+          DCMDATA_LIBI2D_ERROR("Image2Dcm: photometric interpretation '" << old_photometricInterpretation << "' not permitted for the selected SOP class in '" << xf.getXferName() << "' transfer syntax");
+          return cond;
+      }
+  }
+
   cond = dset->putAndInsertOFStringArray(DCM_PhotometricInterpretation, m_photometricInterpretation);
   if (cond.bad())
     return cond;
@@ -686,7 +705,7 @@ OFCondition Image2Dcm::readAndInsertPixelDataFirstFrame(
   if ( m_pixelAspectRatioH != m_pixelAspectRatioV )
   {
     char buf[200];
-    int err = sprintf(buf, "%u\\%u", m_pixelAspectRatioV, m_pixelAspectRatioH);
+    int err = OFStandard::snprintf(buf, sizeof(buf), "%u\\%u", m_pixelAspectRatioV, m_pixelAspectRatioH);
     if (err == -1) return EC_IllegalCall;
     cond = dset->putAndInsertOFStringArray(DCM_PixelAspectRatio, buf);
     if (cond.bad())
@@ -785,7 +804,7 @@ OFCondition Image2Dcm::readAndInsertPixelDataNextFrame(
     cond = makeOFCondition(OFM_dcmdata, 18, OF_error, "Image2Dcm: value of vertical PixelAspectRatio not equal for all frames of the multi-frame image");
     return cond;
   }
-  if ((!transport.isEncapsulated()) && (next_frameLength != m_frameLength))
+  if (transport.isPixelDataUncompressed() && (next_frameLength != m_frameLength))
   {
     // in the case of uncompressed images, all frames must have exactly the same size.
     // for compressed images, where we store the compressed bitstream as a pixel item, this does not matter.
@@ -803,7 +822,7 @@ OFCondition Image2Dcm::readAndInsertPixelDataNextFrame(
   // We will divide this by the number of frames later.
   m_compressionRatio += compressionRatio;
 
-  if (transport.isEncapsulated())
+  if (transport.usesEncapsulatedFormat())
   {
     cond = insertEncapsulatedPixelDataNextFrame(pixData, next_frameLength);
     delete[] pixData;
@@ -1038,4 +1057,23 @@ OFCondition Image2Dcm::updateOffsetTable()
   OFCondition result = EC_Normal;
   if (m_offsetTable) result = m_offsetTable->createOffsetTable(m_offsetList);
   return result;
+}
+
+
+OFCondition Image2Dcm::adjustByteOrder(size_t numberOfFrames)
+{
+  if (m_output_buffer)
+  {
+    // unencapsulated pixel data, byte swapping may be necessary
+    if (m_bitsAllocated < 9)
+    {
+      size_t bufSize = m_frameLength * numberOfFrames;
+      if (bufSize & 1) ++bufSize;
+      if (bufSize > 1)
+      {
+        swapIfNecessary(gLocalByteOrder, EBO_LittleEndian, m_output_buffer, OFstatic_cast(Uint32, bufSize), sizeof(Uint16));
+      }
+    }
+  }
+  return EC_Normal;
 }

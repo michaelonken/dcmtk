@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1994-2021, OFFIS e.V.
+ *  Copyright (C) 1994-2025, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were partly developed by
@@ -81,14 +81,11 @@
 #include "dcmtk/config/osconfig.h"    /* make sure OS specific configuration is included first */
 
 #include "dcmtk/ofstd/oftimer.h"
-
-#ifdef HAVE_FCNTL_H
 #include <fcntl.h>
-#endif
-
 #include "dcmtk/dcmnet/diutil.h"
 #include "dcmtk/dcmnet/dimse.h"       /* always include the module header */
 #include "dcmtk/dcmnet/cond.h"
+#include "dcmtk/ofstd/ofstd.h"
 
 /*
 **
@@ -217,7 +214,7 @@ DIMSE_moveUser(
         }
         if (rsp.CommandField != DIMSE_C_MOVE_RSP) {
             char buf1[256];
-            sprintf(buf1, "DIMSE: Unexpected Response Command Field: 0x%x", (unsigned)rsp.CommandField);
+            OFStandard::snprintf(buf1, sizeof(buf1), "DIMSE: Unexpected Response Command Field: 0x%x", (unsigned)rsp.CommandField);
             return makeDcmnetCondition(DIMSEC_UNEXPECTEDRESPONSE, OF_error, buf1);
         }
 
@@ -225,7 +222,7 @@ DIMSE_moveUser(
 
         if (response->MessageIDBeingRespondedTo != msgId) {
             char buf2[256];
-            sprintf(buf2, "DIMSE: Unexpected Response MsgId: %d (expected: %d)", response->MessageIDBeingRespondedTo, msgId);
+            OFStandard::snprintf(buf2, sizeof(buf2), "DIMSE: Unexpected Response MsgId: %d (expected: %d)", response->MessageIDBeingRespondedTo, msgId);
             return makeDcmnetCondition(DIMSEC_UNEXPECTEDRESPONSE, OF_error, buf2);
         }
 

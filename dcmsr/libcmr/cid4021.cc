@@ -1,12 +1,12 @@
 /*
  *
- *  Copyright (C) 2015-2024, J. Riesmeier, Oldenburg, Germany
+ *  Copyright (C) 2015-2025, J. Riesmeier, Oldenburg, Germany
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  Source file for class CID4021_PETRadiopharmaceutical
  *
- *  Generated automatically from DICOM PS 3.16-2023e
- *  File created on 2024-01-12 09:54:38 by J. Riesmeier
+ *  Generated automatically from DICOM PS 3.16-2025b
+ *  File created on 2025-04-15 12:51:53 by J. Riesmeier
  *
  */
 
@@ -18,6 +18,7 @@
 
 // general information on CID 4021 (PET Radiopharmaceutical)
 #define CONTEXT_GROUP_NUMBER  "4021"
+#define CONTEXT_GROUP_KEYWORD "PETRadiopharmaceutical"
 #define CONTEXT_GROUP_VERSION "20221201"
 #define CONTEXT_GROUP_UID     "1.2.840.10008.6.1.305"
 #define CONTEXT_GROUP_TYPE    OFTrue  /* extensible */
@@ -27,7 +28,7 @@ CID4021_PETRadiopharmaceutical::CodeList *CID4021_PETRadiopharmaceutical::Codes 
 
 
 CID4021_PETRadiopharmaceutical::CID4021_PETRadiopharmaceutical(const DSRCodedEntryValue &selectedValue)
-  : DSRContextGroup(CONTEXT_GROUP_NUMBER, "DCMR", CONTEXT_GROUP_VERSION, CONTEXT_GROUP_UID, selectedValue)
+  : DSRContextGroup(CONTEXT_GROUP_NUMBER, "DCMR", CONTEXT_GROUP_KEYWORD, CONTEXT_GROUP_VERSION, CONTEXT_GROUP_UID, selectedValue)
 {
     setExtensible(CONTEXT_GROUP_TYPE);
 }
@@ -35,7 +36,7 @@ CID4021_PETRadiopharmaceutical::CID4021_PETRadiopharmaceutical(const DSRCodedEnt
 
 CID4021_PETRadiopharmaceutical::CID4021_PETRadiopharmaceutical(const EnumType selectedValue,
                                                                const OFBool enhancedEncodingMode)
-  : DSRContextGroup(CONTEXT_GROUP_NUMBER, "DCMR", CONTEXT_GROUP_VERSION, CONTEXT_GROUP_UID, getCodedEntry(selectedValue, enhancedEncodingMode))
+  : DSRContextGroup(CONTEXT_GROUP_NUMBER, "DCMR", CONTEXT_GROUP_KEYWORD, CONTEXT_GROUP_VERSION, CONTEXT_GROUP_UID, getCodedEntry(selectedValue, enhancedEncodingMode))
 {
     setExtensible(CONTEXT_GROUP_TYPE);
 }
@@ -178,7 +179,7 @@ CID4021_PETRadiopharmaceutical::CodeList &CID4021_PETRadiopharmaceutical::getCod
         Codes->insert(OFMake_pair(CMAbU36_89Zr, DSRBasicCodedEntry("126746", "DCM", "cMAb U36 ^89^Zr")));
         Codes->insert(OFMake_pair(CU36_89Zr, DSRBasicCodedEntry("126515", "DCM", "cU36 ^89^Zr")));
         Codes->insert(OFMake_pair(DCFBC_F18, DSRBasicCodedEntry("C96234", "NCIt", "DCFBC F^18^")));
-        Codes->insert(OFMake_pair(DCFPyL_F18, DSRBasicCodedEntry("C116352", "NCIt", "DCFPyL F^18^")));
+        Codes->insert(OFMake_pair(Piflufolastat_F18, DSRBasicCodedEntry("C116352", "NCIt", "Piflufolastat F^18^")));
         Codes->insert(OFMake_pair(DfFK2_89Zr, DSRBasicCodedEntry("126762", "DCM", "Df-[FK](2) ^89^Zr")));
         Codes->insert(OFMake_pair(DfFK23PEG4_89Zr, DSRBasicCodedEntry("126763", "DCM", "Df-[FK](2)-3PEG(4) ^89^Zr")));
         Codes->insert(OFMake_pair(DfCD45_89Zr, DSRBasicCodedEntry("126520", "DCM", "Df-CD45 ^89^Zr")));

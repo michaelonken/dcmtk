@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1994-2023, OFFIS e.V.
+ *  Copyright (C) 1994-2025, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -79,10 +79,7 @@
 // if defined, use createValueFromTempFile() for large binary data files
 //#define EXPERIMENTAL_READ_FROM_FILE
 
-#ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
-#endif
-
 #include "dcmtk/ofstd/ofstd.h"
 #include "dcmtk/ofstd/ofconapp.h"
 #include "dcmtk/ofstd/ofstream.h"
@@ -138,7 +135,7 @@ stripWhitespace(char *s)
 
     p = s;
     while (*s != '\0') {
-        if (isspace(TO_UCHAR(*s)) == OFFalse) {
+        if (OFStandard::isspace(*s) == OFFalse) {
             *p++ = *s;
         }
         s++;
@@ -150,7 +147,7 @@ static char *
 stripTrailingWhitespace(char *s)
 {
     if (s == NULL) return s;
-    for (size_t i = strlen(s); i > 0 && isspace(TO_UCHAR(s[--i])); s[i] = '\0');
+    for (size_t i = strlen(s); i > 0 && OFStandard::isspace(s[--i]); s[i] = '\0');
     return s;
 }
 
@@ -161,7 +158,7 @@ stripPrecedingWhitespace(char *s)
     char *p;
     if (s == NULL) return s;
 
-    for(p = s; *p && isspace(TO_UCHAR(*p)); p++)
+    for(p = s; *p && OFStandard::isspace(*p); p++)
         ;
 
     return p;
@@ -170,7 +167,7 @@ stripPrecedingWhitespace(char *s)
 static OFBool
 onlyWhitespace(const char *s)
 {
-    while(*s) if (!isspace(TO_UCHAR(*s++)))
+    while(*s) if (!OFStandard::isspace(*s++))
         return OFFalse;
     return OFTrue;
 }
@@ -201,7 +198,7 @@ static OFBool
 isaCommentLine(const char *s)
 {
     // skip leading spaces
-    while(isspace(TO_UCHAR(*s))) ++s;
+    while(OFStandard::isspace(*s)) ++s;
     return *s == DCM_DumpCommentChar;
 }
 
@@ -1067,7 +1064,7 @@ int main(int argc, char *argv[])
         if (fileformat.canWriteXfer(opt_xfer))
         {
             /* check whether pixel data is compressed */
-            if ((opt_writeMode == EWM_dataset) && DcmXfer(xfer).isEncapsulated())
+            if ((opt_writeMode == EWM_dataset) && DcmXfer(xfer).usesEncapsulatedFormat())
             {
                 OFLOG_WARN(dump2dcmLogger, "encapsulated pixel data require file format, ignoring --write-dataset");
                 opt_writeMode = EWM_fileformat;

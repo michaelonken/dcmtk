@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1999-2023, OFFIS e.V.
+ *  Copyright (C) 1999-2025, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -22,15 +22,9 @@
 #include "dcmtk/config/osconfig.h"    /* make sure OS specific configuration is included first */
 
 BEGIN_EXTERN_C
-#ifdef HAVE_FCNTL_H
 #include <fcntl.h>       /* for O_RDONLY */
-#endif
-#ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>   /* required for sys/stat.h */
-#endif
-#ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>    /* for stat, fstat */
-#endif
 END_EXTERN_C
 
 #include "dcmtk/dcmpstat/dvpsdef.h"     /* for constants */
@@ -417,6 +411,7 @@ int main(int argc, char *argv[])
     const char *targetDescription = dvi.getTargetDescription(opt_target);
     const char *targetAETitle     = dvi.getTargetAETitle(opt_target);
     unsigned short targetPort     = dvi.getTargetPort(opt_target);
+    T_ASC_ProtocolFamily targetProtocol = dvi.getTargetProtocol(opt_target);
     unsigned long  targetMaxPDU   = dvi.getTargetMaxPDU(opt_target);
     OFBool targetImplicitOnly     = dvi.getTargetImplicitOnly(opt_target);
     OFBool targetDisableNewVRs    = dvi.getTargetDisableNewVRs(opt_target);
@@ -543,7 +538,12 @@ int main(int argc, char *argv[])
     else if (targetImplicitOnly) verboseParameters << "implicit xfer syntax only";
     else if (targetDisableNewVRs) verboseParameters << "disable post-1993 VRs";
     else verboseParameters << "none";
-    verboseParameters << OFendl;
+    verboseParameters << OFendl << "\tprotocol version: ";
+
+    if (targetProtocol == ASC_AF_INET) verboseParameters << "IPv4 only" << OFendl;
+    else if (targetProtocol == ASC_AF_INET6) verboseParameters << "IPv6 only" << OFendl;
+    else if (targetProtocol == ASC_AF_UNSPEC) verboseParameters << "determined via DNS" << OFendl;
+    else verboseParameters << "default" << OFendl;
 
     verboseParameters << "\tTLS             : ";
     if (useTLS) verboseParameters << "enabled" << OFendl; else verboseParameters << "disabled" << OFendl;
@@ -714,8 +714,9 @@ int main(int argc, char *argv[])
     }
 
     ASC_setAPTitles(params, dvi.getNetworkAETitle(), targetAETitle, NULL);
+    ASC_setProtocolFamily(params, targetProtocol);
 
-    sprintf(peerHost, "%s:%d", targetHostname, (int)targetPort);
+    OFStandard::snprintf(peerHost, sizeof(peerHost), "%s:%d", targetHostname, (int)targetPort);
     ASC_setPresentationAddresses(params, OFStandard::getHostName().c_str(), peerHost);
 
     cond = addAllStoragePresentationContexts(params, targetImplicitOnly);

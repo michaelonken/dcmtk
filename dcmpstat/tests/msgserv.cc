@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2000-2024 OFFIS e.V.
+ *  Copyright (C) 2000-2025 OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -29,9 +29,7 @@
 #endif
 
 BEGIN_EXTERN_C
-#ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>   /* we have to include this before sys/time.h on Solaris */
-#endif
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>    /* for struct timeval on Linux */
 #endif
@@ -197,12 +195,8 @@ int main(int argc, char *argv[])
       t.tv_sec = 10;  // 10 seconds timeout
       t.tv_usec = 0;
 
-#ifdef HAVE_INTP_SELECT
-      nfound = select(OFstatic_cast(int, s + 1), (int *)(&fdset), NULL, NULL, &t);
-#else
       // the typecast is safe because Windows ignores the first select() parameter anyway
       nfound = select(OFstatic_cast(int, s + 1), &fdset, NULL, NULL, &t);
-#endif
 
       if (DCM_dcmnetLogger.isEnabledFor(OFLogger::DEBUG_LOG_LEVEL))
       {
@@ -218,13 +212,8 @@ int main(int argc, char *argv[])
         int sock=0;
 #endif
         struct sockaddr from;
-#ifdef HAVE_DECLARATION_SOCKLEN_T
         socklen_t len = sizeof(from);
-#elif !defined(HAVE_PROTOTYPE_ACCEPT) || defined(HAVE_INTP_ACCEPT)
-        int len = sizeof(from);
-#else
-        size_t len = sizeof(from);
-#endif
+
         do
         {
           sock = accept(s, &from, &len);
