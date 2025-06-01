@@ -25,6 +25,8 @@
 #include "dcmtk/dcmseg/segtypes.h"
 #include "dcmtk/ofstd/oftest.h"
 #include "dcmtk/ofstd/ofstd.h"
+#include "dcmtk/ofstd/oftime.h" // For debugByte2Bin
+#include <iostream>
 
 #define bufLen 4
 
@@ -75,12 +77,13 @@ OFTEST(dcmseg_packBinaryFrame)
 
     // In 1000 iterations create sparse frames and pack them. Check whether the
     // packed frame is correct. This is not bullet proof but we use the same addressing
-    // as in the packing/unpacking code to make sure we address the right bit.
+    // as in the packing/unpacking code to make sure we address the correct bit.
     // Use a random number of cols and rows (each between 1 and 100).
     // If the packed frame is not correct, the test fails.
-    unsigned int now = OFstatic_cast(unsigned int, time(NULL));
+    OFTime tm;
     for (unsigned int i = 0; i < 1000; i++)
     {
+        unsigned int now = OFstatic_cast(unsigned int, time(NULL));
         Uint16 cols = OFrand_r(now) % 100 + 1;
         Uint16 rows = OFrand_r(now) % 100 + 1;
         Uint16 pixelCount = cols * rows;
@@ -91,25 +94,30 @@ OFTEST(dcmseg_packBinaryFrame)
         // Create a random sparse frame
         for (unsigned int j = 0; j < pixelCount; j++)
         {
-            sparseFrame[j] =  OFrand_r(now) % 2;
+            tm.setCurrentTime();
+            unsigned int micro = tm.getMicroSecond();
+            sparseFrame[j] =  OFrand_r(micro) % 2;
         }
-
         // Pack the frame
-        DcmIODTypes::FrameBase* packedFrame = DcmSegUtils::packBinaryFrame(sparseFrame, rows, cols);
+        DcmIODTypes::Frame<Uint8>* packedFrame = DcmSegUtils::packBinaryFrame(sparseFrame, rows, cols);
         OFCHECK(packedFrame != NULL);
 
         // Check the result
         for (unsigned int j = 0; j < pixelCount; j++)
         {
+            // std::cout << "Checking pixel " << j << " of " << pixelCount << std::endl;
             Uint32 byteIndex = j / 8;
             Uint32 bitIndex = j % 8;
             Uint8 mask = 1 << bitIndex;
-            if ((sparseFrame[j] != 0) != ((OFstatic_cast(Uint8*, packed->getPixelData())[byteIndex] & mask) != 0))
+            Uint8 currentByte = OFstatic_cast(Uint8*, packedFrame->getPixelData())[byteIndex];
+            // Check whether the bit at position j is set correctly
+            if ((sparseFrame[j] == 0) != ((currentByte & mask) == 0))
             {
                 OFCHECK_FAIL("Failed for row " << j / cols << " and column " << j % cols);
             }
         }
 
+        // Clean up
         delete[] sparseFrame;
         delete packedFrame;
     }

@@ -23,6 +23,7 @@
 
 #include "dcmtk/dcmiod/iodtypes.h"
 #include "dcmtk/dcmseg/segtypes.h"
+#include <iostream>
 #include "dcmtk/dcmseg/segutils.h"
 
 
@@ -83,8 +84,8 @@ DcmSegUtils::packBinaryFrame(const Uint8* pixelData, const Uint16 rows, const Ui
         return NULL;
     }
     frame->m_pixData = packedData;
-    frame->m_numPixels = totalBytes;
-    return frame;
+    frame->m_numPixels = totalBytes; // for binary frames, numPixels must be set to the number of bytes used
+    return frame; // Return the packed frame
 }
 
 OFCondition DcmSegUtils::concatBinaryFrames(const OFVector<DcmIODTypes::FrameBase*>& frames,
@@ -176,7 +177,6 @@ DcmIODTypes::Frame<Uint8>* DcmSegUtils::unpackBinaryFrame(const DcmIODTypes::Fra
             result->m_pixData[i] = 0;
         }
     }
-
     return result;
 }
 
