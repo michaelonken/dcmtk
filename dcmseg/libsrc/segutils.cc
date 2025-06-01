@@ -117,6 +117,13 @@ OFCondition DcmSegUtils::concatBinaryFrames(const OFVector<DcmIODTypes::FrameBas
     Uint32 bitIndex = 0;
     for (size_t frameIndex = 0; frameIndex < frames.size(); ++frameIndex)
     {
+        // Make sure frame has correct bit depth
+        if (frames[frameIndex]->bytesPerPixel() != 1)
+        {
+            DCMSEG_ERROR("Cannot concatenate frames with bits allocated != 1");
+            return EC_IllegalParameter;
+        }
+        // Cast the frame to the appropriate type to make access easier
         DcmIODTypes::Frame<Uint8>* frame = OFstatic_cast(DcmIODTypes::Frame<Uint8>*,frames[frameIndex]);
         Uint32 frameBits = rows * cols;
         for (Uint32 i = 0; i < frameBits; ++i)
