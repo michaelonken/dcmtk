@@ -123,7 +123,7 @@ int main(int argc, char *argv[])
         OFLOG_FATAL(segDigestLogger, "error loading file: " << cond.text());
         return 1;
     }
-    cond = seg->saveFile(opt_ofname, EXS_RLELossless);
+    cond = seg->saveFile(opt_ofname, EXS_LittleEndianExplicit);
     if (cond.bad())
     {
         OFLOG_FATAL(segDigestLogger, "error saving file: " << cond.text());

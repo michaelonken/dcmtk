@@ -4,6 +4,7 @@ set -e
 
 # Option for dump comparison
 COMPARE_DUMP=false
+VERBOSE=false
 
 # Argument parsing
 FILES=()
@@ -14,6 +15,10 @@ while [[ $# -gt 0 ]]; do
             COMPARE_DUMP=true
             shift
             ;;
+        -v)
+            VERBOSE=true
+            shift
+            ;;
         *)
             FILES+=("$1")
             shift
@@ -21,13 +26,23 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+if $VERBOSE; then
+    set -x
+fi
+
 if [ ${#FILES[@]} -eq 0 ]; then
-    echo "Usage: $0 [-d] <dicom-files-or-pattern>"
-    echo "Example: $0 -d /path/to/files/*.dcm"
+    echo "Usage: $0 [-d] [-v] <dicom-files-or-pattern>"
+    echo "Example: $0 -d -v /path/to/files/*.dcm"
     exit 1
 fi
 
-OUTPUT_DIR="output"
+OUTPUT_DIR="/tmp/DIGEST/output"
+TEMP_DIR="/tmp/DIGEST"
+
+echo "Using temporary directory: ${TEMP_DIR}"
+rm -rf "${TEMP_DIR}"
+mkdir -p "$TEMP_DIR"
+rm -rf "$OUTPUT_DIR"
 mkdir -p "$OUTPUT_DIR"
 
 echo "========== Pass 1: With segdigest =========="
@@ -35,16 +50,18 @@ echo "========== Pass 1: With segdigest =========="
 for file in "${FILES[@]}"; do
     if [ -f "$file" ]; then
         base=$(basename "$file")
-        converted_file="/tmp/converted_${base}"
-        decompressed_file="/tmp/decompressed_${base}"
-        final_file="/tmp/final_${base}"
-        dump_file="/tmp/dump_${base}.txt"
+        decompressed_file="${TEMP_DIR}/decompressed_${base}"
+        converted_file="${TEMP_DIR}/converted_${base}"
+        final_file="${TEMP_DIR}/final_${base}"
+        dump_file="${TEMP_DIR}/dump_${base}.txt"
 
         echo "Processing (with segdigest): $file"
 
-        ./bin/segdigest "$file" "$converted_file"
-        dcmdrle "$converted_file" "$decompressed_file"
-        dcmconv +e "$decompressed_file" "$final_file"
+        # Decompress input file first
+        dcmdrle "$file" "$decompressed_file"
+        # Now process with segdigest
+        ./bin/segdigest "$decompressed_file" "$converted_file"
+        dcmconv +e "$converted_file" "$final_file"
 
         if $COMPARE_DUMP; then
             dcmdump "$final_file" > "$dump_file"
@@ -59,9 +76,9 @@ echo "========== Pass 2: Without segdigest =========="
 for file in "${FILES[@]}"; do
     if [ -f "$file" ]; then
         base=$(basename "$file")
-        orig_decompressed_file="/tmp/orig_decompressed_${base}"
-        orig_final_file="/tmp/orig_final_${base}"
-        orig_dump_file="/tmp/orig_dump_${base}.txt"
+        orig_decompressed_file="${TEMP_DIR}/orig_decompressed_${base}"
+        orig_final_file="${TEMP_DIR}/orig_final_${base}"
+        orig_dump_file="${TEMP_DIR}/orig_dump_${base}.txt"
 
         echo "Processing (without segdigest): $file"
 
@@ -81,22 +98,27 @@ echo "========== Comparison =========="
 for file in "${FILES[@]}"; do
     if [ -f "$file" ]; then
         base=$(basename "$file")
-        final_file="/tmp/final_${base}"
-        orig_final_file="/tmp/orig_final_${base}"
+        # These are the output files from dcmdump +W
+        raw_file="$OUTPUT_DIR/final_${base}.0.raw"
+        orig_raw_file="$OUTPUT_DIR/orig_final_${base}.0.raw"
 
-        echo "Comparing $final_file <-> $orig_final_file ..."
+        echo "Comparing pixel data: $raw_file <-> $orig_raw_file ..."
 
-        if cmp -s "$final_file" "$orig_final_file"; then
-            echo "→ Binary files: identical"
+        if [ -f "$raw_file" ] && [ -f "$orig_raw_file" ]; then
+            if cmp -s "$raw_file" "$orig_raw_file"; then
+                echo "→ Pixel data: identical"
+            else
+                echo "→ Pixel data: DIFFERENT"
+                echo "  Byte differences (first 10):"
+                cmp -l "$raw_file" "$orig_raw_file" | head -n 10
+            fi
         else
-            echo "→ Binary files: DIFFERENT"
-            echo "  Byte differences (first 10):"
-            cmp -l "$final_file" "$orig_final_file" | head -n 10
+            echo "One or both pixel data files do not exist: $raw_file $orig_raw_file"
         fi
 
         if $COMPARE_DUMP; then
-            dump_file="/tmp/dump_${base}.txt"
-            orig_dump_file="/tmp/orig_dump_${base}.txt"
+            dump_file="${TEMP_DIR}/dump_${base}.txt"
+            orig_dump_file="${TEMP_DIR}/orig_dump_${base}.txt"
             echo "→ Dump comparison:"
             if diff -q "$dump_file" "$orig_dump_file" > /dev/null; then
                 echo "  Text dumps: identical"
