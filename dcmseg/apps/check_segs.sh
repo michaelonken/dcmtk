@@ -95,39 +95,65 @@ done
 
 echo "========== Comparison =========="
 
+total_files=0
+summary_table=()
+
 for file in "${FILES[@]}"; do
     if [ -f "$file" ]; then
+        total_files=$((total_files+1))
         base=$(basename "$file")
-        # These are the output files from dcmdump +W
         raw_file="$OUTPUT_DIR/final_${base}.0.raw"
         orig_raw_file="$OUTPUT_DIR/orig_final_${base}.0.raw"
+
+        bin_result="not tested"
+        text_result="not tested"
 
         echo "Comparing pixel data: $raw_file <-> $orig_raw_file ..."
 
         if [ -f "$raw_file" ] && [ -f "$orig_raw_file" ]; then
             if cmp -s "$raw_file" "$orig_raw_file"; then
                 echo "→ Pixel data: identical"
+                bin_result="identical"
             else
                 echo "→ Pixel data: DIFFERENT"
                 echo "  Byte differences (first 10):"
                 cmp -l "$raw_file" "$orig_raw_file" | head -n 10
+                bin_result="different"
             fi
         else
             echo "One or both pixel data files do not exist: $raw_file $orig_raw_file"
+            bin_result="not tested"
         fi
 
         if $COMPARE_DUMP; then
             dump_file="${TEMP_DIR}/dump_${base}.txt"
             orig_dump_file="${TEMP_DIR}/orig_dump_${base}.txt"
             echo "→ Dump comparison:"
-            if diff -q "$dump_file" "$orig_dump_file" > /dev/null; then
-                echo "  Text dumps: identical"
+            if [ -f "$dump_file" ] && [ -f "$orig_dump_file" ]; then
+                if diff -q "$dump_file" "$orig_dump_file" > /dev/null; then
+                    echo "  Text dumps: identical"
+                    text_result="identical"
+                else
+                    echo "  Text dumps: DIFFERENT (first few lines):"
+                    diff -u "$dump_file" "$orig_dump_file" | head -n 20
+                    text_result="different"
+                fi
             else
-                echo "  Text dumps: DIFFERENT (first few lines):"
-                diff -u "$dump_file" "$orig_dump_file" | head -n 20
+                echo "  One or both dump files do not exist: $dump_file $orig_dump_file"
+                text_result="not tested"
             fi
         fi
 
+        summary_table+=("$base|$bin_result|$text_result")
         echo
     fi
 done
+
+echo "========== Summary =========="
+printf "%-45s | %-15s | %-15s\n" "File" "Binary" "Textual"
+printf "%-45s-+-%-15s-+-%-15s\n" "---------------------------------------------" "---------------" "---------------"
+for entry in "${summary_table[@]}"; do
+    IFS="|" read -r base bin_result text_result <<< "$entry"
+    printf "%-45s | %-15s | %-15s\n" "$base" "$bin_result" "$text_result"
+done
+echo "Total files compared: $total_files"
