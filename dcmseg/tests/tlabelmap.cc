@@ -550,18 +550,19 @@ static void addPalette(DcmSegmentation* seg, const Uint8 bitsAllocated)
     if (bitsAllocated == 8)
     {
         IODPaletteColorLUTModule& pal8 = seg->getPaletteColorLUT();
-        OFCHECK(pal8.setRedPaletteColorLookupTableDescriptor(0, 0, 8).good());
-        OFCHECK(pal8.setGreenPaletteColorLookupTableDescriptor(0, 0, 8).good());
-        OFCHECK(pal8.setBluePaletteColorLookupTableDescriptor(0, 0, 8).good());
+        OFCHECK(pal8.setRedPaletteColorLookupTableDescriptor(255, 0, 8).good());
+        OFCHECK(pal8.setGreenPaletteColorLookupTableDescriptor(255, 0, 8).good());
+        OFCHECK(pal8.setBluePaletteColorLookupTableDescriptor(255, 0, 8).good());
         // re-use the same data for all entries
-        Uint8* data = new Uint8[256];
-        for (Uint16 i = 0; i < 256; i++)
+        const Uint8 MAX_8BIT_ENTRIES = 255;
+        Uint8* data = new Uint8[MAX_8BIT_ENTRIES];
+        for (Uint16 i = 0; i < MAX_8BIT_ENTRIES; i++)
         {
             data[i] = OFstatic_cast(Uint8, i);
         }
-        OFCHECK(pal8.setRedPaletteColorLookupTableData(data, 256).good());
-        OFCHECK(pal8.setGreenPaletteColorLookupTableData(data, 256).good());
-        OFCHECK(pal8.setBluePaletteColorLookupTableData(data, 256).good());
+        OFCHECK(pal8.setRedPaletteColorLookupTableData(data, MAX_8BIT_ENTRIES).good());
+        OFCHECK(pal8.setGreenPaletteColorLookupTableData(data, MAX_8BIT_ENTRIES).good());
+        OFCHECK(pal8.setBluePaletteColorLookupTableData(data, MAX_8BIT_ENTRIES).good());
         delete [] data;
     }
     else if (bitsAllocated == 16)
@@ -591,25 +592,26 @@ static void checkPalette(DcmDataset* dset, const Uint8 bitsAllocated)
 {
     if (bitsAllocated == 8)
     {
+        Uint8 MAX_ENTRIES_8_BIT = 255;
         IODPaletteColorLUTModule pal8;
         OFCHECK(pal8.read(*dset).good());
         Uint16 numEntries, firstEntry, bits;
         OFCHECK(pal8.getRedPaletteColorLookupTableDescriptor(numEntries, 0).good());
         OFCHECK(pal8.getRedPaletteColorLookupTableDescriptor(firstEntry, 1).good());
         OFCHECK(pal8.getRedPaletteColorLookupTableDescriptor(bits, 2).good());
-        OFCHECK(numEntries == 0);
+        OFCHECK(numEntries == 255);
         OFCHECK(firstEntry == 0);
         OFCHECK(bits == bitsAllocated);
         OFCHECK(pal8.getGreenPaletteColorLookupTableDescriptor(numEntries, 0).good());
         OFCHECK(pal8.getGreenPaletteColorLookupTableDescriptor(firstEntry, 1).good());
         OFCHECK(pal8.getGreenPaletteColorLookupTableDescriptor(bits, 2).good());
-        OFCHECK(numEntries == 0);
+        OFCHECK(numEntries == MAX_ENTRIES_8_BIT);
         OFCHECK(firstEntry == 0);
         OFCHECK(bits == bitsAllocated);
         OFCHECK(pal8.getBluePaletteColorLookupTableDescriptor(numEntries, 0).good());
         OFCHECK(pal8.getBluePaletteColorLookupTableDescriptor(firstEntry, 1).good());
         OFCHECK(pal8.getBluePaletteColorLookupTableDescriptor(bits, 2).good());
-        OFCHECK(numEntries == 0);
+        OFCHECK(numEntries == MAX_ENTRIES_8_BIT);
         OFCHECK(firstEntry == 0);
         OFCHECK(bits == bitsAllocated);
 
@@ -620,15 +622,15 @@ static void checkPalette(DcmDataset* dset, const Uint8 bitsAllocated)
         OFCHECK(pal8.getRedPaletteColorLookupTableData(redData, numEntriesRed).good());
         OFCHECK(pal8.getGreenPaletteColorLookupTableData(greenData, numEntriesGreen).good());
         OFCHECK(pal8.getBluePaletteColorLookupTableData(blueData, numEntriesBlue).good());
-        OFCHECK(numEntriesRed == 256);
-        OFCHECK(numEntriesBlue == 256);
-        OFCHECK(numEntriesGreen == 256);
+        OFCHECK(numEntriesRed == MAX_ENTRIES_8_BIT);
+        OFCHECK(numEntriesBlue == MAX_ENTRIES_8_BIT);
+        OFCHECK(numEntriesGreen == MAX_ENTRIES_8_BIT);
         OFCHECK(redData != NULL);
         OFCHECK(greenData != NULL);
         OFCHECK(blueData != NULL);
         if (redData && greenData && blueData)
         {
-            for (Uint32 i = 0; i < 256; i++)
+            for (Uint32 i = 0; i < MAX_ENTRIES_8_BIT; i++)
             {
                 OFCHECK(redData[i] == OFstatic_cast(Uint8, i));
                 OFCHECK(greenData[i] == OFstatic_cast(Uint8, i));
