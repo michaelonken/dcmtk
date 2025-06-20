@@ -637,6 +637,9 @@ static void checkPalette(DcmDataset* dset, const Uint8 bitsAllocated)
                 OFCHECK(blueData[i] == OFstatic_cast(Uint8, i));
             }
         }
+        delete[] redData;
+        delete[] greenData;
+        delete[] blueData;
     }
     else if (bitsAllocated == 16)
     {

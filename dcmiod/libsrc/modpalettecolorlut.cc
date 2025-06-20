@@ -711,16 +711,16 @@ OFBool IODPaletteColorLUTModule::checkDataConsistency(const OFBool& isError)
                         maxEntries = 256;
                         const Uint8* data = NULL;
                         result = getRedPaletteColorLookupTableData(data, redActualNumEntries);
-                        delete data;
+                        delete[] data;
                         if (result.good())
                         {
                             result = getGreenPaletteColorLookupTableData(data, greenActualNumEntries);
-                            delete data;
+                            delete[] data;
                         }
                         if (result.good())
                         {
                             result = getBluePaletteColorLookupTableData(data, blueActualNumEntries);
-                            delete data;
+                            delete[] data;
                         }
                     }
                     else if (bits == 16)
@@ -728,16 +728,16 @@ OFBool IODPaletteColorLUTModule::checkDataConsistency(const OFBool& isError)
                         maxEntries = 65536;
                         const Uint16* data = NULL;
                         result = getRedPaletteColorLookupTableData(data, redActualNumEntries);
-                        delete data;
+                        delete[] data;
                         if (result.good())
                         {
                             result = getGreenPaletteColorLookupTableData(data, greenActualNumEntries);
-                            delete data;
+                            delete[] data;
                         }
                         if (result.good())
                         {
                             result = getBluePaletteColorLookupTableData(data, blueActualNumEntries);
-                            delete data;
+                            delete[] data;
                         }
                     }
                     if (result.good())
