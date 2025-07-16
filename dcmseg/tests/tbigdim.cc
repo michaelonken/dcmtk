@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2022-2024, OFFIS e.V.
+ *  Copyright (C) 2022-2025, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -22,6 +22,7 @@
 #include "dcmtk/config/osconfig.h" /* make sure OS specific configuration is included first */
 #include "dcmtk/ofstd/oftest.h"
 #include "dcmtk/dcmseg/segtypes.h" /* for DCMSEG_DEBUG */
+#include <iostream>
 
 #ifdef HAVE_STL_MAP
 #include "dcmtk/dcmseg/segdoc.h"
@@ -45,7 +46,7 @@ static const Uint8 NUM_COLS             = 5;
 // Restrict to 1.000.000 Frames since the theoretical 2^31-1 number of frames
 // results in too much memory usage and waiting time
 static const Uint32 NUM_FRAMES           = 1000000;
-static const Uint16 NUM_SEGS             = DCM_SEG_MAX_SEGMENTS;
+static const size_t NUM_SEGS             = DCM_SEG_MAX_SEGMENTS;
 
 static const Uint8 NUM_PIXELS_PER_FRAME = NUM_COLS * NUM_ROWS;
 
@@ -218,11 +219,12 @@ static void addFrames(DcmSegmentation* seg)
             {
                 data[i] = i;
             }
-            OFCHECK(fg_seg->setReferencedSegmentNumber(frameNo % (DCM_SEG_MAX_SEGMENTS + 1)).good()); // limit/loop to 16 bit
+            Uint16 segmentNumber = OFstatic_cast(Uint16, ((frameNo-1) % (NUM_SEGS)) +1); // segment numbers start at 1
+            OFCHECK(fg_seg->setReferencedSegmentNumber(segmentNumber).good()); // limit/loop to 16 bit
             OFVector<FGBase*> perFrameFGs;
             perFrameFGs.push_back(fg);
             perFrameFGs.push_back(fg_seg);
-            OFCHECK(seg->addFrame(data, frameNo % (DCM_SEG_MAX_SEGMENTS + 1), perFrameFGs).good());
+            OFCHECK(seg->addFrame(data, segmentNumber, perFrameFGs).good());
             delete[] data;
         }
     }
@@ -278,10 +280,10 @@ static void checkCreatedObject(DcmDataset& dset)
     OFCHECK(dset.findAndGetSequence(DCM_PerFrameFunctionalGroupsSequence, seq).good());
     if (seq != NULL)
     {
-        size_t card = seq->card();
-        OFCHECK(card == NUM_FRAMES);
+        size_t numFrames = seq->card();
+        OFCHECK(numFrames == NUM_FRAMES);
         DcmItem* item = seq->getItem(0);
-        for (size_t n = 0; (n < card) && (item != NULL); n++)
+        for (size_t n = 0; (n < numFrames) && (item != NULL); n++)
         {
             DcmItem* fgItem = NULL;
             OFCHECK(item->findAndGetSequenceItem(DCM_SegmentIdentificationSequence, fgItem, 0).good());
@@ -289,7 +291,7 @@ static void checkCreatedObject(DcmDataset& dset)
             {
                 Uint16 segNum = 0;
                 OFCHECK(fgItem->findAndGetUint16(DCM_ReferencedSegmentNumber, segNum).good());
-                OFCHECK(segNum == ((n + 1) % (DCM_SEG_MAX_SEGMENTS + 1)));
+                OFCHECK(segNum == ((n % NUM_SEGS) + 1));
 
             }
             item = OFstatic_cast(DcmItem*, seq->nextInContainer(item));
