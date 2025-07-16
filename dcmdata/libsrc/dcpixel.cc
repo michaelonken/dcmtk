@@ -1323,7 +1323,7 @@ OFCondition DcmPixelData::writeJson(STD_NAMESPACE ostream &out,
             Uint8 *byteValues = OFstatic_cast(Uint8 *, getValue(EBO_LittleEndian));
 
             // write as bulk data
-            OFCondition status = format.writeBulkData(out, getLengthField(), byteValues);
+            OFCondition status = format.writeBulkData(out, getTag(), getLengthField(), byteValues);
 
             // write JSON Closer
             writeJsonCloser(out, format);
@@ -1347,7 +1347,7 @@ OFCondition DcmPixelData::writeJson(STD_NAMESPACE ostream &out,
             if (imageFrames != 1)
             {
                 DCMDATA_WARN("Encapsulated multi-frame images cannot be represented in JSON");
-                return EC_CannotWriteJsonMultiframe;
+                return EC_CannotWriteJSONMultiframe;
             }
 
             // (*current)->pixSeq is not NULL at this point, we have checked this earlier in this method

@@ -1,23 +1,23 @@
 /*
-*
-*  Copyright (C) 2016-2025, OFFIS e.V.
-*  All rights reserved.  See COPYRIGHT file for details.
-*
-*  This software and supporting documentation were developed by
-*
-*    OFFIS e.V.
-*    R&D Division Health
-*    Escherweg 2
-*    D-26121 Oldenburg, Germany
-*
-*
-*  Module:  dcmdata
-*
-*  Author:  Sebastian Grallert, Marco Eichelberg
-*
-*  Purpose: Convert the contents of a DICOM file to JSON format
-*
-*/
+ *
+ *  Copyright (C) 2016-2025, OFFIS e.V.
+ *  All rights reserved.  See COPYRIGHT file for details.
+ *
+ *  This software and supporting documentation were developed by
+ *
+ *    OFFIS e.V.
+ *    R&D Division Health
+ *    Escherweg 2
+ *    D-26121 Oldenburg, Germany
+ *
+ *
+ *  Module:  dcmdata
+ *
+ *  Author:  Sebastian Grallert, Marco Eichelberg
+ *
+ *  Purpose: Convert the contents of a DICOM file to JSON format
+ *
+ */
 
 #include "dcmtk/config/osconfig.h"      /* make sure OS specific configuration is included first */
 
@@ -28,6 +28,7 @@
 #include "dcmtk/ofstd/ofstream.h"
 #include "dcmtk/ofstd/ofconapp.h"
 #include "dcmtk/ofstd/ofexit.h"
+#include "dcmtk/ofstd/ofstd.h"
 
 #include <cstdlib>
 
@@ -117,6 +118,38 @@ static OFCondition writeFile(
     return result;
 }
 
+/** append the given file path to the output URL while URL-encoding
+ *  special characters. Note that the reserved characters '/' and
+ *  ':' are not encoding since they are routinely used in file: URLs.
+ *  @param path file path
+ *  @param output_url output URL
+ */
+static void appendURLEncodedPath(const char *path, OFString& output_url)
+{
+  if (path)
+  {
+    char c;
+    for (const char *p=path; *p != '\0'; ++p)
+    {
+      c = *p;
+      // URL encode all characters except a-z, A-Z, 0-9, and "-_./!~$:"
+      // The reserved characters "/" and ":" are not URL encoded because they routinely occur in file: URLs
+      if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '/' || c == '!' || c == '~' || c == '$' || c == ':') output_url.append(1, *p);
+      else if (c == '\\')
+      {
+          // convert backslashes to forward slashes
+          output_url.append("/");
+      }
+      else
+      {
+          char buf[5];
+          OFStandard::snprintf(buf, 5, "%%%02X", c);
+          output_url.append(buf);
+      }
+    }
+  }
+}
+
 /** determine the real path to the given working directory
  *  and return it in the form of a file:// URI.
  *  @param input_dir current working directory, NULL for current directory
@@ -140,21 +173,9 @@ static OFCondition getCurrentWorkingDir(const char *input_dir, OFString& output_
     }
     output_dir = "file://localhost";
     if (resolved_path[0] != '/') output_dir.append("/");
-    output_dir.append(resolved_path);
+    appendURLEncodedPath(resolved_path, output_dir);
     output_dir.append("/");
     free(resolved_path);
-
-#include DCMTK_DIAGNOSTIC_PUSH
-#include DCMTK_DIAGNOSTIC_IGNORE_CONST_EXPRESSION_WARNING
-    if (PATH_SEPARATOR != '/')
-    {
-        // replace path separator by '/'
-        size_t l = output_dir.length();
-        for (size_t i=0; i<l; ++i)
-             if (output_dir[i] == PATH_SEPARATOR) output_dir[i] = '/';
-    }
-#include DCMTK_DIAGNOSTIC_POP
-
     return EC_Normal;
 }
 
@@ -413,7 +434,8 @@ int main(int argc, char *argv[])
                 // look for the SOP instance UID, first in the dataset, then in the metaheader
                 OFString subDir;
                 OFString bulkDir = opt_bulk_dir;
-                OFString bulkURIPrefixWithSubdir = opt_bulk_uri_prefix;
+                OFString bulkURIPrefixWithSubdir;
+                if (opt_bulk_uri_prefix) bulkURIPrefixWithSubdir = opt_bulk_uri_prefix;
                 if ((opt_min_bulk_size >= 0) && opt_bulk_subdir)
                 {
                     if (dfile.getDataset()->findAndGetOFString(DCM_SOPInstanceUID, subDir).bad()

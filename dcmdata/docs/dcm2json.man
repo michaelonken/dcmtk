@@ -134,8 +134,8 @@ bulk data URI options:
          write bulk data files to d (default: '.')
 
   +bs  --bulk-subdir
-          create subdirectory for each SOP instance
-          (default: no subdirectory)
+         create subdirectory for each SOP instance
+         (default: no subdirectory)
 \endverbatim
 
 \subsection dcm2json_output_options output options
@@ -321,26 +321,23 @@ the following (see DICOM Part 18 Section F for details):
 
 By default, binary data, i.e. DICOM element values with Value Representations
 (VR) of OB, OD, OF, OL, OV, OW, and UN values are written as "InlineBinary"
-(base64 encoding) to the JSON output.
-Option \e --bulk-enabled causes binary data as well as
-DS, FD, FL, IS, SV and UV to be replaced by "BulkDataURI" values if the
-element value is larger than the cut-off threshold (default: 1 kByte).
-The cut-off threshold can be specified with the \e --bulk-size option.
-The element values themselves are written as files to the directory
-given by the \e --bulk-dir option (default: current directory).
-The filename is based on a SHA-256 checksum of the element value.
-By default, file URIs are generated that point to the bulk directory.
-For production use, a URI prefix for a WADO-RS service over which the
-element values can be retrieved should be specified using the
-\e --bulk-uri-prefix option. This can be implemented by configuring
-a web server that has read access to \b dcm2json's bulk directory.
-Finally, the option \e --bulk-subdir will cause a separate
-subdirectory to be created (and used in the bulk data URI) for each
-distinct SOP instance.
+(base64 encoding) to the JSON output.  Option \e --bulk-enabled causes binary
+data as well as DS, FD, FL, IS, SV and UV to be replaced by "BulkDataURI"
+values if the element value is larger than the cut-off threshold (default: 1
+kByte).  The cut-off threshold can be specified with the \e --bulk-size option.
+The element values themselves are written as files to the directory given by
+the \e --bulk-dir option (default: current directory).  The filename is based
+on a SHA-256 checksum of the element value.  By default, file URIs are
+generated that point to the bulk directory.  For production use, a URI prefix
+for a WADO-RS service over which the element values can be retrieved should be
+specified using the \e --bulk-uri-prefix option.  This can be implemented by
+configuring a web server that has read access to \b dcm2json's bulk directory.
+Finally, the option \e --bulk-subdir will cause a separate subdirectory to be
+created (and used in the bulk data URI) for each distinct SOP instance.
 
 Note that the JSON syntax for the representation of encapsulated pixel data
 in "InlineBinary" form is unspecified in DICOM, as is the JSON representation
-of encapsulated multi-frame pixel data. These DICOM files cannot be converted
+of encapsulated multi-frame pixel data.  These DICOM files cannot be converted
 to JSON using \b dcm2json.
 
 The file name extension for the bulk data files generated can be used to
@@ -362,6 +359,11 @@ Extension     MIME Type
 .H265         video/H265
 \endverbatim
 
+Finally, it should be noted that bulk data will be written "as is", i.e.
+\b dcm2json will not attempt to validate or modify the element value in any
+way.  For example, \b dcm2json will not add a JFIF header in the case of JPEG
+baseline compressed images, which some JPEG viewers may expect.
+
 \section dcm2json_notes NOTES
 
 \subsection dcm2json_numbers_as_strings Numbers as Strings
@@ -379,8 +381,8 @@ parsers cannot process larger numbers.
 \subsection dcm2json_character_encoding Character Encoding
 
 As required by the DICOM JSON encoding, \b dcm2json always creates output in
-Unicode UTF-8 encoding and converts DICOM datasets accordingly.  If this is not
-possible, for example because DCMTK has been compiled without character set
+Unicode UTF-8 encoding and converts DICOM data sets accordingly.  If this is
+not possible, for example because DCMTK has been compiled without character set
 conversion support, an error is returned.
 
 \section dcm2json_logging LOGGING
