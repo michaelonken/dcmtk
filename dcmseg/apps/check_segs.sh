@@ -5,6 +5,7 @@ set -e
 # Option for dump comparison
 COMPARE_DUMP=false
 VERBOSE=false
+IGNORE_MISSING=false
 
 # Argument parsing
 FILES=()
@@ -19,6 +20,11 @@ while [[ $# -gt 0 ]]; do
             VERBOSE=true
             shift
             ;;
+        -i)
+            IGNORE_MISSING=true
+            echo "Warning: Using --ignore-missing will skip checks for missing input files."
+            shift
+            ;;
         *)
             FILES+=("$1")
             shift
@@ -31,8 +37,8 @@ if $VERBOSE; then
 fi
 
 if [ ${#FILES[@]} -eq 0 ]; then
-    echo "Usage: $0 [-d] [-v] <dicom-files-or-pattern>"
-    echo "Example: $0 -d -v /path/to/files/*.dcm"
+    echo "Usage: $0 [-d] [-v] [-i] <dicom-files-or-pattern>"
+    echo "Example: $0 -d -v -i /path/to/files/*.dcm"
     exit 1
 fi
 
@@ -60,7 +66,11 @@ for file in "${FILES[@]}"; do
         # Decompress input file first
         dcmdrle "$file" "$decompressed_file"
         # Now process with segdigest
-        ./bin/segdigest "$decompressed_file" "$converted_file"
+        if $IGNORE_MISSING; then
+            ./bin/segdigest --ignore-missing "$decompressed_file" "$converted_file"
+        else
+            ./bin/segdigest "$decompressed_file" "$converted_file"
+        fi
         dcmconv +e "$converted_file" "$final_file"
 
         if $COMPARE_DUMP; then

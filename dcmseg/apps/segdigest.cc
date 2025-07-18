@@ -62,6 +62,10 @@ int main(int argc, char *argv[])
   cmd.addGroup("general options:", LONGCOL, SHORTCOL + 2);
     cmd.addOption("--help",                  "-h",     "print this help text and exit", OFCommandLine::AF_Exclusive);
     cmd.addOption("--version",                         "print version information and exit", OFCommandLine::AF_Exclusive);
+
+  cmd.addGroup("output options:", LONGCOL, SHORTCOL + 2);
+    cmd.addOption("--ignore-missing",                  "-i",     "ignore missing input files", 0);
+
     OFLog::addOptions(cmd);
 
     /* evaluate command line */
@@ -122,6 +126,12 @@ int main(int argc, char *argv[])
     {
         OFLOG_FATAL(segDigestLogger, "error loading file: " << cond.text());
         return 1;
+    }
+    // ignore missing values if desired
+    if (cmd.findOption("--ignore-missing"))
+    {
+        std::cout << "Warning: Using --ignore-missing will skip checks for missing input files." << std::endl;
+        seg->setValueCheckOnWrite(OFFalse);
     }
     cond = seg->saveFile(opt_ofname, EXS_LittleEndianExplicit);
     if (cond.bad())

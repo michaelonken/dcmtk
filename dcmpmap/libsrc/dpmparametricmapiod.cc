@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2016-2024, Open Connections GmbH
+ *  Copyright (C) 2016-2025, Open Connections GmbH
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation are maintained by
@@ -906,6 +906,28 @@ OFBool DPMParametricMapIOD::check()
     DCMPMAP_ERROR("Invalid value for Content Qualification" << val);
   }
   return OFFalse;
+}
+
+
+void DPMParametricMapIOD::setCheckFGOnWrite(const OFBool doCheck)
+{
+  m_FGInterface.setCheckOnWrite(doCheck);
+}
+
+
+void DPMParametricMapIOD::setValueCheckOnWrite(const OFBool doCheck)
+{
+  // Forward setting into all modules
+  m_DPMParametricMapSeriesModule.setValueCheckOnWrite(doCheck);
+  m_IODEnhGeneralEquipmentModule.setValueCheckOnWrite(doCheck);
+  m_IODMultiframeDimensionModule.setValueCheckOnWrite(doCheck);
+  m_IODAcquisitionContextModule.setValueCheckOnWrite(doCheck);
+  m_IODCommonInstanceReferenceModule.setValueCheckOnWrite(doCheck);
+
+  m_IODMultiFrameFGModule.setValueCheckOnWrite(doCheck);
+  m_DPMParametricMapImageModule.setValueCheckOnWrite(doCheck);
+  m_DPMParametricMapSeriesModule.setValueCheckOnWrite(doCheck);
+  DcmIODImage::setValueCheckOnWrite(doCheck);
 }
 
 
