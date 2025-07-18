@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2015-2024, Open Connections GmbH
+ *  Copyright (C) 2015-2025, Open Connections GmbH
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation are maintained by
@@ -131,6 +131,16 @@ public:
      *  @return OFTrue if checking is performed, OFFalse otherwise
      */
     virtual OFBool getCheckFGOnWrite();
+
+    /** Set whether attribute values should be checked on writing, i.e. if writing
+     *  should fail if attribute values violate their VR, VM, character set or value length.
+     *  A missing but required value is always considered an error, independent of this setting.
+     *  If set to OFFalse, writing will always succeed, even if attribute value constraints
+     *  are violated. A warning instead of an error will be printed to the logger.
+     *  @param  checkValue If OFTrue, attribute value errors are handled as errors on writing, if OFFalse
+     *          any errors are ignored.
+     */
+    virtual void setValueCheckOnWrite(const OFBool doCheck) override;
 
     /** If enabled, dimensions are checked before actual writing.
      *  This can be very time-consuming if many frames are present.
@@ -686,6 +696,7 @@ private:
     // Enhanced General Equipment Module (through DcmIODImage)
     // General Image Module (through DcmIODImage)
     // Image Pixel Module (through DcmIODImage)
+    // Palette Color LUT Module (through this class)
     // Segmentation Image Module (through this class)
     // Multi-frame Functional Group Module
     // Multi-Frame Dimension Module

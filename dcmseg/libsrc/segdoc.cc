@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2015-2024, Open Connections GmbH
+ *  Copyright (C) 2015-2025, Open Connections GmbH
  *
  *  All rights reserved.  See COPYRIGHT file for details.
  *
@@ -484,6 +484,15 @@ void DcmSegmentation::setCheckFGOnWrite(const OFBool doCheck)
 OFBool DcmSegmentation::getCheckFGOnWrite()
 {
     return m_FGInterface.getCheckOnWrite();
+}
+
+void DcmSegmentation::setValueCheckOnWrite(const OFBool doCheck)
+{
+    m_SegmentationSeries.setValueCheckOnWrite(doCheck);
+    m_EnhancedGeneralEquipmentModule.setValueCheckOnWrite(doCheck);
+    m_PaletteColorLUTModule.setValueCheckOnWrite(doCheck);
+    m_DimensionModule.setValueCheckOnWrite(doCheck);
+    DcmSegmentation::IODImage::setValueCheckOnWrite(doCheck);
 }
 
 void DcmSegmentation::setCheckDimensionsOnWrite(const OFBool doCheck)
