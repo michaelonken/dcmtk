@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2015-2024, Open Connections GmbH
+ *  Copyright (C) 2015-2025, Open Connections GmbH
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation are maintained by
@@ -126,17 +126,31 @@ OFCondition DcmSegUtils::concatBinaryFrames(const OFVector<DcmIODTypes::FrameBas
         // Cast the frame to the appropriate type to make access easier
         DcmIODTypes::Frame<Uint8>* frame = OFstatic_cast(DcmIODTypes::Frame<Uint8>*,frames[frameIndex]);
         Uint32 frameBits = rows * cols;
-        for (Uint32 i = 0; i < frameBits; ++i)
+        // If a frame always has bytes fully packed, i.e. number of bits i a multiple of 8,
+        // we can copy the bytes directly and don't have to fiddle with the bits
+        if (frameBits % 8 == 0)
         {
-            Uint32 byteIndex = i / 8;
-            Uint32 bitPos = i % 8;
-            if (frame->m_pixData[byteIndex] & (1 << bitPos % 8)) {
-                Uint32 targetByteIndex = bitIndex / 8;
-                Uint32 targetBitPos = bitIndex % 8;
-                pixData[targetByteIndex] |= (1 << targetBitPos);
-                DCMSEG_TRACE("Setting bit at targetByteIndex: " << targetByteIndex << ", targetBitPos: " << targetBitPos << ", frame->pixData[" << byteIndex << "]: " << DcmSegUtils::debugByte2Bin(OFstatic_cast(Uint8*, frame->getPixelData())[byteIndex]) << ", value: " << DcmSegUtils::debugByte2Bin(pixData[targetByteIndex]));
+            Uint32 bytesToCopy = frameBits / 8;
+            memcpy(pixData + (bitIndex / 8), frame->getPixelData(), bytesToCopy);
+            DCMSEG_TRACE("Copying " << bytesToCopy << " bytes from frame " << frameIndex << " to pixData at index " << (bitIndex / 8));
+            bitIndex += frameBits;
+        }
+        else
+        {
+            // we need to copy bitwise, so we iterate over the bits
+            DCMSEG_TRACE("Copying " << frameBits << " bits from frame " << frameIndex << " to pixData at index " << (bitIndex / 8));
+            for (Uint32 i = 0; i < frameBits; ++i)
+            {
+                Uint32 byteIndex = i / 8;
+                Uint32 bitPos = i % 8;
+                if (frame->m_pixData[byteIndex] & (1 << bitPos % 8)) {
+                    Uint32 targetByteIndex = bitIndex / 8;
+                    Uint32 targetBitPos = bitIndex % 8;
+                    pixData[targetByteIndex] |= (1 << targetBitPos);
+                    DCMSEG_TRACE("Setting bit at targetByteIndex: " << targetByteIndex << ", targetBitPos: " << targetBitPos << ", frame->pixData[" << byteIndex << "]: " << DcmSegUtils::debugByte2Bin(OFstatic_cast(Uint8*, frame->getPixelData())[byteIndex]) << ", value: " << DcmSegUtils::debugByte2Bin(pixData[targetByteIndex]));
+                }
+                bitIndex++;
             }
-            bitIndex++;
         }
     }
 
