@@ -2008,65 +2008,6 @@ OFCondition DcmSegmentation::decompress(DcmDataset& dset)
     return result;
 }
 
-// OFCondition
-// DcmSegmentation::concatFrames(OFVector<DcmIODTypes::FrameBase*> frames, Uint8* pixData, const size_t bitsPerFrame)
-// {
-//     // Writing position within the pixData memory
-//     Uint8* writePos                                       = pixData;
-//     OFVector<DcmIODTypes::FrameBase*>::iterator baseFrame = frames.begin();
-//     if ((*baseFrame)->bytesPerPixel() > 1)
-//     {
-//         DCMSEG_ERROR(
-//             "Internal error, cannot concatenate frames for 8-bit pixel data (binary segmentations only support 1 bit)");
-//         ;
-//         return IOD_EC_InvalidPixelData;
-//     }
-//     Uint8 freeBits  = 0;
-//     Uint8 firstByte = 0;
-//     // Iterate over frames and copy each to pixData memory
-//     for (size_t f = 0; baseFrame != frames.end(); f++)
-//     {
-//         DCMSEG_DEBUG("Packing segmentation frame #" << f + 1 << "/" << frames.size());
-//         // Backup first byte of the destination since it may contain bits of the
-//         // previous frame; mask out those bits not belonging to previous frame.
-//         // This will potentially create some empty bits on the left of the byte,
-//         // that the current frame can use to store the its own first bits.
-//         firstByte                        = OFstatic_cast(unsigned char, (writePos[0] << freeBits)) >> freeBits;
-//         DcmIODTypes::Frame<Uint8>* frame = OFstatic_cast(DcmIODTypes::Frame<Uint8>*, *baseFrame);
-//         memcpy(writePos, (*frame).getPixelDataTyped(), (*frame).getLengthInBytes());
-//         // If the previous frame left over some unused bits, shift the current frame
-//         // that number of bits to the left, and restore the original bits of the
-//         // previous frame that are overwritten by the shifting operation.
-//         if (freeBits > 0)
-//         {
-//             DcmSegUtils::alignFrameOnBitPosition(writePos, (*frame).getLengthInBytes(), 8 - freeBits);
-//             writePos[0] |= firstByte;
-//         }
-//         // Compute free bits left over from this frame in the previous byte written
-//         freeBits = (8 - (((f + 1) * bitsPerFrame) % 8)) % 8;
-//         // If we have free bits, the previous byte written to will be the first byte
-//         // we write to for the next frame. Otherwise start with a fresh destination
-//         // byte.
-//         if (freeBits > 0)
-//         {
-//             writePos = writePos + (*frame).getLengthInBytes() - 1;
-//         }
-//         else
-//         {
-//             writePos = writePos + (*frame).getLengthInBytes();
-//         }
-//         // Next frame
-//         baseFrame++;
-//     }
-//     // Through shifting we can have non-zero bits within the unused bits of the
-//     // last byte. Fill them with zeros (though not required by the standard).
-//     if (freeBits > 0)
-//     {
-//         *writePos = (OFstatic_cast(unsigned char, *writePos) >> freeBits) << freeBits;
-//     }
-//     return EC_Normal;
-// }
-
 
 OFString DcmSegmentation::determineColorModel()
 {
