@@ -55,6 +55,10 @@ static const Uint16 NUM_COLS             = 257;
 static const Uint16 NUM_FRAMES            = 2;
 static const size_t NUM_PIXELS_PER_FRAME = NUM_COLS * NUM_ROWS;
 
+
+// set to true to keep temporary files for debugging
+static const OFBool keepTempFiles = OFTrue;
+
 // For 8 bit, pixel values 0 to 255 are permitted.
 // For 16 bit, pixel values 0 to 65534 are permitted, since for labelmaps the pixel
 // value represents the segment number as well, and DICOM permits a maximum segment number
@@ -66,7 +70,7 @@ static const size_t NUM_PIXELS_PER_FRAME = NUM_COLS * NUM_ROWS;
 static DcmSegmentation* createLabelMap(const Uint8 bits_allocated, const DcmSegTypes::E_SegmentationLabelmapColorModel cm);
 static void setGenericValues(DcmSegmentation* seg);
 static void addSharedFGs(DcmSegmentation* seg);
-static void addPalette(DcmSegmentation* seg, const Uint8 bitsAllocated);
+static void addPaletteAndICCProfile(DcmSegmentation* seg, const Uint8 bitsAllocated);
 template<typename T>
 static void addFrames(DcmSegmentation* seg, const Uint8 bitsAllocated);
 static void addSegments(DcmSegmentation *seg, const Uint8 bitsAllocated);
@@ -121,6 +125,11 @@ OFTEST(dcmseg_labelmap_8bit_mono2)
     {
         OFCHECK(seg->writeDataset(loaded_ds).good());
         checkCreatedObject(&loaded_ds, 8, DcmSegTypes::SLCM_MONOCHROME2);
+    }
+    if (keepTempFiles)
+    {
+        std::cout << "Keeping temporary file: " << temp_fn << " from test dcmseg_labelmap_8bit_mono2" << std::endl;
+        tf.stealFile();
     }
 
     // // Check writing the object to a concatenation
@@ -197,6 +206,11 @@ OFTEST_FLAGS(dcmseg_labelmap_16bit_mono2, EF_Slow)
     //     delFile++;
     // }
     delete seg_object;
+    if (keepTempFiles)
+    {
+        std::cout << "Keeping temporary file: " << temp_fn << " from test dcmseg_labelmap_16bit_mono2" << std::endl;
+        tf.stealFile();
+    }
 }
 
 OFTEST(dcmseg_labelmap_8bit_palette)
@@ -215,7 +229,7 @@ OFTEST(dcmseg_labelmap_8bit_palette)
     addFrames<Uint8>(seg, 8);
     addSegments(seg, 8);
     addDimensions(seg);
-    addPalette(seg, 8);
+    addPaletteAndICCProfile(seg, 8);
 
     // Write to dataset and compare its dump with expected result
     DcmFileFormat dcmff;
@@ -257,6 +271,11 @@ OFTEST(dcmseg_labelmap_8bit_palette)
     //     delFile++;
     // }
     delete seg;
+    if (keepTempFiles)
+    {
+        std::cout << "Keeping temporary file: " << temp_fn << " from test dcmseg_labelmap_8bit_palette" << std::endl;
+        tf.stealFile();
+    }
 }
 
 
@@ -276,7 +295,7 @@ OFTEST_FLAGS(dcmseg_labelmap_16bit_palette, EF_Slow)
     addFrames<Uint16>(seg_object, 16);
     addSegments(seg_object, 16);
     addDimensions(seg_object);
-    addPalette(seg_object, 16);
+    addPaletteAndICCProfile(seg_object, 16);
 
     // Write to dataset and compare its dump with expected result
     DcmFileFormat dcmff;
@@ -318,6 +337,11 @@ OFTEST_FLAGS(dcmseg_labelmap_16bit_palette, EF_Slow)
     //     delFile++;
     // }
     delete seg_object;
+    if (keepTempFiles)
+    {
+        std::cout << "Keeping temporary file: " << temp_fn << " from test dcmseg_labelmap_16bit_palette" << std::endl;
+        tf.stealFile();
+    }
 }
 
 
@@ -545,7 +569,7 @@ static void checkCreatedObject(DcmDataset* dset, const Uint8 bits_allocated, con
     OFCHECK(dset->findAndGetElement(DCM_SegmentIdentificationSequence, fgSeq, OFTrue /* search into sub */).bad());
 }
 
-static void addPalette(DcmSegmentation* seg, const Uint8 bitsAllocated)
+static void addPaletteAndICCProfile(DcmSegmentation* seg, const Uint8 bitsAllocated)
 {
     if (bitsAllocated == 8)
     {
@@ -585,7 +609,20 @@ static void addPalette(DcmSegmentation* seg, const Uint8 bitsAllocated)
     else
     {
         OFCHECK_FAIL("Unsupported value for bitsAllocated");
+        return;
     }
+    // Palette Color LUT Module requires ICC profile information.
+    // Create ICC profile dummy data which is definitely not a valid ICC profile,
+    // but should be sufficient for testing purposes.
+    const size_t ICC_LENGTH = 256; // length of ICC profile in bytes
+    Uint8* iccProfile = new Uint8[ICC_LENGTH];
+    for (size_t i = 0; i < ICC_LENGTH; i++)
+    {
+        iccProfile[i] = i;
+    }
+    OFCHECK(seg->getICCProfile().setICCProfile(iccProfile, ICC_LENGTH, OFTrue /* check */).good());
+    OFCHECK(seg->getICCProfile().setColorSpace("SRGB", OFTrue /* check */).good());
+    delete[] iccProfile;
 }
 
 static void checkPalette(DcmDataset* dset, const Uint8 bitsAllocated)

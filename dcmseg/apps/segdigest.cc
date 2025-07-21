@@ -63,8 +63,11 @@ int main(int argc, char *argv[])
     cmd.addOption("--help",                  "-h",     "print this help text and exit", OFCommandLine::AF_Exclusive);
     cmd.addOption("--version",                         "print version information and exit", OFCommandLine::AF_Exclusive);
 
+  cmd.addGroup("processing options:", LONGCOL, SHORTCOL + 2);
+    cmd.addOption("--no-write", "-nw", "do not write output file, just read input file and check for errors", 0);
+
   cmd.addGroup("output options:", LONGCOL, SHORTCOL + 2);
-    cmd.addOption("--ignore-missing",                  "-i",     "ignore missing input files", 0);
+    cmd.addOption("--ignore-missing",                  "-i",     "ignore missing attributes", 0);
 
     OFLog::addOptions(cmd);
 
@@ -126,6 +129,12 @@ int main(int argc, char *argv[])
     {
         OFLOG_FATAL(segDigestLogger, "error loading file: " << cond.text());
         return 1;
+    }
+    if (cmd.findOption("--no-write"))
+    {
+        OFLOG_INFO(segDigestLogger, "not writing output file on user request");
+        delete seg;
+        return 0;
     }
     // ignore missing values if desired
     if (cmd.findOption("--ignore-missing"))

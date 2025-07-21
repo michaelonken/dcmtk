@@ -33,6 +33,7 @@
 #include "dcmtk/dcmiod/modenhequipment.h"     // for enhanced general equipment module
 #include "dcmtk/dcmiod/modimagepixel.h"       //  for image pixel module
 #include "dcmtk/dcmiod/modmultiframedimension.h" // for multi-frame dimension module
+#include "dcmtk/dcmiod/modiccprofile.h"          // for ICC profile module
 #include "dcmtk/dcmiod/modmultiframefg.h"        // for multi-frame functional group module
 #include "dcmtk/dcmiod/modsegmentationseries.h"  // for segmentation series module
 #include "dcmtk/dcmiod/modpalettecolorlut.h"     // for palette color LUT module
@@ -420,6 +421,11 @@ public:
      */
     virtual IODMultiframeDimensionModule& getDimensions();
 
+    /** Return reference to ICC Profile Module
+     *  @return Reference to ICC Profile Module
+     */
+    virtual IODICCProfileModule& getICCProfile();
+
     /** Return reference to Palette Color Lookup Table module
      *  @return Reference to Palette Color Lookup Table module
      */
@@ -717,6 +723,9 @@ private:
 
     /// Palette Color LUT Module
     IODPaletteColorLUTModule m_PaletteColorLUTModule;
+
+    /// ICC Profile
+    IODICCProfileModule m_ICCProfileModule;
 
     /// Binary frame data
     OFVector<DcmIODTypes::FrameBase*> m_Frames;

@@ -420,7 +420,8 @@ OFCondition DcmSegmentation::read(DcmItem& dataset)
 OFCondition DcmSegmentation::readWithoutPixelData(DcmItem& dataset)
 {
     OFString sopClass;
-    if (DcmIODUtil::checkSOPClass(&dataset, UID_SegmentationStorage, sopClass).bad())
+    if (DcmIODUtil::checkSOPClass(&dataset, UID_SegmentationStorage, sopClass).bad()
+    && DcmIODUtil::checkSOPClass(&dataset, UID_LabelMapSegmentationStorage, sopClass).bad())
     {
         DCMSEG_ERROR("Given file does not seem to be a segmentation storage object since SOP class is: " << sopClass);
         return IOD_EC_WrongSOPClass;
@@ -456,17 +457,18 @@ OFCondition DcmSegmentation::readWithoutPixelData(DcmItem& dataset)
 
     m_ContentIdentificationMacro.read(dataset);
 
-    OFString colorModel;
-    if (dataset.findAndGetOFString(DCM_PhotometricInterpretation, colorModel).good() && (colorModel == "PALETTE COLOR"))
-    {
-        m_PaletteColorLUTModule.read(dataset);
-    }
+    // OFString colorModel;
+    // if (dataset.findAndGetOFString(DCM_PhotometricInterpretation, colorModel).good() && (colorModel == "PALETTE COLOR"))
+    // {
+    //     m_PaletteColorLUTModule.read(dataset);
+    // }
 
     readAndCheckColorModel();
 
     if (m_LabelmapColorModel == DcmSegTypes::SLCM_PALETTE)
     {
         m_PaletteColorLUTModule.read(dataset);
+        m_ICCProfileModule.read(dataset);
     }
 
     // Read specific segmentation elements
@@ -492,6 +494,7 @@ void DcmSegmentation::setValueCheckOnWrite(const OFBool doCheck)
     m_EnhancedGeneralEquipmentModule.setValueCheckOnWrite(doCheck);
     m_PaletteColorLUTModule.setValueCheckOnWrite(doCheck);
     m_DimensionModule.setValueCheckOnWrite(doCheck);
+    m_ICCProfileModule.setValueCheckOnWrite(doCheck);
     DcmSegmentation::IODImage::setValueCheckOnWrite(doCheck);
 }
 
@@ -543,12 +546,16 @@ OFCondition DcmSegmentation::writeWithSeparatePixelData(DcmItem& dataset, Uint8*
     if (result.good())
         result = writeMultiFrameDimensionModule(dataset);
 
-    // Write Palette Color Lookup Table Module
+    // Write Palette Color Lookup Table Module and ICC Profile Module
     if (result.good())
     {
         if (m_LabelmapColorModel == DcmSegTypes::SLCM_PALETTE)
         {
             result = m_PaletteColorLUTModule.write(dataset);
+            if (result.good())
+            {
+                result = m_ICCProfileModule.write(dataset);
+            }
         }
     }
 
@@ -625,9 +632,18 @@ OFCondition DcmSegmentation::writeWithSeparatePixelData(DcmItem& dataset, Uint16
     OFCondition result;
 
     // -- Set constant default values written by external modules --
+
     DcmSegmentation::IODImage::getGeneralImage().setLossyImageCompression("00");
+    // Labelmap segmentations have a different SOP Class UID
     DcmSegmentation::IODImage::getGeneralImage().setImageType(m_ImageType);
-    DcmSegmentation::IODImage::getSOPCommon().setSOPClassUID(UID_SegmentationStorage);
+    if (m_SegmentationType == DcmSegTypes::ST_LABELMAP)
+    {
+        DcmSegmentation::IODImage::getSOPCommon().setSOPClassUID(UID_LabelMapSegmentationStorage);
+    }
+    else
+    {
+        DcmSegmentation::IODImage::getSOPCommon().setSOPClassUID(UID_SegmentationStorage);
+    }
 
     // -- Extra Study level data --
 
@@ -651,12 +667,16 @@ OFCondition DcmSegmentation::writeWithSeparatePixelData(DcmItem& dataset, Uint16
     if (result.good())
         result = writeMultiFrameDimensionModule(dataset);
 
-    // Write Palette Color Lookup Table Module
+    // Write Palette Color Lookup Table Module and ICC Profile Module
     if (result.good())
     {
         if (m_LabelmapColorModel == DcmSegTypes::SLCM_PALETTE)
         {
             result = m_PaletteColorLUTModule.write(dataset);
+            if (result.good())
+            {
+                result = m_ICCProfileModule.write(dataset);
+            }
         }
     }
 
@@ -1031,6 +1051,11 @@ IODMultiframeDimensionModule& DcmSegmentation::getDimensions()
 IODPaletteColorLUTModule& DcmSegmentation::getPaletteColorLUT()
 {
     return m_PaletteColorLUTModule;
+}
+
+IODICCProfileModule& DcmSegmentation::getICCProfile()
+{
+    return m_ICCProfileModule;
 }
 
 OFCondition
