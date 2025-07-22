@@ -522,7 +522,9 @@ OFCondition DcmSegmentation::writeWithSeparatePixelData(DcmItem& dataset, Uint8*
     // -- Set constant default values written by external modules --
     DcmSegmentation::IODImage::getGeneralImage().setLossyImageCompression("00");
     DcmSegmentation::IODImage::getGeneralImage().setImageType(m_ImageType);
-    DcmSegmentation::IODImage::getSOPCommon().setSOPClassUID(UID_SegmentationStorage);
+
+    // Set SOP Class UID based on segmentation type
+    setSOPClassUIDBasedOnSegmentationType();
 
     // -- Extra Study level data --
 
@@ -636,14 +638,9 @@ OFCondition DcmSegmentation::writeWithSeparatePixelData(DcmItem& dataset, Uint16
     DcmSegmentation::IODImage::getGeneralImage().setLossyImageCompression("00");
     // Labelmap segmentations have a different SOP Class UID
     DcmSegmentation::IODImage::getGeneralImage().setImageType(m_ImageType);
-    if (m_SegmentationType == DcmSegTypes::ST_LABELMAP)
-    {
-        DcmSegmentation::IODImage::getSOPCommon().setSOPClassUID(UID_LabelMapSegmentationStorage);
-    }
-    else
-    {
-        DcmSegmentation::IODImage::getSOPCommon().setSOPClassUID(UID_SegmentationStorage);
-    }
+
+    // Set SOP Class UID based on segmentation type
+    setSOPClassUIDBasedOnSegmentationType();
 
     // -- Extra Study level data --
 
@@ -2083,4 +2080,24 @@ OFBool DcmSegmentation::readAndCheckColorModel()
         }
     }
     return OFTrue;
+}
+
+
+void DcmSegmentation::setSOPClassUIDBasedOnSegmentationType()
+{
+   switch (m_SegmentationType)
+    {
+        case DcmSegTypes::ST_LABELMAP:
+            DcmSegmentation::IODImage::getSOPCommon().setSOPClassUID(UID_LabelMapSegmentationStorage);
+            break;
+        case DcmSegTypes::ST_FRACTIONAL:
+        case DcmSegTypes::ST_BINARY:
+            DcmSegmentation::IODImage::getSOPCommon().setSOPClassUID(UID_SegmentationStorage);
+            break;
+        case DcmSegTypes::ST_UNKNOWN:
+            // Print warning if segmentation type is unknown
+            DCMSEG_WARN("Segmentation type is unknown, setting SOP Class UID to Segmentation Storage SOP Class");
+            DcmSegmentation::IODImage::getSOPCommon().setSOPClassUID(UID_SegmentationStorage);
+            break;
+    }
 }

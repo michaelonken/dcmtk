@@ -685,6 +685,15 @@ protected:
      */
     OFBool readAndCheckColorModel();
 
+    /** Sets the SOP Class UID based on the segmentation type,
+     *  i.e. whether it is a binary or fractional (Segmentation Storage SOP Class)
+     *  or a labelmap segmentation (Labelmap Segmentation Storage SOP Class).
+     *  The SOP Class UID is set to the following values:
+     *  If the segmentation type is unknown, the SOP Class UID is set to
+     *  Segmentation Storage SOP Class as well but a warning is printed.
+    */
+    void setSOPClassUIDBasedOnSegmentationType();
+
 private:
 
     struct SetRowsAndCols;

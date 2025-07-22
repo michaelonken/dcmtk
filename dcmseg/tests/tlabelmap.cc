@@ -57,7 +57,7 @@ static const size_t NUM_PIXELS_PER_FRAME = NUM_COLS * NUM_ROWS;
 
 
 // set to true to keep temporary files for debugging
-static const OFBool keepTempFiles = OFTrue;
+static const OFBool keepTempFiles = OFFalse;
 
 // For 8 bit, pixel values 0 to 255 are permitted.
 // For 16 bit, pixel values 0 to 65534 are permitted, since for labelmaps the pixel
