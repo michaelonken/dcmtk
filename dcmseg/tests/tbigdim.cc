@@ -32,7 +32,6 @@
 #include "dcmtk/dcmfg/fgpixmsr.h"
 #include "dcmtk/dcmfg/fgplanor.h"
 #include "dcmtk/dcmfg/fgplanpo.h"
-#include "dcmtk/dcmfg/fgseg.h"
 #include "dcmtk/dcmiod/iodmacro.h"
 #include "dcmtk/dcmdata/dcxfer.h"
 #include "dcmtk/dcmdata/dcdict.h"
@@ -193,9 +192,8 @@ static void addFrames(DcmSegmentation* seg)
     if (!seg)
         return;
 
-    FGSegmentation* fg_seg = new FGSegmentation();
     FGFrameContent* fg     = new FGFrameContent();
-    OFCHECK(fg && fg_seg);
+    OFCHECK(fg);
     fg->setStackID("1");
     if (fg)
     {
@@ -220,16 +218,13 @@ static void addFrames(DcmSegmentation* seg)
                 data[i] = i;
             }
             Uint16 segmentNumber = OFstatic_cast(Uint16, ((frameNo-1) % (NUM_SEGS)) +1); // segment numbers start at 1
-            OFCHECK(fg_seg->setReferencedSegmentNumber(segmentNumber).good()); // limit/loop to 16 bit
             OFVector<FGBase*> perFrameFGs;
             perFrameFGs.push_back(fg);
-            perFrameFGs.push_back(fg_seg);
             OFCHECK(seg->addFrame(data, segmentNumber, perFrameFGs).good());
             delete[] data;
         }
     }
     delete fg;
-    delete fg_seg;
 }
 
 static void addDimensions(DcmSegmentation* seg)
