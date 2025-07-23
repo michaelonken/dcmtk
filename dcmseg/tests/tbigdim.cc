@@ -79,6 +79,7 @@ OFTEST_FLAGS(dcmseg_bigdim, EF_Slow)
     DcmDataset* ds = dcmff.getDataset();
     seg->setCheckDimensionsOnWrite(OFFalse);
     seg->setCheckFGOnWrite(OFFalse);
+    seg->getFunctionalGroups().setUseThreads(16);
     OFCondition result = seg->writeDataset(*ds);
     OFCHECK(result.good());
 
@@ -87,6 +88,8 @@ OFTEST_FLAGS(dcmseg_bigdim, EF_Slow)
     OFString temp_fn = tf.getFilename();
     OFCHECK(!temp_fn.empty());
     OFCHECK(dcmff.saveFile(temp_fn.c_str(), EXS_LittleEndianExplicit).good());
+    tf.stealFile();
+    std::cout << "Saved segmentation to file: " << temp_fn << std::endl;
 
     // Read object from dataset into DcmSegmentation object, write again to dataset and
     // check whether object after writing is identical to object after writing.
@@ -100,6 +103,7 @@ OFTEST_FLAGS(dcmseg_bigdim, EF_Slow)
         DcmDataset dset;
         seg->setCheckDimensionsOnWrite(OFFalse);
         seg->setCheckFGOnWrite(OFFalse);
+        seg->getFunctionalGroups().setUseThreads(16);
         OFCHECK(seg->writeDataset(dset).good());
         checkCreatedObject(dset);
         delete seg;

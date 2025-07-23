@@ -53,6 +53,7 @@ makeOFConditionConst(FG_EC_PixelDataTooLarge, OFM_dcmfg, 18, OF_error, "Pixel Da
 makeOFConditionConst(FG_EC_InconsistentConcatenationData, OFM_dcmfg, 19, OF_error, "Inconsistent Concatenation Data");
 makeOFConditionConst(FG_EC_ConcatenationComplete, OFM_dcmfg, 20, OF_error, "Concatenation Complete - no more data");
 makeOFConditionConst(FG_EC_UnsupportedPixelDataLayout, OFM_dcmfg, 21, OF_error, "Unsupported pixel data layout");
+makeOFConditionConst(FG_EC_ParallelProcessingFailed, OFM_dcmfg, 22, OF_error, "Parallel processing failed");
 
 OFString DcmFGTypes::FGType2OFString(const DcmFGTypes::E_FGType fgType)
 {

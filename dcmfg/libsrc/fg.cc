@@ -45,6 +45,11 @@ void FunctionalGroups::clear()
     }
 }
 
+size_t FunctionalGroups::size() const
+{
+    return m_groups.size();
+}
+
 FGBase* FunctionalGroups::find(const DcmFGTypes::E_FGType fgType)
 {
     FGBase* group                   = NULL;

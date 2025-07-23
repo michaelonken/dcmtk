@@ -57,6 +57,11 @@ public:
      */
     virtual void clear();
 
+    /** Get the number of functional groups in the set
+     *  @return Number of functional groups in the set
+     */
+    virtual size_t size() const;
+
     /** Find a functional group by its type
      *  @param  fgType The type of the functional group
      *  @return The functional group, if found, NULL otherwise

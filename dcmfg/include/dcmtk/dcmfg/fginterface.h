@@ -40,6 +40,7 @@ class DCMTK_DCMFG_EXPORT FGInterface
 {
 
 public:
+
     /// Type representing per-frame functional groups, i.e.\ a number of
     /// functional groups assigned to each frame
     typedef OFMap<Uint32, FunctionalGroups*> PerFrameGroups;
@@ -201,6 +202,16 @@ public:
      */
     virtual OFBool getCheckOnWrite();
 
+    /** Sets the number of threads to be used for writing per-frame functional groups.
+     *  @param  numThreads The number of threads to use
+     */
+    virtual void setUseThreads(const size_t numThreads);
+
+    /** Returns the number of threads to be used for writing per-frame functional groups.
+     *  @return The number of threads to use
+     */
+    virtual size_t getUseThreads() const;
+
 protected:
     /** Get shared functional group based on its type
      *  @param  fgType The type of functional group
@@ -273,6 +284,10 @@ protected:
      */
     virtual OFCondition writePerFrameFG(DcmItem& dataset);
 
+    virtual OFCondition writePerFrameFGParallel(DcmItem& dataset, const size_t numThreads);
+
+    virtual OFCondition writePerFrameFGSequential(DcmItem& dataset);
+
     /** Convert a shared functional group to a per-frame one by copying the
      *  shared one into a per-frame one for each frame and deleting the shared one
      *  aftewrards.
@@ -283,6 +298,29 @@ protected:
      *          should only happen for fatal errors like exhausted memory.
      */
     virtual OFCondition convertSharedToPerFrame(const DcmFGTypes::E_FGType fgType);
+
+    struct ThreadedFGWriter : public OFThread
+    {
+        OFVector<std::pair<Uint32, FunctionalGroups*>>* m_frameGroups;
+        OFVector<DcmItem*>* m_perFrameResultItems;
+        size_t m_startFrame;
+        size_t m_endFrame;
+        OFMutex* m_errorMutex;
+        OFConditionConst* m_errorOccurred;
+
+        void init(OFVector<std::pair<Uint32, FunctionalGroups*>>* frameGroups,
+                OFVector<DcmItem*>* perFrameResultItems,
+                const size_t startFrame,
+                const size_t endFrame,
+                OFConditionConst* errorOccurred,
+                OFMutex* errorMutex);
+
+        ThreadedFGWriter();
+
+        ~ThreadedFGWriter();
+
+        void run() override;
+    };
 
 private:
     /// Shared functional groups
@@ -295,6 +333,10 @@ private:
     /// If enabled, functional group structure is checked on write(). Otherwise,
     /// checks are skipped.
     OFBool m_checkOnWrite;
+
+    /// Number of threads to use for writing per-frame functional groups,
+    /// default is 1 thread (sequential writing)
+    size_t m_numThreads;
 };
 
 #endif // MODMULTIFRAMEFGH_H

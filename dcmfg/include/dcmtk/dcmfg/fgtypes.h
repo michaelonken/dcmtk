@@ -102,6 +102,8 @@ extern DCMTK_DCMFG_EXPORT const OFConditionConst FG_EC_InconsistentConcatenation
 extern DCMTK_DCMFG_EXPORT const OFConditionConst FG_EC_ConcatenationComplete;
 /// Unsupported pixel data layout
 extern DCMTK_DCMFG_EXPORT const OFConditionConst FG_EC_UnsupportedPixelDataLayout;
+/// Parallel processing failed
+extern DCMTK_DCMFG_EXPORT const OFConditionConst FG_EC_ParallelProcessingFailed;
 
 /*---------------------*
  *  class declaration  *

@@ -25,14 +25,96 @@
 #include "dcmtk/dcmfg/fgfact.h" // for creating new functional groups
 #include "dcmtk/dcmfg/fginterface.h"
 #include "dcmtk/ofstd/ofmap.h"
+#include "dcmtk/ofstd/ofthread.h"
 #include "dcmtk/ofstd/ofmem.h"
 #include "dcmtk/dcmdata/dcdeftag.h"
 #include "dcmtk/dcmdata/dcsequen.h"
+
+
+FGInterface::ThreadedFGWriter::ThreadedFGWriter()
+    : OFThread()
+    , m_frameGroups(OFnullptr)
+    , m_perFrameResultItems(OFnullptr)
+    , m_startFrame(0)
+    , m_endFrame(0)
+    , m_errorMutex(OFnullptr)
+{
+}
+
+void FGInterface::ThreadedFGWriter::init(OFVector<std::pair<Uint32, FunctionalGroups*>>* frameGroups,
+                                        OFVector<DcmItem*>* perFrameResultItems,
+                                        const size_t startFrame,
+                                        const size_t endFrame,
+                                        OFConditionConst* errorOccurred,
+                                        OFMutex* errorMutex)
+{
+    // Store the parameters in member variables
+    m_frameGroups = frameGroups;
+    m_perFrameResultItems = perFrameResultItems;
+    m_startFrame = startFrame;
+    m_endFrame = endFrame;
+    m_errorOccurred = errorOccurred;
+    m_errorMutex = errorMutex;
+}
+
+
+FGInterface::ThreadedFGWriter::~ThreadedFGWriter()
+{
+    // Nothing to do here
+}
+
+void FGInterface::ThreadedFGWriter::run()
+{
+    if (!m_frameGroups)
+    {
+        DCMFG_ERROR("ThreadedFGWriter: Not properly initialized, cannot run.");
+        return;
+    }
+
+    // Iterate over all frames and write the functional groups
+    for (size_t idx = m_startFrame; idx < m_endFrame; ++idx)
+    {
+        Uint32 frameNo = m_frameGroups->at(idx).first;
+        FunctionalGroups* fgPtr = m_frameGroups->at(idx).second;
+        OFunique_ptr<DcmItem> perFrameItem(new DcmItem());
+
+        FunctionalGroups::iterator groupIt = fgPtr->begin();
+        while ((groupIt != fgPtr->end()))
+        {
+            m_errorMutex->lock();
+            if (*m_errorOccurred != EC_Normal)
+            {
+                m_errorMutex->unlock();
+                DCMFG_ERROR("Error occurred, stopping further processing.");
+                return;
+            }
+            m_errorMutex->unlock();
+            DCMFG_DEBUG("Writing per-frame group: "
+                        << DcmFGTypes::FGType2OFString((*groupIt).second->getType())
+                        << " for frame #" << frameNo);
+            OFCondition result = (*groupIt).second->write(*perFrameItem);
+            groupIt++;
+            if (result.bad())
+            {
+                DCMFG_ERROR("Error writing functional group for frame #" << frameNo << ": " << result.text());
+                m_errorMutex->lock();
+                *m_errorOccurred = result.condition(); // Store the error
+                m_errorMutex->unlock();
+                return;
+            }
+        }
+
+        (*m_perFrameResultItems)[frameNo] = perFrameItem.release();
+    }
+}
+
+
 
 FGInterface::FGInterface()
     : m_shared()
     , m_perFrame()
     , m_checkOnWrite(OFTrue)
+    , m_numThreads(1) // Default to 1 thread
 {
 }
 
@@ -238,7 +320,7 @@ OFCondition FGInterface::readPerFrameFG(DcmItem& dataset)
     size_t numFrames = perFrame->card();
     if (numFrames == 0)
     {
-        DCMFG_WARN("No Item in Shared Functional Group Sequence but exactly one or more expected");
+        DCMFG_WARN("No Item in Per-Frame Functional Group Sequence but exactly one or more expected");
         return FG_EC_NoPerFrameFG;
     }
 
@@ -338,6 +420,12 @@ OFCondition FGInterface::write(DcmItem& dataset)
 
     // Write shared functional Groups
     OFCondition result = writeSharedFG(dataset);
+
+    DcmItem* seqItem;
+    dataset.findAndGetSequenceItem(DCM_SharedFunctionalGroupsSequence, seqItem);
+    std::cout << "Shared functional groups written, count/result : "
+                << seqItem->card() << " - "
+              << (result.good() ? "Success" : "Failure") << std::endl;
 
     // Write per frame functional groups
     if (result.good())
@@ -443,6 +531,23 @@ OFBool FGInterface::getCheckOnWrite()
     return m_checkOnWrite;
 }
 
+void FGInterface::setUseThreads(const size_t numThreads)
+{
+    if (numThreads > 0)
+    {
+        m_numThreads = numThreads;
+    }
+    else
+    {
+        m_numThreads = 1; // Fallback to single-threaded mode
+    }
+}
+
+size_t FGInterface::getUseThreads() const
+{
+    return m_numThreads;
+}
+
 FunctionalGroups* FGInterface::getOrCreatePerFrameGroups(const Uint32 frameNo)
 {
     OFMap<Uint32, FunctionalGroups*>::iterator it = m_perFrame.find(frameNo);
@@ -469,7 +574,39 @@ FunctionalGroups* FGInterface::getOrCreatePerFrameGroups(const Uint32 frameNo)
     return fg;
 }
 
+
+
+
 OFCondition FGInterface::writePerFrameFG(DcmItem& dataset)
+{
+    OFCondition result;
+
+    DCMFG_DEBUG("Writing per-frame functional groups");
+    result = dataset.insertEmptyElement(DCM_PerFrameFunctionalGroupsSequence, OFTrue); // start with empty sequence
+    if (result.bad())
+    {
+        DCMFG_ERROR("Could not create Per-frame Functional Groups Sequence");
+        return result;
+    }
+
+    /* Iterate over frames */
+    size_t numFrames = m_perFrame.size();
+
+    // Use parallel processing for writing functional groups, if desired
+    if (m_numThreads > 1 && numFrames > m_numThreads)
+    {
+        result = writePerFrameFGParallel(dataset, m_numThreads);
+    }
+    else
+    {
+        // Fallback to sequential processing for small datasets or single-threaded environment
+        result = writePerFrameFGSequential(dataset);
+    }
+
+    return result;
+}
+
+OFCondition FGInterface::writePerFrameFGSequential(DcmItem& dataset)
 {
     DCMFG_DEBUG("Writing per-frame functional groups");
     OFCondition result
@@ -509,8 +646,91 @@ OFCondition FGInterface::writePerFrameFG(DcmItem& dataset)
     return result;
 }
 
+
+OFCondition FGInterface::writePerFrameFGParallel(DcmItem& dataset, const size_t numThreads)
+{
+    std::cout << "Writing per-frame functional groups in parallel using " << numThreads << " threads." << std::endl;
+    OFConditionConst errorOccurred(EC_Normal);
+    OFMutex errorMutex;
+
+    // Prepare a vector of frame numbers and their corresponding FunctionalGroups pointers.
+    // We need this to distribute the work across threads. Using the OFMap directly in threads
+    // could lead to data races and inconsistencies since each thread would invalidate the iterators
+    // being used in the other threads.
+    OFVector<std::pair<Uint32, FunctionalGroups*>> frameGroups;
+    frameGroups.reserve(m_perFrame.size());
+    for (OFMap<Uint32, FunctionalGroups*>::iterator it = m_perFrame.begin(); it != m_perFrame.end(); ++it)
+    {
+        frameGroups.push_back(std::make_pair((*it).first, (*it).second));
+    }
+    size_t numFrames = frameGroups.size();
+
+    // Prepare output vector for per-frame items
+    OFVector<DcmItem*> perFrameItems(numFrames, NULL);
+
+    // Thread pool
+    OFVector<ThreadedFGWriter*> threads;
+    threads.reserve(numThreads);
+
+    size_t framesPerThread = (numFrames + numThreads - 1) / numThreads;
+
+    for (size_t threadIndex = 0; threadIndex < numThreads; ++threadIndex)
+    {
+        size_t startFrame = threadIndex * framesPerThread;
+        size_t endFrame = (startFrame + framesPerThread < numFrames) ? startFrame + framesPerThread : numFrames;
+
+        ThreadedFGWriter* writer = new ThreadedFGWriter();
+        writer->init(&frameGroups, &perFrameItems, startFrame, endFrame, &errorOccurred, &errorMutex);
+        //writer->init(frameGroups, perFrameItems, startFrame, endFrame, errorOccurred, errorMutex);
+        threads.push_back(writer);
+        writer->start(); // Start the thread
+    }
+
+    // Wait for all threads to complete
+    for (auto& thread : threads)
+    {
+        thread->join();
+        delete thread; // Clean up the thread object
+    }
+
+    if (errorOccurred == EC_Normal)
+    {
+        DCMFG_DEBUG("All threads completed successfully, inserting per-frame items into the dataset");
+    }
+    else
+    {
+        DCMFG_ERROR("Error occurred in one or more threads: " << OFCondition(errorOccurred).text());
+        return OFCondition(errorOccurred);
+    }
+    std::cout << "All threads completed successfully, inserting per-frame items into the dataset..." << std::endl;
+    // insert all per-frame items into the dataset
+    OFCondition result;
+    for (size_t idx = 0; idx < perFrameItems.size(); ++idx)
+    {
+        DcmItem* perFrameItem = perFrameItems[idx];
+        Uint32 frameNo = frameGroups[idx].first;
+        if (perFrameItem != NULL)
+        {
+            DCMFG_DEBUG("Inserting per-frame item for frame #" << frameNo);
+            result = dataset.insertSequenceItem(DCM_PerFrameFunctionalGroupsSequence, perFrameItem, OFstatic_cast(long, frameNo));
+            if (result.bad())
+            {
+                DCMFG_ERROR("Error inserting per-frame item for frame #" << frameNo << ": " << result.text());
+                break;
+            }
+        }
+        else
+        {
+            DCMFG_ERROR("Per-frame item for frame #" << frameNo << " is NULL, cannot insert into dataset");
+        }
+    }
+    return result; // Return the result of the last insertion
+}
+
+
 OFCondition FGInterface::writeSharedFG(DcmItem& dataset)
 {
+    std::cout << "Writing shared functional groups..." << std::endl;
     DCMFG_DEBUG("Writing shared functional groups");
     OFCondition result
         = dataset.insertEmptyElement(DCM_SharedFunctionalGroupsSequence, OFTrue); // start with empty sequence
@@ -524,11 +744,13 @@ OFCondition FGInterface::writeSharedFG(DcmItem& dataset)
         DCMFG_ERROR("Could not create Shared Functional Groups Sequence with single item");
         return result;
     }
-
+    DCMFG_DEBUG("Writing " << m_shared.size() << "  shared functional groups to item");
     FunctionalGroups::iterator it  = m_shared.begin();
     FunctionalGroups::iterator end = m_shared.end();
     while ((it != end) && result.good())
     {
+        std::cout << "Writing shared group: "
+                  << DcmFGTypes::FGType2OFString((*it).second->getType()) << std::endl;
         DCMFG_DEBUG("Writing shared group: " << DcmFGTypes::FGType2OFString((*it).second->getType()));
         result = (*it).second->write(*sharedFGItem);
         it++;
