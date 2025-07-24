@@ -303,6 +303,8 @@ protected:
      */
     virtual OFCondition convertSharedToPerFrame(const DcmFGTypes::E_FGType fgType);
 
+    virtual size_t findAdequateNumberOfThreads(const size_t numFrames, const size_t userThreadSetting);
+
     struct ThreadedFGWriter : public OFThread
     {
         /// Vector of pairs of frame number and functional groups to write for that frame
