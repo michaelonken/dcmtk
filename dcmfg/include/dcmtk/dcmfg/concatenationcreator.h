@@ -194,6 +194,13 @@ protected:
      */
     virtual OFCondition configureCommon();
 
+    /** Prepare source pixel data (m_srcPixelData) according to the pixel data
+    *   existing in the source dataset.
+     *  @param  srcDataset The source dataset to read from
+     *  @param  transferOwnership If OFTrue, this class (m_srcPixelData)
+     *    takes ownership of the pixel data, i.e. frees memory on destruction.
+     *  @return EC_Normal if successful, error otherwise
+     */
     virtual OFCondition initSrcPixelData(DcmItem* srcDataset, OFBool transferOwnership);
 
 private:
