@@ -69,11 +69,22 @@ public:
      *  @param  filename The file to read from
      *  @param  segmentation  The resulting segmentation object. NULL if dataset
      *          could not be read successfully.
+     *  @param  flags Flags to configure the loading of the segmentation object
      *  @return EC_Normal if reading was successful, error otherwise
      */
     static OFCondition loadFile(const OFString& filename, DcmSegmentation*& segmentation, const DcmSegmentation::LoadingFlags& flags = LoadingFlags());
 
-    static OFCondition loadFile(const OFFile& file, DcmSegmentation*& segmentation, const DcmSegmentation::LoadingFlags& flags = LoadingFlags());
+
+    /** Static method to load a Segmentation object from a file.
+     *  The memory of the resulting Segmentation object has to be freed by the
+     *  caller.
+     *  @param  filename The file to read from
+     *  @param  segmentation  The resulting segmentation object. NULL if dataset
+     *          could not be read successfully.
+     *  @param  flags Flags to configure the loading of the segmentation object
+     *  @return EC_Normal if reading was successful, error otherwise
+     */
+    static OFCondition loadFile(const OFFile& filename, DcmSegmentation*& segmentation, const DcmSegmentation::LoadingFlags& flags = LoadingFlags());
 
     /** Static method to load a Segmentation object from a dataset object.
      *  The memory of the resulting Segmentation object has to be freed by the
@@ -81,6 +92,7 @@ public:
      *  @param  dataset The dataset to read from
      *  @param  segmentation  The resulting segmentation object. NULL if dataset
      *          could not be read successfully.
+     *  @param  flags Flags to configure the loading of the segmentation object
      *  @return EC_Normal if reading was successful, error otherwise
      */
     static OFCondition loadDataset(DcmDataset& dataset, DcmSegmentation*& segmentation, const DcmSegmentation::LoadingFlags& flags = LoadingFlags());
@@ -141,7 +153,7 @@ public:
      *  A missing but required value is always considered an error, independent of this setting.
      *  If set to OFFalse, writing will always succeed, even if attribute value constraints
      *  are violated. A warning instead of an error will be printed to the logger.
-     *  @param  checkValue If OFTrue, attribute value errors are handled as errors on writing, if OFFalse
+     *  @param  doCheck If OFTrue, attribute value errors are handled as errors on writing, if OFFalse
      *          any errors are ignored.
      */
     virtual void setValueCheckOnWrite(const OFBool doCheck) override;
@@ -338,7 +350,7 @@ public:
     virtual DcmSegment* getSegment(const size_t segmentNumber);
 
     /** Get all segments
-     *  @param  segments The resulting segments
+     *  @return  The resulting segments
      */
     virtual const OFMap<Uint16, DcmSegment*>& getSegments();
 
@@ -504,10 +516,12 @@ public:
      */
     virtual OFCondition importFromSourceImage(const OFString& filename, const OFBool takeOverCharset = OFTrue);
 
+    /// Flags for loading segmentation objects. These flags can be used to
+    /// configure the loading of segmentation objects.
     struct LoadingFlags
     {
         // Number of threads to use for reading per-frame functional groups
-        // (and writing, if applicable later on)
+        // (will also be applied to writing, if applicable later on)
         size_t m_numThreads;
 
         // Constructor to initialize the flags

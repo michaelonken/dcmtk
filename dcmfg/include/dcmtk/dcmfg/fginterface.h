@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2015-2024, Open Connections GmbH
+ *  Copyright (C) 2015-2025, Open Connections GmbH
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation are maintained by
@@ -305,6 +305,9 @@ protected:
 
     virtual size_t findAdequateNumberOfThreads(const size_t numFrames, const size_t userThreadSetting);
 
+    /// Threaded functional group writer, used to write per-frame functional groups
+    /// in parallel. Each thread gets assigned some frames and writes the functional groups
+    /// for those frames to the output vector.
     struct ThreadedFGWriter : public OFThread
     {
         /// Vector of pairs of frame number and functional groups to write for that frame
@@ -316,11 +319,29 @@ protected:
         OFVector<DcmItem*>* m_perFrameResultItems;
         /// Mutex to protect the output vector
         OFMutex* m_perFrameResultItemsMutex;
+        /// Start frame this thread should handle (inclusive, starts with 0)
         size_t m_startFrame;
+        /// End frame this thread should handle (exclusive, i.e.\ the last frame
+        /// this thread handles is m_endFrame - 1)
         size_t m_endFrame;
+        /// Mutex to protect error output
         OFMutex* m_errorMutex;
+        /// Pointer to a condition variable that is set if an error occurs
+        /// during writing. This is used to signal the main thread that an error
+        /// occurred during writing. The main thread can then check the error
+        /// condition variable to see if an error occurred and handle it accordingly.
         OFConditionConst* m_errorOccurred;
 
+        /** Initialize the thread
+         * @param frameGroups Input vector of pairs of frame number and functional groups to write for that frame
+         * @param perFrameResultItems Output vector, where the per-frame items are written to,
+         *   (frame number as index, one item per frame containing all functional groups for that frame).
+         * @param perFrameResultItemsMutex Mutex to protect the output vector
+         * @param startFrame Start frame this thread should handle (inclusive, starts with 0)
+         * @param endFrame End frame this thread should handle (exclusive, i.e.\ the last frame this thread handles is m_endFrame - 1)
+         * @param errorOccurred Pointer to a condition variable that is set if an error occurs
+         * @param errorMutex Mutex to protect error output
+         */
         void init(OFVector<OFPair<Uint32, FunctionalGroups*>>* frameGroups,
                   OFVector<DcmItem*>* perFrameResultItems,
                   OFMutex* perFrameResultItemsMutex,
@@ -329,41 +350,90 @@ protected:
                   OFConditionConst* errorOccurred,
                   OFMutex* errorMutex);
 
+        /// Default constructor
         ThreadedFGWriter();
 
+        /// Destructor, nothing to do
         ~ThreadedFGWriter();
 
+        /** Run method, called by OFThread::start()
+         *  This method will write the functional groups for the frames assigned
+         *  to this thread to the output vector. It will stop in case of an error
+         *  and set the error condition variable to indicate that an error occurred.
+         */
         void run() override;
     };
 
+    /// Threaded functional group reader, used to read per-frame functional groups
+    /// in parallel. Each thread gets assigned some frames and reads the functional groups
+    /// for those frames from the input vector.
+    /// The results are stored in the output vector, which is protected by a mutex.
     struct ThreadedFGReader : public OFThread
     {
         /// Input vector of per-frame items, one item per frame
         /// containing all functional groups for that frame.
         OFVector<DcmItem*>* m_perFrameItems;
+        /// Mutex to protect the input vector
         OFMutex* m_perFrameItemsMutex;
+        /// Output vector of per-frame functional groups, one item per frame
+        /// containing all functional groups for that frame.
         PerFrameGroups* m_frameResultGroups;
+        /// Mutex to protect the output vector
         OFMutex* m_frameResultGroupsMutex;
+        /// Start frame this thread should handle (inclusive, starts with 0)
+        /// (i.e.\ the first frame this thread handles is m_startFrame)
         size_t m_startFrame;
+        /// End frame this thread should handle (exclusive, i.e.\ the last frame
+        /// this thread handles is m_endFrame - 1)
         size_t m_endFrame;
+        /// Mutex to protect error output
         OFMutex* m_errorMutex;
+        /// Pointer to a condition variable that is set if an error occurs
+        /// during reading. This is used to signal the main thread that an error
+        /// occurred during reading. The main thread can then check the error
+        /// condition variable to see if an error occurred and handle it accordingly.
         OFConditionConst* m_errorOccurred;
+        /// Pointer to the FGInterface instance to read from. This is used to
+        /// access the FGInterface methods for reading functional groups.
+        /// It is set by the init() method and used in the run() method to read
+        /// each functional group
         FGInterface* m_fgInterfacePtr; // Pointer to the FGInterface instance to read from
 
+        /** Initialize the thread
+         * @param perFrameItems Input vector of per-frame items, one item per frame
+         *   containing all functional groups for that frame.
+         * @param perFrameItemsMutex Mutex to protect the input vector
+         * @param m_frameResultGroups Output vector of per-frame functional groups,
+         *   one item per frame (index = frame number) containing all functional groups for that frame.
+         * @param frameResultGroupsMutex Mutex to protect the output vector
+         * @param startFrame Start frame this thread should handle (inclusive, starts with 0)
+         * @param endFrame End frame this thread should handle (exclusive, i.e.\ the last frame this thread handles is m_endFrame - 1)
+         * @param errorOccurred Pointer to a condition variable that is set if an error occurs
+         *   during reading. The main thread can check this variable to see if an error occurred.
+         * @param errorMutex Mutex to protect error output
+         */
         void init(OFVector<DcmItem*>* perFrameItems,
-                OFMutex* perFrameItemsMutex,
-                PerFrameGroups* m_frameResultGroups,
-                OFMutex* frameResultGroupsMutex,
-                size_t startFrame,
-                size_t endFrame,
-                OFMutex* errorMutex,
-                OFConditionConst* errorOccurred,
-                FGInterface* fgInterfacePtr);
+                  OFMutex* perFrameItemsMutex,
+                  PerFrameGroups* m_frameResultGroups,
+                  OFMutex* frameResultGroupsMutex,
+                  size_t startFrame,
+                  size_t endFrame,
+                  OFMutex* errorMutex,
+                  OFConditionConst* errorOccurred,
+                  FGInterface* fgInterfacePtr);
 
+        /// Default constructor
         ThreadedFGReader();
 
+        /// Destructor
         ~ThreadedFGReader();
 
+        /** Run method, called by OFThread::start()
+         *  This method will read the functional groups for the frames assigned
+         *  to this thread from the input vector and store them in the output vector.
+         *  It will stop in case of an error and set the error condition variable
+         *  to indicate that an error occurred.
+         */
         void run() override;
     };
 

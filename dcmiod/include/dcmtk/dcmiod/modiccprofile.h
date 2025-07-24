@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2024, Open Connections GmbH
+ *  Copyright (C) 2024-2025, Open Connections GmbH
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation are maintained by
@@ -86,7 +86,7 @@ public:
 
     /** Get the ICC Color Profile data
      *  @param  value Returns a reference to the icc profile data
-     *  @param  numbytes Number of bytes in the icc profile data returned in value parameter
+     *  @param  numBytes Number of bytes in the icc profile data returned in value parameter
      *  @return EC_Normal if successful, an error code otherwise
      */
     virtual OFCondition getICCProfile(const Uint8*& value, Uint32& numBytes);

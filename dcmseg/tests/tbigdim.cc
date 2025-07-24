@@ -22,8 +22,8 @@
 #include "dcmtk/config/osconfig.h" /* make sure OS specific configuration is included first */
 #include "dcmtk/ofstd/oftest.h"
 #include "dcmtk/dcmseg/segtypes.h" /* for DCMSEG_DEBUG */
-#include <iostream>
 
+// DCMTK's original OFMap implementation is too slow for this test...
 #ifdef HAVE_STL_MAP
 #include "dcmtk/dcmseg/segdoc.h"
 #include "dcmtk/dcmseg/segment.h"
@@ -47,10 +47,6 @@ static const Uint8 NUM_COLS             = 5;
 
 static const Uint32 NUM_FRAMES           = 1000000;
 static const size_t NUM_SEGS             = DCM_SEG_MAX_SEGMENTS;
-
-// static const Uint32 NUM_FRAMES           = 1000;
-// static const size_t NUM_SEGS             = 1000;
-
 
 static const Uint8 NUM_PIXELS_PER_FRAME = NUM_COLS * NUM_ROWS;
 
@@ -94,7 +90,6 @@ OFTEST_FLAGS(dcmseg_bigdim, EF_Slow)
     OFCHECK(!temp_fn.empty());
     OFCHECK(dcmff.saveFile(temp_fn.c_str(), EXS_LittleEndianExplicit).good());
     tf.stealFile();
-    std::cout << "Saved segmentation to file: " << temp_fn << std::endl;
 
     // Read object from dataset into DcmSegmentation object, write again to dataset and
     // check whether object after writing is identical to object after writing.
@@ -287,7 +282,7 @@ static void checkCreatedObject(DcmDataset& dset)
     if (seq != NULL)
     {
         size_t numFrames = seq->card();
-        OFCHECK_MSG(numFrames == NUM_FRAMES, ((OFOStringStream("Expected ") << NUM_FRAMES << " frames, but got " << numFrames)).str());
+        OFCHECK_MSG(numFrames == NUM_FRAMES, ((OFOStringStream("Expected ") << NUM_FRAMES << " frames, but got " << numFrames)).str().c_str());
         DcmItem* item = seq->getItem(0);
         for (size_t n = 0; (n < numFrames) && (item != NULL); n++)
         {

@@ -209,7 +209,7 @@ public:
      *  A missing but required value is always considered an error, independent of this setting.
      *  If set to OFFalse, writing will always succeed, even if attribute value constraints
      *  are violated. A warning instead of an error will be printed to the logger.
-     *  @param  checkValue If OFTrue, attribute value errors are handled as errors on writing, if OFFalse
+     *  @param  doCheck If OFTrue, attribute value errors are handled as errors on writing, if OFFalse
      *          any errors are ignored.
      */
     virtual void setValueCheckOnWrite(const OFBool doCheck) override;

@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2015-2024, Open Connections GmbH
+ *  Copyright (C) 2015-2025, Open Connections GmbH
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation are maintained by
@@ -263,8 +263,6 @@ public:
      *  Get Segment Number as read from the Segment Sequence for this segment.
      *  It may be different from the Segment Number as returned by getSegmentNumber(),
      *  i.e. do not rely on this method for anything.
-     *  @param  value Value to be set (single value only) or "" for no value
-     *  @param  checkValue Check 'value' for conformance with VR (UI) and VM (1) if enabled
      *  @return EC_Normal if successful, an error code otherwise
      */
     virtual Uint16 getSegmentNumberRead();

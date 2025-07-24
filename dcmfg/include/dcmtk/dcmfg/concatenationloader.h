@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2019-2024, Open Connections GmbH
+ *  Copyright (C) 2019-2025, Open Connections GmbH
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation are maintained by
