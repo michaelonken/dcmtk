@@ -41,12 +41,10 @@
 #include "dcmtk/dcmseg/segment.h"  // for DcmSegment class
 #include "dcmtk/dcmseg/segtypes.h" // for segmentation data types
 #include "dcmtk/ofstd/ofvector.h"  // for OFVector class
-#include <map>                     // for map class (TODO: replace with OFMap, needs reverse iterators)
 
 class FGSegmentation;
 class FGDerivationImage;
 class DcmFileFormat;
-
 /** Class representing an object of the "Segmentation SOP Class".
  */
 
@@ -54,6 +52,9 @@ class DCMTK_DCMSEG_EXPORT DcmSegmentation : public DcmIODImage<IODImagePixelModu
 {
 
 public:
+
+    struct LoadingFlags;
+
     // -------------------- destruction -------------------------------
 
     /** Destructor, frees memory
@@ -70,7 +71,9 @@ public:
      *          could not be read successfully.
      *  @return EC_Normal if reading was successful, error otherwise
      */
-    static OFCondition loadFile(const OFString& filename, DcmSegmentation*& segmentation);
+    static OFCondition loadFile(const OFString& filename, DcmSegmentation*& segmentation, const DcmSegmentation::LoadingFlags& flags = LoadingFlags());
+
+    static OFCondition loadFile(const OFFile& file, DcmSegmentation*& segmentation, const DcmSegmentation::LoadingFlags& flags = LoadingFlags());
 
     /** Static method to load a Segmentation object from a dataset object.
      *  The memory of the resulting Segmentation object has to be freed by the
@@ -80,7 +83,7 @@ public:
      *          could not be read successfully.
      *  @return EC_Normal if reading was successful, error otherwise
      */
-    static OFCondition loadDataset(DcmDataset& dataset, DcmSegmentation*& segmentation);
+    static OFCondition loadDataset(DcmDataset& dataset, DcmSegmentation*& segmentation, const DcmSegmentation::LoadingFlags& flags = LoadingFlags());
 
     /** Static method to load a concatenation of a DICOM Segmentation instance
      *  into a DcmSegmentation object.
@@ -500,6 +503,17 @@ public:
      *  @return EC_Normal if successful, an error code otherwise
      */
     virtual OFCondition importFromSourceImage(const OFString& filename, const OFBool takeOverCharset = OFTrue);
+
+    struct LoadingFlags
+    {
+        // Number of threads to use for reading per-frame functional groups
+        // (and writing, if applicable later on)
+        size_t m_numThreads;
+
+        // Constructor to initialize the flags
+        LoadingFlags() : m_numThreads(1) {}
+    };
+
 
 protected:
 

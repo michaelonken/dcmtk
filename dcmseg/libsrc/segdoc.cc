@@ -182,7 +182,7 @@ DcmSegmentation::~DcmSegmentation()
 }
 
 // static method for loading segmentation objects
-OFCondition DcmSegmentation::loadFile(const OFString& filename, DcmSegmentation*& segmentation)
+OFCondition DcmSegmentation::loadFile(const OFString& filename, DcmSegmentation*& segmentation, const DcmSegmentation::LoadingFlags& flags)
 {
     DcmFileFormat dcmff;
     DcmDataset* dataset = NULL;
@@ -190,11 +190,12 @@ OFCondition DcmSegmentation::loadFile(const OFString& filename, DcmSegmentation*
     if (result.bad())
         return result;
 
-    return loadDataset(*dataset, segmentation);
+    return loadDataset(*dataset, segmentation, flags);
 }
 
+
 // static method for loading segmentation objects
-OFCondition DcmSegmentation::loadDataset(DcmDataset& dataset, DcmSegmentation*& segmentation)
+OFCondition DcmSegmentation::loadDataset(DcmDataset& dataset, DcmSegmentation*& segmentation, const DcmSegmentation::LoadingFlags& flags)
 {
     segmentation       = NULL;
     OFCondition result = DcmSegmentation::decompress(dataset);
@@ -207,7 +208,9 @@ OFCondition DcmSegmentation::loadDataset(DcmDataset& dataset, DcmSegmentation*& 
     {
         return result;
     }
-
+    // Apply the loading flags
+    temp->getFunctionalGroups().setUseThreads(flags.m_numThreads);
+    // Start actual reading
     result = temp->read(dataset);
     if (result.good())
     {
@@ -1851,6 +1854,7 @@ OFCondition DcmSegmentation::loadFile(DcmFileFormat& dcmff, const OFString& file
     }
     return result;
 }
+
 
 OFCondition DcmSegmentation::readSegmentationFractionalType(DcmItem& item)
 {

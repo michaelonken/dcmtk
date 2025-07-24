@@ -265,12 +265,16 @@ protected:
      */
     virtual OFCondition readPerFrameFG(DcmItem& dataset);
 
+    virtual OFCondition readPerFrameFGParallel(DcmSequenceOfItems& perFrameFGSeq, const size_t numThreads);
+
+    virtual OFCondition readPerFrameFGSequential(DcmSequenceOfItems& perFrameFGSeq);
+
     /** Read single functional group into the item provided
      *  @param  fgItem The item to read from
      *  @param  groups The resulting group after reading
      *  @return EC_Normal if reading was successful, error otherwise
      */
-    virtual OFCondition readSingleFG(DcmItem& fgItem, FunctionalGroups& groups);
+    static OFCondition readSingleFG(DcmItem& fgItem, FunctionalGroups& groups);
 
     /** Write Shared Functional Group Sequence to given item
      *  @param  dataset The item to write to
@@ -290,7 +294,7 @@ protected:
 
     /** Convert a shared functional group to a per-frame one by copying the
      *  shared one into a per-frame one for each frame and deleting the shared one
-     *  aftewrards.
+     *  afterwards.
      *  @param  fgType The type of functional group to convert
      *  @return EC_Normal if conversion worked out, FG_EC_NoSuchGroup if such a
      *          group does not exist and other error otherwise. In the last case
@@ -301,23 +305,62 @@ protected:
 
     struct ThreadedFGWriter : public OFThread
     {
-        OFVector<std::pair<Uint32, FunctionalGroups*>>* m_frameGroups;
+        /// Vector of pairs of frame number and functional groups to write for that frame
+        OFVector<OFPair<Uint32, FunctionalGroups*>>* m_frameGroups;
+        /// Output vector, where the per-frame items are written to
+        /// (one item per frame containing all functional groups for that frame).
+        //  All threads write to the same vector, so it must be protected by a mutex.
+        /// The vector is resized to the total number of frames before starting the threads.
         OFVector<DcmItem*>* m_perFrameResultItems;
+        /// Mutex to protect the output vector
+        OFMutex* m_perFrameResultItemsMutex;
         size_t m_startFrame;
         size_t m_endFrame;
         OFMutex* m_errorMutex;
         OFConditionConst* m_errorOccurred;
 
-        void init(OFVector<std::pair<Uint32, FunctionalGroups*>>* frameGroups,
-                OFVector<DcmItem*>* perFrameResultItems,
-                const size_t startFrame,
-                const size_t endFrame,
-                OFConditionConst* errorOccurred,
-                OFMutex* errorMutex);
+        void init(OFVector<OFPair<Uint32, FunctionalGroups*>>* frameGroups,
+                  OFVector<DcmItem*>* perFrameResultItems,
+                  OFMutex* perFrameResultItemsMutex,
+                  const size_t startFrame,
+                  const size_t endFrame,
+                  OFConditionConst* errorOccurred,
+                  OFMutex* errorMutex);
 
         ThreadedFGWriter();
 
         ~ThreadedFGWriter();
+
+        void run() override;
+    };
+
+    struct ThreadedFGReader : public OFThread
+    {
+        /// Input vector of per-frame items, one item per frame
+        /// containing all functional groups for that frame.
+        OFVector<DcmItem*>* m_perFrameItems;
+        OFMutex* m_perFrameItemsMutex;
+        PerFrameGroups* m_frameResultGroups;
+        OFMutex* m_frameResultGroupsMutex;
+        size_t m_startFrame;
+        size_t m_endFrame;
+        OFMutex* m_errorMutex;
+        OFConditionConst* m_errorOccurred;
+        FGInterface* m_fgInterfacePtr; // Pointer to the FGInterface instance to read from
+
+        void init(OFVector<DcmItem*>* perFrameItems,
+                OFMutex* perFrameItemsMutex,
+                PerFrameGroups* m_frameResultGroups,
+                OFMutex* frameResultGroupsMutex,
+                size_t startFrame,
+                size_t endFrame,
+                OFMutex* errorMutex,
+                OFConditionConst* errorOccurred,
+                FGInterface* fgInterfacePtr);
+
+        ThreadedFGReader();
+
+        ~ThreadedFGReader();
 
         void run() override;
     };

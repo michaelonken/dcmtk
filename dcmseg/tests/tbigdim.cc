@@ -44,8 +44,13 @@ static const Uint8 NUM_COLS             = 5;
 
 // Restrict to 1.000.000 Frames since the theoretical 2^31-1 number of frames
 // results in too much memory usage and waiting time
+
 static const Uint32 NUM_FRAMES           = 1000000;
 static const size_t NUM_SEGS             = DCM_SEG_MAX_SEGMENTS;
+
+// static const Uint32 NUM_FRAMES           = 1000;
+// static const size_t NUM_SEGS             = 1000;
+
 
 static const Uint8 NUM_PIXELS_PER_FRAME = NUM_COLS * NUM_ROWS;
 
@@ -96,7 +101,9 @@ OFTEST_FLAGS(dcmseg_bigdim, EF_Slow)
     // the same expected result
     delete seg;
     seg = NULL;
-    DcmSegmentation::loadFile(temp_fn, seg).good();
+    DcmSegmentation::LoadingFlags flags;
+    flags.m_numThreads = 16; // Use 16 threads for reading
+    DcmSegmentation::loadFile(temp_fn, seg, flags).good();
     OFCHECK(seg != OFnullptr);
     if (seg)
     {
@@ -280,7 +287,7 @@ static void checkCreatedObject(DcmDataset& dset)
     if (seq != NULL)
     {
         size_t numFrames = seq->card();
-        OFCHECK(numFrames == NUM_FRAMES);
+        OFCHECK_MSG(numFrames == NUM_FRAMES, ((OFOStringStream("Expected ") << NUM_FRAMES << " frames, but got " << numFrames)).str());
         DcmItem* item = seq->getItem(0);
         for (size_t n = 0; (n < numFrames) && (item != NULL); n++)
         {

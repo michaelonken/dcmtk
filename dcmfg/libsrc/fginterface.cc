@@ -31,6 +31,8 @@
 #include "dcmtk/dcmdata/dcsequen.h"
 
 
+// ---------------------------------- ThreadedFGWriter ----------------------------------
+// This class is used to write functional groups in parallel for a group of frames, each.
 FGInterface::ThreadedFGWriter::ThreadedFGWriter()
     : OFThread()
     , m_frameGroups(OFnullptr)
@@ -41,8 +43,9 @@ FGInterface::ThreadedFGWriter::ThreadedFGWriter()
 {
 }
 
-void FGInterface::ThreadedFGWriter::init(OFVector<std::pair<Uint32, FunctionalGroups*>>* frameGroups,
+void FGInterface::ThreadedFGWriter::init(OFVector<OFPair<Uint32, FunctionalGroups*>>* frameGroups,
                                         OFVector<DcmItem*>* perFrameResultItems,
+                                        OFMutex* perFrameResultItemsMutex,
                                         const size_t startFrame,
                                         const size_t endFrame,
                                         OFConditionConst* errorOccurred,
@@ -51,6 +54,7 @@ void FGInterface::ThreadedFGWriter::init(OFVector<std::pair<Uint32, FunctionalGr
     // Store the parameters in member variables
     m_frameGroups = frameGroups;
     m_perFrameResultItems = perFrameResultItems;
+    m_perFrameResultItemsMutex = perFrameResultItemsMutex;
     m_startFrame = startFrame;
     m_endFrame = endFrame;
     m_errorOccurred = errorOccurred;
@@ -65,9 +69,12 @@ FGInterface::ThreadedFGWriter::~ThreadedFGWriter()
 
 void FGInterface::ThreadedFGWriter::run()
 {
-    if (!m_frameGroups)
+    if (!m_frameGroups || !m_perFrameResultItems)
     {
         DCMFG_ERROR("ThreadedFGWriter: Not properly initialized, cannot run.");
+        m_errorMutex->lock();
+        *m_errorOccurred = FG_EC_ParallelProcessingFailed;
+        m_errorMutex->unlock();
         return;
     }
 
@@ -103,12 +110,124 @@ void FGInterface::ThreadedFGWriter::run()
                 return;
             }
         }
-
+        // Lock the mutex before modifying shared data
+        m_perFrameResultItemsMutex->lock();
         (*m_perFrameResultItems)[frameNo] = perFrameItem.release();
+        m_perFrameResultItemsMutex->unlock();
     }
 }
 
 
+// ---------------------------------- ThreadedFGWReader ----------------------------------
+
+FGInterface::ThreadedFGReader::ThreadedFGReader()
+    : OFThread()
+    , m_perFrameItems(OFnullptr)
+    , m_frameResultGroups(OFnullptr)
+    , m_frameResultGroupsMutex(OFnullptr)
+    , m_startFrame(0)
+    , m_endFrame(0)
+    , m_errorMutex(OFnullptr)
+    , m_errorOccurred(OFnullptr)
+{
+}
+
+
+void FGInterface::ThreadedFGReader::init(OFVector<DcmItem*>* perFrameItems,
+                                         OFMutex* perFrameItemsMutex,
+                                         PerFrameGroups* frameResultGroups,
+                                         OFMutex* frameResultGroupsMutex,
+                                         size_t startFrame,
+                                         size_t endFrame,
+                                         OFMutex* errorMutex,
+                                         OFConditionConst* errorOccurred,
+                                         FGInterface* fgInterfacePtr)
+{
+    m_perFrameItems = perFrameItems;
+    m_perFrameItemsMutex = perFrameItemsMutex;
+    m_frameResultGroups = frameResultGroups;
+    m_frameResultGroupsMutex = frameResultGroupsMutex;
+    m_startFrame = startFrame;
+    m_endFrame = endFrame;
+    m_errorMutex = errorMutex;
+    m_errorOccurred = errorOccurred;
+    m_fgInterfacePtr = fgInterfacePtr;
+}
+
+FGInterface::ThreadedFGReader::~ThreadedFGReader()
+{
+    // Nothing to do here
+}
+
+
+void FGInterface::ThreadedFGReader::run()
+{
+    if (!m_perFrameItems || !m_frameResultGroups)
+    {
+        DCMFG_ERROR("ThreadedFGReader: Not properly initialized, cannot run.");
+        m_errorMutex->lock();
+        *m_errorOccurred = FG_EC_ParallelProcessingFailed;
+        m_errorMutex->unlock();
+        return;
+    }
+
+    // Iterate over all frames and read the functional groups
+    for (size_t idx = m_startFrame; idx < m_endFrame; ++idx)
+    {
+        Uint32 frameNo = idx;
+        // No need to lock for reading from m_perFrameItems, as each thread only reads its assigned range
+        if (frameNo >= m_perFrameItems->size())
+        {
+            DCMFG_ERROR("Frame index " << frameNo << " out of bounds for per-frame items vector");
+            m_errorMutex->lock();
+            *m_errorOccurred = FG_EC_ParallelProcessingFailed;
+            m_errorMutex->unlock();
+            return;
+        }
+        DcmItem* perFrameItem = (*m_perFrameItems)[frameNo];
+        if (!perFrameItem)
+        {
+            DCMFG_ERROR("No per-frame item found for frame #" << frameNo);
+            m_errorMutex->lock();
+            *m_errorOccurred = FG_EC_ParallelProcessingFailed; // Store the error
+            m_errorMutex->unlock();
+            return;
+        }
+
+        DCMFG_DEBUG("Reading per-frame groups for frame #" << frameNo);
+        // Create a new FunctionalGroups object to store the read groups
+        OFunique_ptr<FunctionalGroups> groupsOneFrame(new FunctionalGroups());
+        if (!groupsOneFrame)
+        {
+            DCMFG_ERROR("Memory exhausted while creating FunctionalGroups object for frame #" << frameNo);
+            m_errorMutex->lock();
+            *m_errorOccurred = EC_MemoryExhausted; // Store the error
+            m_errorMutex->unlock();
+            return;
+        }
+        // Read the functional groups from the per-frame item
+        OFCondition result = m_fgInterfacePtr->readSingleFG(*perFrameItem, *groupsOneFrame);
+        if (result.bad())
+        {
+            DCMFG_ERROR("Error reading functional groups for frame #" << frameNo << ": " << result.text());
+            m_errorMutex->lock();
+            *m_errorOccurred = result.condition(); // Store the error
+            m_errorMutex->unlock();
+            return;
+        }
+        // Lock the mutex before modifying shared data
+        m_frameResultGroupsMutex->lock();
+        m_frameResultGroups->insert(OFMake_pair(frameNo, groupsOneFrame.release()));
+        m_frameResultGroupsMutex->unlock();
+        DCMFG_DEBUG("Finished reading functional groups for frame #" << frameNo);
+    }
+    std::cout << "Finished reading per-frame functional groups for frames "
+              << m_startFrame << " to " << m_endFrame - 1 << std::endl;
+}
+
+
+
+// ----------------------------------- FGInterface -----------------------------------
 
 FGInterface::FGInterface()
     : m_shared()
@@ -324,8 +443,27 @@ OFCondition FGInterface::readPerFrameFG(DcmItem& dataset)
         return FG_EC_NoPerFrameFG;
     }
 
+    // We want to either read sequentially or in parallel, depending on the number of threads
+    // defined; similar to FGInterface::writePerFrameFGParallel()
+    std::cout << "Reading per-frame functional groups for " << numFrames
+              << " frames using " << m_numThreads << " threads." << std::endl;
+    if (m_numThreads > 1 && numFrames > 1)
+    {
+        result = readPerFrameFGParallel(*perFrame, m_numThreads);
+    }
+    else
+    {
+        result = readPerFrameFGSequential(*perFrame);
+    }
+    return EC_Normal; // for now we always return EC_Normal...
+}
+
+
+OFCondition FGInterface::readPerFrameFGSequential(DcmSequenceOfItems& perFrameFGSeq)
+{
     /* Read functional groups for each item (one per frame) */
-    DcmItem* oneFrameItem = OFstatic_cast(DcmItem*, perFrame->nextInContainer(NULL));
+    OFCondition result;
+    DcmItem* oneFrameItem = OFstatic_cast(DcmItem*, perFrameFGSeq.nextInContainer(NULL));
     Uint32 count          = 0;
     while (oneFrameItem != NULL)
     {
@@ -353,11 +491,93 @@ OFCondition FGInterface::readPerFrameFG(DcmItem& dataset)
                 DCMFG_ERROR("Could not read functional groups for frame #" << count << ": " << result.text());
             }
         }
-        oneFrameItem = OFstatic_cast(DcmItem*, perFrame->nextInContainer(oneFrameItem));
+        oneFrameItem = OFstatic_cast(DcmItem*, perFrameFGSeq.nextInContainer(oneFrameItem));
         count++;
     }
     return EC_Normal; // for now we always return EC_Normal...
 }
+
+
+OFCondition FGInterface::readPerFrameFGParallel(DcmSequenceOfItems& perFrameFGSeq, const size_t numThreads)
+{
+    std::cout << "Reading per-frame functional groups in parallel using "
+              << numThreads << " threads." << std::endl;
+    // Read functional groups for each item (one per frame)
+    OFCondition result;
+    size_t numFrames   = perFrameFGSeq.card();
+
+    // Create a vector to hold the functional groups for each frame and protect it with a mutex
+    PerFrameGroups& perFrameResultGroups = m_perFrame;
+    OFMutex perFrameResultGroupsMutex;
+
+    // Create a vector to hold the results of all threads, protected by a mutex
+    OFMutex perFrameInputMutex;
+    OFVector<DcmItem*> perFrameInputItems(numFrames, NULL);
+    // Fill the vector with items from the sequence
+    DcmItem* oneFrameItem = OFstatic_cast(DcmItem*, perFrameFGSeq.nextInContainer(NULL));
+    size_t count          = 0;
+    while (oneFrameItem != NULL)
+    {
+        // Store the item in the vector
+        perFrameInputItems[count] = oneFrameItem;
+        oneFrameItem = OFstatic_cast(DcmItem*, perFrameFGSeq.nextInContainer(oneFrameItem));
+        count++;
+    }
+    std::cout << "Prepared " << count << " per-frame functional group items for parallel processing." << std::endl;
+
+    // Create a mutex for error handling
+    OFConditionConst errorOccurred = EC_Normal;
+    OFMutex errorMutex;
+
+    // Create and start threads
+    OFVector<ThreadedFGReader*> threads(numThreads);
+    size_t framesPerThread = (numFrames + numThreads - 1) / numThreads;
+    std::cout << "Distributing " << numFrames << " frames across " << numThreads
+              << " threads, each handling approximately " << framesPerThread << " frames." << std::endl;
+    for (size_t i = 0; i < numThreads; ++i)
+    {
+        threads[i] = new ThreadedFGReader();
+        size_t startFrame = i * framesPerThread;
+        size_t endFrame = (startFrame + framesPerThread < numFrames) ? startFrame + framesPerThread : numFrames;
+        std::cout << "Preparing thread " << i << " for frames "
+                  << startFrame << " to " << endFrame - 1 << std::endl;
+
+        threads[i]->init(&perFrameInputItems, &perFrameInputMutex,
+                         &perFrameResultGroups, &perFrameResultGroupsMutex,
+                         startFrame,
+                         endFrame,
+                         &errorMutex, &errorOccurred, this);
+    }
+    std::cout << "Initialized " << numThreads << " threads for reading per-frame functional groups. Starting threads..." << std::endl;
+    // Start all threads
+    for (size_t i = 0; i < numThreads; ++i)
+    {
+        threads[i]->start();
+    }
+
+    // Wait for all threads to finish
+    std::cout << "Waiting for threads to finish..." << std::endl;
+    for (size_t i = 0; i < numThreads; ++i)
+    {
+        threads[i]->join();
+        delete threads[i];
+        threads[i] = NULL;
+    }
+    std::cout << "Finished reading per-frame functional groups in parallel." << std::endl;
+    std::cout << "Number of frames processed: " << perFrameResultGroups.size() << std::endl;
+
+    // Check if any thread encountered an error
+    if (errorOccurred != EC_Normal)
+    {
+        DCMFG_ERROR("Error occurred while reading functional groups in parallel: " << OFCondition(errorOccurred).text());
+        return errorOccurred;
+    }
+
+    // Store the results in m_perFrame
+    return EC_Normal;
+}
+
+
 
 OFCondition FGInterface::readSingleFG(DcmItem& fgItem, FunctionalGroups& groups)
 {
@@ -575,8 +795,6 @@ FunctionalGroups* FGInterface::getOrCreatePerFrameGroups(const Uint32 frameNo)
 }
 
 
-
-
 OFCondition FGInterface::writePerFrameFG(DcmItem& dataset)
 {
     OFCondition result;
@@ -593,7 +811,7 @@ OFCondition FGInterface::writePerFrameFG(DcmItem& dataset)
     size_t numFrames = m_perFrame.size();
 
     // Use parallel processing for writing functional groups, if desired
-    if (m_numThreads > 1 && numFrames > m_numThreads)
+    if (m_numThreads > 1 && numFrames > 1)
     {
         result = writePerFrameFGParallel(dataset, m_numThreads);
     }
@@ -652,16 +870,17 @@ OFCondition FGInterface::writePerFrameFGParallel(DcmItem& dataset, const size_t 
     std::cout << "Writing per-frame functional groups in parallel using " << numThreads << " threads." << std::endl;
     OFConditionConst errorOccurred(EC_Normal);
     OFMutex errorMutex;
+    OFMutex perFrameItemsMutex;
 
     // Prepare a vector of frame numbers and their corresponding FunctionalGroups pointers.
     // We need this to distribute the work across threads. Using the OFMap directly in threads
     // could lead to data races and inconsistencies since each thread would invalidate the iterators
     // being used in the other threads.
-    OFVector<std::pair<Uint32, FunctionalGroups*>> frameGroups;
+    OFVector<OFPair<Uint32, FunctionalGroups*>> frameGroups;
     frameGroups.reserve(m_perFrame.size());
     for (OFMap<Uint32, FunctionalGroups*>::iterator it = m_perFrame.begin(); it != m_perFrame.end(); ++it)
     {
-        frameGroups.push_back(std::make_pair((*it).first, (*it).second));
+        frameGroups.push_back(OFMake_pair((*it).first, (*it).second));
     }
     size_t numFrames = frameGroups.size();
 
@@ -680,8 +899,7 @@ OFCondition FGInterface::writePerFrameFGParallel(DcmItem& dataset, const size_t 
         size_t endFrame = (startFrame + framesPerThread < numFrames) ? startFrame + framesPerThread : numFrames;
 
         ThreadedFGWriter* writer = new ThreadedFGWriter();
-        writer->init(&frameGroups, &perFrameItems, startFrame, endFrame, &errorOccurred, &errorMutex);
-        //writer->init(frameGroups, perFrameItems, startFrame, endFrame, errorOccurred, errorMutex);
+        writer->init(&frameGroups, &perFrameItems, &perFrameItemsMutex, startFrame, endFrame, &errorOccurred, &errorMutex);
         threads.push_back(writer);
         writer->start(); // Start the thread
     }
@@ -907,5 +1125,7 @@ OFBool FGInterface::check()
     if (numErrors > 0)
         return OFFalse;
 
+    return OFTrue;
+}
     return OFTrue;
 }
