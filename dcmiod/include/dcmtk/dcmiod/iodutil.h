@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2015-2024, Open Connections GmbH
+ *  Copyright (C) 2015-2025, Open Connections GmbH
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation are maintained by
@@ -928,6 +928,12 @@ public:
         return 0;
     }
 
+    /** Set the current date and time on the given module by using setContentDate()
+     *  and setContentTime() methods. The current date and time is retrieved
+     *  from the system clock.
+     *  @param  module The module to set the date and time on
+     *  @return EC_Normal if successful, an error code otherwise
+    */
     template <typename ModuleType>
     static OFCondition setContentDateAndTimeNow(ModuleType& module)
     {
@@ -1011,7 +1017,22 @@ public:
      */
     static void resetConditionIfCheckDisabled(OFCondition& result, const OFBool checkValue, DcmElement& elem);
 
-    static void reset_value_check_result(OFCondition& result, const OFBool checkValue, DcmElement& elem);
+
+    /** If checkValue is true, the given OFCondition for certain errors (listed below), prints
+     *  a debug message if the condition is not good, and resets the condition
+     *  to EC_Normal. If checkValue is false, the method does nothing.
+     *  The following error codes are handled, i.e. reset:
+     *  EC_ValueRepresentationViolated
+     *  EC_MaximumLengthViolated
+     *  EC_InvalidCharacter
+     *  EC_ValueMultiplicityViolated
+     *  @param  result The condition to check. Only EC_ValueRepresentationViolated, EC_MaximumLengthViolated,
+     *          EC_InvalidCharacter and EC_ValueMultiplicityViolated are handled.
+     *  @param checkValue If this value is true, the listed condition are reset to EC_Normal; otherwise the
+     *          condition is not changed and no message is printed.
+     *  @param elem Used if the condition is reset to EC_Normal to print a message in case of a "reset"
+     */
+    static void resetValueCheckResult(OFCondition& result, const OFBool checkValue, DcmElement& elem);
 
 private:
     // We only have static functions so we do not need an instance of

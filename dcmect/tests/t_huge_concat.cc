@@ -594,7 +594,6 @@ void loadAndCheckConcatenation(const OFList<OFFilename>& concats)
         result                  = EctEnhancedCT::loadConcatenation(cl, cl.getInfo().begin()->first, mergedCT);
         DcmItem item;
         mergedCT->writeDataset(item);
-        //item.print(std::cout);
         if (result.good())
         {
             ConcatenationCreator cc;

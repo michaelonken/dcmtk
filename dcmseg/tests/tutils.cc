@@ -105,7 +105,6 @@ OFTEST(dcmseg_packBinaryFrame)
         // Check the result
         for (unsigned int j = 0; j < pixelCount; j++)
         {
-            // std::cout << "Checking pixel " << j << " of " << pixelCount << std::endl;
             Uint32 byteIndex = j / 8;
             Uint32 bitIndex = j % 8;
             Uint8 mask = 1 << bitIndex;

@@ -456,23 +456,20 @@ OFCondition DcmSegmentation::readWithoutPixelData(DcmItem& dataset)
 
     readSegments(dataset);
 
-    readSegmentationFractionalType(dataset);
+    if (m_SegmentationType == DcmSegTypes::ST_FRACTIONAL)
+        readSegmentationFractionalType(dataset);
 
     m_ContentIdentificationMacro.read(dataset);
 
-    // OFString colorModel;
-    // if (dataset.findAndGetOFString(DCM_PhotometricInterpretation, colorModel).good() && (colorModel == "PALETTE COLOR"))
-    // {
-    //     m_PaletteColorLUTModule.read(dataset);
-    // }
-
-    readAndCheckColorModel();
-
-    if (m_LabelmapColorModel == DcmSegTypes::SLCM_PALETTE)
+    // Read Photometric Interpretation and check whether it fits the segmentation type
+    OFString colorModel;
+    if (dataset.findAndGetOFString(DCM_PhotometricInterpretation, colorModel).good() && (colorModel == "PALETTE COLOR"))
     {
+        // For palette, read Palette Color LUT Module and ICC Profile Module
         m_PaletteColorLUTModule.read(dataset);
         m_ICCProfileModule.read(dataset);
     }
+    checkColorModel(colorModel);
 
     // Read specific segmentation elements
     DcmIODUtil::getAndCheckElementFromDataset(
@@ -2050,26 +2047,24 @@ OFString DcmSegmentation::determineColorModel()
 }
 
 
-OFBool DcmSegmentation::readAndCheckColorModel()
+OFBool DcmSegmentation::checkColorModel(const OFString& photometricInterpretation)
 {
-    OFString colorModel;
-    getImagePixel().getPhotometricInterpretation(colorModel);
     // For labelmaps, MONOCHROME2 and PALETTE is permitted
     if (m_SegmentationType == DcmSegTypes::ST_LABELMAP)
     {
-        if ((colorModel != "MONOCHROME2") && (colorModel != "PALETTE COLOR"))
+        if ((photometricInterpretation != "MONOCHROME2") && (photometricInterpretation != "PALETTE COLOR"))
         {
-            DCMSEG_WARN("Photometric Interpretation is not set correctly (" << colorModel << "): Must be MONOCHROME2 or PALETTE COLOR for labelmaps");
+            DCMSEG_WARN("Photometric Interpretation is not set correctly (" << photometricInterpretation << "): Must be MONOCHROME2 or PALETTE COLOR for labelmaps");
             m_LabelmapColorModel = DcmSegTypes::SLCM_UNKNOWN;
             return OFFalse;
         }
-        m_LabelmapColorModel = DcmSegTypes::OFString2LabelmapColorModel(colorModel);
+        m_LabelmapColorModel = DcmSegTypes::OFString2LabelmapColorModel(photometricInterpretation);
     }
     else
     {
-        if (colorModel != "MONOCHROME2")
+        if (photometricInterpretation != "MONOCHROME2")
         {
-            DCMSEG_WARN("Photometric Interpretation is not set correctly (" << colorModel << "): Must be MONOCHROME2 for binary and fractional segmentations");
+            DCMSEG_WARN("Photometric Interpretation is not set correctly (" << photometricInterpretation << "): Must be MONOCHROME2 for binary and fractional segmentations");
             return OFFalse;
         }
         m_LabelmapColorModel = DcmSegTypes::SLCM_UNKNOWN; // not used for binary/fractional segmentations

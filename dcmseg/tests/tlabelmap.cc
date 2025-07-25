@@ -1,9 +1,9 @@
 /*
  *
- *  Copyright (C) 2024, OFFIS e.V.
+ *  Copyright (C) 2024-2025, Open Connections GmbH
  *  All rights reserved.  See COPYRIGHT file for details.
  *
- *  This software and supporting documentation were developed by
+ *  This software and supporting documentation are maintained by
  *
  *    OFFIS e.V.
  *    R&D Division Health
@@ -131,20 +131,6 @@ OFTEST(dcmseg_labelmap_8bit_mono2)
         std::cout << "Keeping temporary file: " << temp_fn << " from test dcmseg_labelmap_8bit_mono2" << std::endl;
         tf.stealFile();
     }
-
-    // // Check writing the object to a concatenation
-    // OFList<OFFilename> concats;
-    // writeAndCheckConcatenation(seg, concats);
-
-    // // Re-load object from concatenation
-    // loadAndCheckConcatenation(concats);
-
-    // OFListIterator(OFFilename) delFile = concats.begin();
-    // while (delFile != concats.end())
-    // {
-    //     OFStandard::deleteFile(*delFile);
-    //     delFile++;
-    // }
     delete seg;
 }
 
@@ -192,19 +178,6 @@ OFTEST_FLAGS(dcmseg_labelmap_16bit_mono2, EF_Slow)
         checkCreatedObject(&dset_loaded, 16, DcmSegTypes::SLCM_MONOCHROME2);
     }
 
-    // // Check writing the object to a concatenation
-    // OFList<OFFilename> concats;
-    // writeAndCheckConcatenation(seg, concats);
-
-    // // Re-load object from concatenation
-    // loadAndCheckConcatenation(concats);
-
-    // OFListIterator(OFFilename) delFile = concats.begin();
-    // while (delFile != concats.end())
-    // {
-    //     OFStandard::deleteFile(*delFile);
-    //     delFile++;
-    // }
     delete seg_object;
     if (keepTempFiles)
     {
@@ -257,19 +230,6 @@ OFTEST(dcmseg_labelmap_8bit_palette)
         checkCreatedObject(&loaded_ds, 8, DcmSegTypes::SLCM_PALETTE);
     }
 
-    // // Check writing the object to a concatenation
-    // OFList<OFFilename> concats;
-    // writeAndCheckConcatenation(seg, concats);
-
-    // // Re-load object from concatenation
-    // loadAndCheckConcatenation(concats);
-
-    // OFListIterator(OFFilename) delFile = concats.begin();
-    // while (delFile != concats.end())
-    // {
-    //     OFStandard::deleteFile(*delFile);
-    //     delFile++;
-    // }
     delete seg;
     if (keepTempFiles)
     {
@@ -323,19 +283,6 @@ OFTEST_FLAGS(dcmseg_labelmap_16bit_palette, EF_Slow)
         checkCreatedObject(&dset_loaded, 16, DcmSegTypes::SLCM_PALETTE);
     }
 
-    // // Check writing the object to a concatenation
-    // OFList<OFFilename> concats;
-    // writeAndCheckConcatenation(seg, concats);
-
-    // // Re-load object from concatenation
-    // loadAndCheckConcatenation(concats);
-
-    // OFListIterator(OFFilename) delFile = concats.begin();
-    // while (delFile != concats.end())
-    // {
-    //     OFStandard::deleteFile(*delFile);
-    //     delFile++;
-    // }
     delete seg_object;
     if (keepTempFiles)
     {
@@ -727,149 +674,3 @@ static void checkPalette(DcmDataset* dset, const Uint8 bitsAllocated)
     }
 }
 
-
-// static void writeAndCheckConcatenation(DcmSegmentation* seg, OFList<OFFilename>& concats)
-// {
-//     ConcatenationCreator cc;
-//     cc.setCfgFramesPerInstance(1);
-//     OFCHECK(seg->writeConcatenation(cc).good());
-//     size_t numInstances = cc.getNumInstances();
-//     OFCHECK(numInstances == NUM_FRAMES);
-//     OFCondition result;
-//     for (size_t n = 0; n < numInstances; n++)
-//     {
-//         OFStringStream s;
-//         s << "concat_" << n << "_";
-//         OFTempFile tf(O_RDWR, "", s.str().c_str(), ".dcm");
-//         result = cc.writeNextInstance(tf.getFilename());
-//         OFCHECK(result.good());
-//         if (result.good())
-//         {
-//             DcmFileFormat concat;
-//             result = concat.loadFile(tf.getFilename());
-//             OFCHECK(result.good());
-//             checkConcatenationInstance(n, seg, concat.getDataset());
-//             concats.push_back(tf.getFilename());
-//             tf.stealFile();
-//         }
-//     }
-// }
-
-// static void checkConcatenationInstance(size_t numInstance, DcmSegmentation* srcInstance, DcmDataset* concatInstance)
-// {
-//     DcmSegmentation* concat = NULL;
-//     OFCHECK(DcmSegmentation::loadDataset(*concatInstance, concat).good());
-//     if (concat == NULL) return; // loadDataset() failed, we cannot continue
-//     size_t numFrames;
-//     numFrames = concat->getNumberOfFrames();
-//     OFCHECK(numFrames == 1);
-//     size_t numSegs = concat->getNumberOfSegments();
-//     OFCHECK(numSegs == NUM_FRAMES);
-//     IODMultiFrameFGModule::ConcatenationInfo& ci = concat->getConcatenationInfo();
-//     OFString val;
-//     OFCHECK(ci.getConcatenationUID(val).good());
-//     OFCHECK(DcmUniqueIdentifier::checkStringValue(val, "1").good());
-//     Uint32 frameOffsetNo = 0;
-//     OFCHECK(ci.getConcatenationFrameOffsetNumber(frameOffsetNo).good());
-//     OFCHECK(frameOffsetNo == numInstance);
-//     Uint16 inConcatNo = 0;
-//     OFCHECK(ci.getInConcatenationNumber(inConcatNo).good());
-//     OFCHECK(inConcatNo == numInstance + 1);
-//     Uint16 concatTotalNo = 0;
-//     OFCHECK(ci.getInConcatenationTotalNumber(concatTotalNo).good());
-//     OFCHECK(concatTotalNo == NUM_FRAMES);
-
-//     OFString srcUID;
-//     OFCHECK(ci.getSOPInstanceUIDOfConcatenationSource(srcUID).good());
-//     OFCHECK(srcInstance->getSOPCommon().getSOPInstanceUID(val).good());
-//     OFCHECK(srcUID == val);
-
-//     OFCHECK(concat->getSOPCommon().getSOPInstanceUID(val).good());
-//     OFCHECK(srcUID != val);
-
-//     FunctionalGroups::const_iterator srcShared = srcInstance->getFunctionalGroups().getShared()->begin();
-//     FunctionalGroups::const_iterator cShared   = concat->getFunctionalGroups().getShared()->begin();
-//     do
-//     {
-//         OFCHECK(srcShared->second->compare(*cShared->second) == 0);
-//         srcShared++;
-//         cShared++;
-//     } while ((srcShared != srcInstance->getFunctionalGroups().getShared()->end())
-//              && (cShared != concat->getFunctionalGroups().getShared()->end()));
-//     OFCHECK((srcShared == srcInstance->getFunctionalGroups().getShared()->end())
-//             && (cShared == concat->getFunctionalGroups().getShared()->end()));
-//     DcmSequenceOfItems* cPerFrame = NULL;
-//     OFCHECK(concatInstance->findAndGetSequence(DCM_PerFrameFunctionalGroupsSequence, cPerFrame).good());
-//     OFCHECK(cPerFrame && (cPerFrame->card() == 1));
-
-//     OFBool perFrame = OFFalse;
-//     FGBase* fg      = concat->getFunctionalGroups().get(0, DcmFGTypes::EFG_FRAMECONTENT, perFrame);
-//     OFCHECK(fg != NULL);
-//     OFCHECK(perFrame == OFTrue);
-
-//     fg = NULL;
-//     fg = concat->getFunctionalGroups().get(0, DcmFGTypes::EFG_SEGMENTATION, perFrame);
-//     OFCHECK(fg != NULL);
-//     OFCHECK(perFrame == OFTrue);
-
-//     fg = NULL;
-//     fg = concat->getFunctionalGroups().get(0, DcmFGTypes::EFG_PIXELMEASURES, perFrame);
-//     OFCHECK(fg != NULL);
-//     OFCHECK(perFrame == OFFalse);
-
-//     fg = NULL;
-//     fg = concat->getFunctionalGroups().get(0, DcmFGTypes::EFG_PLANEPOSPATIENT, perFrame);
-//     OFCHECK(fg != NULL);
-//     OFCHECK(perFrame == OFFalse);
-
-//     fg = NULL;
-//     fg = concat->getFunctionalGroups().get(0, DcmFGTypes::EFG_PLANEORIENTPATIENT, perFrame);
-//     OFCHECK(fg != NULL);
-//     OFCHECK(perFrame == OFFalse);
-
-//     const DcmIODTypes::Frame<Uint8>* frame = OFstatic_cast(const DcmIODTypes::Frame<Uint8>*, concat->getFrame(0));
-//     OFCHECK(frame != OFnullptr);
-//     OFCHECK(frame->m_pixData != OFnullptr);
-//     OFCHECK(OFstatic_cast(Uint8, frame->getLengthInBytes()) == NUM_PIXELS_PER_FRAME);
-//     for (size_t pix = 0; pix < frame->getLengthInBytes(); pix++)
-//     {
-//         OFCHECK(frame->m_pixData[pix] == pix);
-//     }
-//     delete concat;
-// }
-
-// static void loadAndCheckConcatenation(const OFList<OFFilename>& concats)
-// {
-//     ConcatenationLoader cl;
-//     OFCondition result = cl.scan(concats);
-//     OFCHECK(result.good());
-//     if (result.good())
-//     {
-//         ConcatenationLoader::TScanResult results = cl.getInfo();
-//         OFCHECK(results.size() == 1);
-//         if (results.size() != 1)
-//             return;
-//         DcmSegmentation* seg = NULL;
-//         result               = DcmSegmentation::loadConcatenation(cl, results.begin()->first, seg);
-
-//         OFCHECK(result.good());
-//         if (result.good())
-//         {
-//             OFStringStream s;
-//             DcmDataset dset;
-//             OFString sop;
-//             result = seg->writeDataset(dset);
-
-//             // Patch date and time so that it fits the prepared dump
-//             OFCHECK(dset.putAndInsertOFStringArray(DCM_ContentDate, "20190927").good());
-//             OFCHECK(dset.putAndInsertOFStringArray(DCM_ContentTime, "153857").good());
-
-//             OFCHECK(result.good());
-//             if (result.good())
-//             {
-//                 checkCreatedObject(&dset, 8, DcmSegTypes::SLCM_MONOCHROME2);
-//             }
-//             delete seg;
-//         }
-//     }
-// }

@@ -196,7 +196,7 @@ DcmIODUtil::addElementToDataset(OFCondition& result, DcmItem& dataset, DcmElemen
                                                result,
                                                rule->getModule().c_str(),
                                                logLevel);
-                    reset_value_check_result(result, checkValue, *delem);
+                    resetValueCheckResult(result, checkValue, *delem);
                 }
                 if (result.good())
                 {
@@ -824,7 +824,7 @@ void DcmIODUtil::resetConditionIfCheckDisabled(OFCondition& result, const OFBool
 }
 
 
-void DcmIODUtil::reset_value_check_result(OFCondition& result, const OFBool checkValue, DcmElement& elem)
+void DcmIODUtil::resetValueCheckResult(OFCondition& result, const OFBool checkValue, DcmElement& elem)
 {
     if (!checkValue)
     {

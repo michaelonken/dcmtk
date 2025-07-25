@@ -202,8 +202,12 @@ public:
      */
     virtual OFBool getCheckOnWrite();
 
-    /** Sets the number of threads to be used for writing per-frame functional groups.
-     *  @param  numThreads The number of threads to use
+    /** Sets the number of threads to be used for reading and writing per-frame functional groups.
+     *  @param  numThreads The maximum number of threads to use
+     *    The number of threads will be adjusted to the number of frames, i.e.\ there will
+     *    be no more threads used than one fifth the number of frames (so that each thread must at least handle
+     *    5 frames, since otherwise the overhead of starting threads would be too high). The
+     *    number is adjusted on the fly.
      */
     virtual void setUseThreads(const size_t numThreads);
 
@@ -288,8 +292,18 @@ protected:
      */
     virtual OFCondition writePerFrameFG(DcmItem& dataset);
 
+    /** Write Per-Frame Functional Group Sequence to given item in parallel
+     *  @param  dataset The item to write to
+     *  @param  numThreads The maximum number of threads to use
+     *  @return EC_Normal if writing was successful, error otherwise
+     */
     virtual OFCondition writePerFrameFGParallel(DcmItem& dataset, const size_t numThreads);
 
+    /** Write Per-Frame Functional Group Sequence to given item in sequential mode,
+     * i.e.\ no extra threads are used.
+     *  @param  dataset The item to write to
+     *  @return EC_Normal if writing was successful, error otherwise
+     */
     virtual OFCondition writePerFrameFGSequential(DcmItem& dataset);
 
     /** Convert a shared functional group to a per-frame one by copying the
@@ -303,6 +317,14 @@ protected:
      */
     virtual OFCondition convertSharedToPerFrame(const DcmFGTypes::E_FGType fgType);
 
+    /** Find an adequate number of threads to use for reading and writing per-frame functional groups.
+     *  The number is adjusted to the number of frames, i.e.\ there will be no more threads used
+     *  than one fifth the number of frames (so that each thread must at least handle
+     *  5 frames, since otherwise the overhead of starting threads would be too high).
+     *  @param numFrames The number of frames to read/write
+     *  @param userThreadSetting The user-defined number of threads to use
+     *  @return The adjusted number of threads to use
+     */
     virtual size_t findAdequateNumberOfThreads(const size_t numFrames, const size_t userThreadSetting);
 
     /// Threaded functional group writer, used to write per-frame functional groups
@@ -449,8 +471,12 @@ private:
     /// checks are skipped.
     OFBool m_checkOnWrite;
 
-    /// Number of threads to use for writing per-frame functional groups,
-    /// default is 1 thread (sequential writing)
+    /// Maximum number of threads to use for reading and writing per-frame functional groups,
+    /// default is 1 thread (sequential writing). The number provided by the user
+    /// will be adjusted to the number of frames, i.e. there will be not more threads
+    /// used than one fifth the number of frames (so that each thread must at least handle
+    //  5 frames, since otherwise the overhead of starting threads would be too high). The
+    /// number is adjusted on the fly.
     size_t m_numThreads;
 };
 

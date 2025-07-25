@@ -141,28 +141,29 @@ OFCondition IODPaletteColorLUTModule::write(DcmItem& destination)
             return IODComponent::write(destination);
         }
     }
+
     return IOD_EC_InvalidColorPalette;
 }
 
 OFCondition IODPaletteColorLUTModule::getRedPaletteColorLookupTableDescriptor(Uint16& value,
                                                                               const unsigned long pos) const
 {
-    OFCondition result;
-    return m_Item->findAndGetUint16(DCM_RedPaletteColorLookupTableDescriptor, value, pos);
+    OFCondition result = m_Item->findAndGetUint16(DCM_RedPaletteColorLookupTableDescriptor, value, pos);
+    return result;
 }
 
 OFCondition IODPaletteColorLUTModule::getGreenPaletteColorLookupTableDescriptor(Uint16& value,
                                                                               const unsigned long pos) const
 {
-    OFCondition result;
-    return m_Item->findAndGetUint16(DCM_GreenPaletteColorLookupTableDescriptor, value, pos);
+    OFCondition result = m_Item->findAndGetUint16(DCM_GreenPaletteColorLookupTableDescriptor, value, pos);
+    return result;
 }
 
 OFCondition IODPaletteColorLUTModule::getBluePaletteColorLookupTableDescriptor(Uint16& value,
                                                                               const unsigned long pos) const
 {
-    OFCondition result;
-    return m_Item->findAndGetUint16(DCM_BluePaletteColorLookupTableDescriptor, value, pos);
+    OFCondition result = m_Item->findAndGetUint16(DCM_BluePaletteColorLookupTableDescriptor, value, pos);
+    return result;
 }
 
 

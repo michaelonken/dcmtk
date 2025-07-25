@@ -549,7 +549,8 @@ protected:
      */
     OFCondition readWithoutPixelData(DcmItem& dataset);
 
-    /** Writes the complete dataset without pixel data
+    /** Writes the complete dataset without pixel data, and write pixel data separately.
+     *  Version for 8 bit pixel data.
      *  @param  dataset The dataset to write to
      *  @param  pixData Buffer for pixel data to write to
      *  @param  pixDataLength Length of pixData buffer
@@ -557,6 +558,13 @@ protected:
      */
     OFCondition writeWithSeparatePixelData(DcmItem& dataset, Uint8*& pixData, size_t& pixDataLength);
 
+    /** Writes the complete dataset without pixel data, and write pixel data separately
+     *  Version for 16 bit pixel data.
+     *  @param  dataset The dataset to write to
+     *  @param  pixData Buffer for pixel data to write to
+     *  @param  pixDataLength Length of pixData buffer
+     *  @return EC_Normal if writing succeeded, error otherwise
+     */
     OFCondition writeWithSeparatePixelData(DcmItem& dataset, Uint16*& pixData, size_t& pixDataLength);
 
     /** Create those data structures common for binary and fractional
@@ -648,6 +656,13 @@ protected:
      */
     virtual OFCondition readFrames(DcmItem& dataset);
 
+    /** Read pixel data from given pixel data element
+     *  @param  pixelData The pixel data element to read from
+     *  @param  numFrames The number of frames expected in the pixel data element
+     *  @param  pixelsPerFrame The number of pixels per frame (rows*columns)
+     *  @param  bitsAlloc Bits Allocated value (1, 8 or 16)
+     *  @return EC_Normal if reading was successful, error otherwise
+     */
     virtual OFCondition readPixelData(DcmElement* pixelData, const size_t numFrames, const size_t pixelsPerFrame, const Uint8 bitsAlloc);
 
     /** Get Image Pixel module attributes and perform some basic checking
@@ -674,21 +689,6 @@ protected:
                                                 Uint32& numberOfFrames,
                                                 OFString& colorModel);
 
-    // /** This is the counterpart to the extractFrames() function. It takes a number
-    //  *  of frames that are in binary segmentation format (i.e. "bit-packed") and
-    //  *  concatenates them together so the resulting memory block fits the Pixel
-    //  *  Data format for binary segmentations. Thus method ensure that frames
-    //  *  are aligned bit for bit concatenated to each other with only (if
-    //  *  applicable) having unused bits after the last frame.
-    //  *  @param frames The source frames
-    //  *  @param pixData The pixel data element data to be filled. Size must be
-    //  *         at least bitsPerFrame * number of frames.
-    //  *  @param bitsPerFrame Bits required per frame, usually rows * columns
-    //  *  @return EC_Normal if concatenation was successful, error otherwise
-    //  */
-    // virtual OFCondition
-    // concatFrames(OFVector<DcmIODTypes::FrameBase*> frames, Uint8* pixData, const size_t bitsPerFrame);
-
     /** Add frame to segmentation object.
      *  @param  pixData Pixel data to be added. Length must be rows*columns bytes.
      *          Pixel data is copied so it must be freed by the caller.
@@ -706,12 +706,12 @@ protected:
      */
     OFString determineColorModel();
 
-    /** Checks whether color model found in Photometric Interpretation is valid,
+    /** Checks whether color model found in photometricInterpretation parameter is valid,
      *  i.e. MONOCHROME2, or in case of labelmaps MONOCHROME2 or PALETTE.
      *  Sets internal flag m_labelmapColorModel (for labelmaps) accordingly.
      *  @return OFTrue if color model is valid, OFFalse otherwise
      */
-    OFBool readAndCheckColorModel();
+    OFBool checkColorModel(const OFString& photometricInterpretation);
 
     /** Sets the SOP Class UID based on the segmentation type,
      *  i.e. whether it is a binary or fractional (Segmentation Storage SOP Class)
