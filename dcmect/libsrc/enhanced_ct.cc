@@ -1199,7 +1199,15 @@ OFCondition EctEnhancedCT::readGeneric(DcmItem& dataset)
     }
 
     IODImage::read(dataset);
-    m_SynchronizationModule.read(dataset);
+    if (m_SynchronizationModuleEnabled)
+    {
+        // Synchronization Module is type C ("Required if time synchronization was​ applied"),
+        // so we make it optional for reading to avoid warnings on the attributes, and then reset rules
+        // to the default state.
+        m_SynchronizationModule.makeOptional();
+        m_SynchronizationModule.read(dataset);
+        m_SynchronizationModule.resetRules();
+    }
     m_EnhancedGeneralEquipmentModule.read(dataset);
     m_FG.read(dataset);
     m_DimensionModule.read(dataset);
