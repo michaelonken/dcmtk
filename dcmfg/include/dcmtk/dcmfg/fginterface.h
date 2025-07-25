@@ -423,16 +423,18 @@ protected:
 
         /** Initialize the thread
          * @param perFrameItems Input vector of per-frame items, one item per frame
-         *   containing all functional groups for that frame.
+         *        containing all functional groups for that frame.
          * @param perFrameItemsMutex Mutex to protect the input vector
          * @param m_frameResultGroups Output vector of per-frame functional groups,
-         *   one item per frame (index = frame number) containing all functional groups for that frame.
+         *        one item per frame (index = frame number) containing all functional groups for that frame.
          * @param frameResultGroupsMutex Mutex to protect the output vector
          * @param startFrame Start frame this thread should handle (inclusive, starts with 0)
          * @param endFrame End frame this thread should handle (exclusive, i.e.\ the last frame this thread handles is m_endFrame - 1)
-         * @param errorOccurred Pointer to a condition variable that is set if an error occurs
-         *   during reading. The main thread can check this variable to see if an error occurred.
          * @param errorMutex Mutex to protect error output
+         * @param errorOccurred Pointer to a condition variable that is set if an error occurs
+         *        during reading. The main thread can check this variable to see if an error occurred.
+         * @param fgInterfacePtr Pointer to the FGInterface instance;
+         *        used to access its readSingleFG() method
          */
         void init(OFVector<DcmItem*>* perFrameItems,
                   OFMutex* perFrameItemsMutex,

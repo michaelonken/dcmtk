@@ -709,6 +709,8 @@ protected:
     /** Checks whether color model found in photometricInterpretation parameter is valid,
      *  i.e. MONOCHROME2, or in case of labelmaps MONOCHROME2 or PALETTE.
      *  Sets internal flag m_labelmapColorModel (for labelmaps) accordingly.
+     *  @param  photometricInterpretation The color model to check
+     *          (e.g. MONOCHROME2, PALETTE, etc.)
      *  @return OFTrue if color model is valid, OFFalse otherwise
      */
     OFBool checkColorModel(const OFString& photometricInterpretation);
