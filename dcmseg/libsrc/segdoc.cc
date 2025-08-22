@@ -754,6 +754,20 @@ OFBool DcmSegmentation::has16BitPixelData() const
     return this->m_16BitPixelData;
 }
 
+Uint16 DcmSegmentation::getRows()
+{
+    Uint16 rows = 0;
+    DcmSegmentation::getImagePixel().getRows(rows);
+    return rows;
+}
+
+Uint16 DcmSegmentation::getColumns()
+{
+    Uint16 cols = 0;
+    DcmSegmentation::getImagePixel().getColumns(cols);
+    return cols;
+}
+
 size_t DcmSegmentation::getNumberOfSegments()
 {
     return m_Segments.size();

@@ -83,6 +83,8 @@ extern DCMTK_DCMSEG_EXPORT const OFConditionConst SG_EC_NotEnoughData;
 extern DCMTK_DCMSEG_EXPORT const OFConditionConst SG_EC_MaxFramesReached;
 /// error: invalid bit depth
 extern DCMTK_DCMSEG_EXPORT const OFConditionConst SG_EC_InvalidBitDepth;
+/// error: frames are not parallel
+extern DCMTK_DCMSEG_EXPORT const OFConditionConst SG_EC_FramesNotParallel;
 
 ///@}
 

@@ -40,6 +40,7 @@ makeOFConditionConst(SG_EC_InvalidValue, OFM_dcmseg, 4, OF_error, "Invalid value
 makeOFConditionConst(SG_EC_NotEnoughData, OFM_dcmseg, 5, OF_error, "Not enough data");
 makeOFConditionConst(SG_EC_MaxFramesReached, OFM_dcmseg, 6, OF_error, "Maximum Number of Frames reached");
 makeOFConditionConst(SG_EC_InvalidBitDepth, OFM_dcmseg, 7, OF_error, "Invalid bit depth for given Segmentation Type");
+makeOFConditionConst(SG_EC_FramesNotParallel, OFM_dcmseg, 8, OF_error, "Frames are not parallel");
 
 DcmSegTypes::E_SegmentationType DcmSegTypes::OFString2Segtype(const OFString& value)
 {

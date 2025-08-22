@@ -271,6 +271,10 @@ public:
 
     OFBool has16BitPixelData() const;
 
+    Uint16 getRows();
+
+    Uint16 getColumns();
+
     /** Get number of frames, based on the number of items in the shared
      *  functional functional groups sequence (i.e.\ the attribute Number of
      *  Frames) is not trusted). Note that this returns the numbers of frames
