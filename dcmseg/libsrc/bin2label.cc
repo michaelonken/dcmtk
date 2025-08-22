@@ -1,0 +1,267 @@
+/*
+ *  Copyright (C) 2015-2025, Open Connections GmbH
+ *
+ *  All rights reserved.  See COPYRIGHT file for details.
+ *
+ *  This software and supporting documentation are maintained by
+ *
+ *    OFFIS e.V.
+ *    R&D Division Health
+ *    Escherweg 2
+ *    D-26121 Oldenburg, Germany
+ *
+ *
+ *  Module:  dcmseg
+ *
+ *  Author:  Michael Onken
+ *
+ *  Purpose: Class for converting binary to label map segmentations
+ *
+ */
+
+
+#include "dcmtk/config/osconfig.h" // include OS configuration first
+#include "dcmtk/dcmseg/bin2label.h"
+#include "dcmtk/dcmseg/segtypes.h"
+#include "dcmtk/dcmdata/dcuid.h"
+
+
+DcmBinToLabelConverter::DcmBinToLabelConverter(const DcmSegmentation::LoadingFlags& loadFlags,
+                                               const DcmBinToLabelConverter::ConversionFlags& convFlags)
+    : m_loadFlags(loadFlags),
+      m_convFlags(convFlags),
+      m_inputSeg(nullptr),
+      m_outputSeg(nullptr)
+{
+}
+
+OFCondition DcmBinToLabelConverter::convertDataset(DcmDataset& dataset,
+                                                   DcmSegmentation*& segmentation,
+                                                   const DcmSegmentation::LoadingFlags& loadFlags,
+                                                   const DcmBinToLabelConverter::ConversionFlags& convFlags)
+{
+    DcmBinToLabelConverter converter(loadFlags, convFlags);
+    // Check whether SOP Class and Segmentation Type are suitable for conversion
+    OFCondition result  = converter.checkSOPClassAndSegtype(dataset);
+    // If this is not a binary segmentation, already a label map, or has invalid
+    // data in SOP Class UID and/or Segmentation Type, return here.
+    if (result != EC_Normal) return result;
+
+    DcmSegmentation* temp = NULL;
+    result =  DcmSegmentation::loadDataset(dataset, temp, loadFlags);
+    if (result.good())
+    {
+        converter.m_inputSeg.reset(temp); temp = NULL;
+        // Check for overlaps which would prevent conversion
+        converter.m_overlapUtil.setSegmentationObject(converter.m_inputSeg.get());
+        if (converter.m_overlapUtil.hasOverlappingSegments())
+        {
+            return SG_EC_OverlappingSegments;
+        }
+        ContentIdentificationMacro content;
+        result = copyComponent(&(converter.m_inputSeg->getContentIdentification()), &content);
+        if (result.good())
+        {
+            result = DcmSegmentation::createLabelmapSegmentation(temp, converter.m_inputSeg->getRows(), converter.m_inputSeg->getColumns(), converter.m_inputSeg->getEquipment().getEquipmentInfo(), content, OFTrue);
+            if (result.good())
+            {
+                converter.m_outputSeg.reset(temp);
+                // Copy all components except pixel data
+                result = copyCommonModules(converter.m_inputSeg.get(), converter.m_outputSeg.get());
+            }
+        }
+    }
+    return result;
+}
+
+
+OFCondition DcmBinToLabelConverter::convertFile(const OFString& filename,
+                                             DcmSegmentation*& segmentation,
+                                             const DcmSegmentation::LoadingFlags& loadFlags,
+                                             const DcmBinToLabelConverter::ConversionFlags& convFlags)
+{
+    // Load the segmentation object from the file
+    DcmFileFormat fileformat;
+    OFCondition result = fileformat.loadFile(filename);
+    if (result.good())
+    {
+        // Convert the loaded dataset to a segmentation object
+        result = convertDataset(*fileformat.getDataset(), segmentation, loadFlags, convFlags);
+    }
+    return result;
+}
+
+DcmBinToLabelConverter::~DcmBinToLabelConverter()
+{
+    // Nothing to do here, no dynamic memory allocated
+}
+
+
+OFCondition DcmBinToLabelConverter::checkSOPClassAndSegtype(DcmDataset& dataset)
+{
+    // Check if the SOP Class UID is correct
+    OFString sopClassUID;
+    OFCondition result;
+    if (dataset.findAndGetOFString(DCM_SOPClassUID, sopClassUID).good())
+    {
+        if ( (sopClassUID != UID_SegmentationStorage) || (sopClassUID != UID_LabelMapSegmentationStorage) )
+        {
+            return SG_EC_NoSegmentationBasedSOPClass;
+        }
+        else if (sopClassUID == UID_LabelMapSegmentationStorage)
+        {
+            if (m_convFlags.m_errorIfAlreadyLabelMap)
+            {
+                return SG_EC_AlreadyLabelMap;
+            }
+            else
+            {
+                result = SG_EC_NoConversionRequired;
+            }
+        }
+        else if (sopClassUID == UID_SegmentationStorage)
+        {
+            result = EC_Normal;
+        }
+        else
+        {
+            return SG_EC_NoSegmentationBasedSOPClass;
+        }
+    }
+    else
+    {
+        return IOD_EC_InvalidObject;
+    }
+
+    // Check if the Segmentation Type is valid
+    OFString segType;
+    if (dataset.findAndGetOFString(DCM_SegmentationType, segType).bad() || DcmSegTypes::OFString2Segtype(segType) == DcmSegTypes::ST_UNKNOWN)
+    {
+        return IOD_EC_InvalidObject;
+    }
+
+    // check whether sop class and segmentation type match
+    if (sopClassUID == UID_LabelMapSegmentationStorage && DcmSegTypes::OFString2Segtype(segType) == DcmSegTypes::ST_LABELMAP)
+    {
+        // result is already set to SG_EC_NoConversionRequired
+        DCMSEG_DEBUG("Segmentation object for conversion is a label map");
+    }
+    else if (sopClassUID == UID_SegmentationStorage && DcmSegTypes::OFString2Segtype(segType) == DcmSegTypes::ST_BINARY)
+    {
+        DCMSEG_DEBUG("Segmentation object for conversion is a binary segmentation");
+    }
+    else if (sopClassUID == UID_SegmentationStorage && DcmSegTypes::OFString2Segtype(segType) == DcmSegTypes::ST_FRACTIONAL)
+    {
+        DCMSEG_DEBUG("Segmentation object for conversion is a fractional segmentation");
+        result = SG_EC_CannotConvertFractionalToLabelmap;
+    }
+    else
+    {
+        DCMSEG_ERROR("SOP Class UID " << sopClassUID << " does not match Segmentation Type " << segType);
+        result =  IOD_EC_InvalidObject;
+    }
+    return result;
+}
+
+template<typename T>
+OFCondition DcmBinToLabelConverter::copyComponent (T* src, T* dest)
+{
+    OFCondition result;
+    if ( (src && dest) && (src != dest) )
+    {
+        DcmItem item;
+        result = src->write(item);
+        if (result.good())
+        {
+            result = dest->read(item);
+        }
+    }
+    else
+    {
+        result = EC_IllegalParameter;
+    }
+    return result;
+}
+
+
+OFCondition DcmBinToLabelConverter::copyCommonModules(DcmSegmentation* src, DcmSegmentation* dest)
+{
+    OFCondition result;
+
+    if (src && dest)
+    {
+        // Copy all components except pixel data:
+
+        // Start with modules from IODImage:
+        // Patient Module, General Study Module, General Equipment Module,
+        // General Series Module, Frame of Reference Module.
+        // This skips Image Pixel Module and SOP Common
+        result = copyComponent(&(src->getPatient()), &dest->getPatient());
+        if (result.good())
+        {
+            result = copyComponent(&(src->getStudy()), &dest->getStudy());
+        }
+        if (result.good())
+        {
+            result = copyComponent(&(src->getEquipment()), &dest->getEquipment());
+        }
+        if (result.good())
+        {
+            // TODO fix series instance UID?
+            result = copyComponent(&(src->getSeries()), &dest->getSeries());
+        }
+        if (result.good())
+        {
+            result = copyComponent(&(src->getFrameOfReference()), &dest->getFrameOfReference());
+        }
+        if (result.good())
+        {
+            result = copyComponent(&(src->getGeneralImage()), &dest->getGeneralImage());
+        }
+        if (result.bad()) return result;
+
+        // Continue with all others:
+        // - Segmentation Series Module
+        // - Multi-Frame Dimension Module
+        // - Common Instance Reference Module
+        // - Multi-frame Functional Group Module
+        // This skips:
+        // - Palette Color LUT Module (not set in binary segmentations)
+        // - Segmentation Image Module (rewritten for labelmaps)
+        result = copyComponent(&(src->getDimensions()), &dest->getDimensions());
+        if (result.good())
+        {
+            result = copyComponent(&(src->getCommonInstanceReference()), &dest->getCommonInstanceReference());
+        }
+        if (result.bad()) return result;
+
+        // Multi-frame Functional Group Module
+        FGInterface& fg = src->getFunctionalGroups();
+        // remove Segmentation FG from perFrame functional groups, since its not permitted in labelmaps
+        fg.deletePerFrame(DcmFGTypes::EFG_SEGMENTATION);
+        result = copyComponent(&fg, &dest->getFunctionalGroups());
+    }
+    else
+    {
+        result = EC_IllegalParameter;
+    }
+    return result;
+}
+
+
+OFCondition DcmBinToLabelConverter::copyPixelData(DcmSegmentation* src, DcmSegmentation* dest)
+{
+    OFCondition result;
+
+    if (src && dest)
+    {
+        // Walk through segments, and for each segments, get all the related frames
+        // and construct a new destination frame if we dont have a corresponding one
+        // at the same position in space
+    }
+    else
+    {
+        result = EC_IllegalParameter;
+    }
+    return result;
+}

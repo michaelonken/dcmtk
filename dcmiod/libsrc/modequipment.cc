@@ -105,6 +105,16 @@ OFCondition IODGeneralEquipmentModule::getSoftwareVersions(OFString& value, cons
     return DcmIODUtil::getStringValueFromItem(DCM_SoftwareVersions, *m_Item, value, pos);
 }
 
+IODGeneralEquipmentModule::EquipmentInfo IODGeneralEquipmentModule::getEquipmentInfo() const
+{
+    EquipmentInfo info;
+    getManufacturer(info.m_Manufacturer);
+    getManufacturerModelName(info.m_ManufacturerModelName);
+    getDeviceSerialNumber(info.m_DeviceSerialNumber);
+    getSoftwareVersions(info.m_SoftwareVersions);
+    return info;
+}
+
 OFCondition IODGeneralEquipmentModule::setDeviceSerialNumber(const OFString& value, const OFBool checkValue)
 {
     OFCondition result = (checkValue) ? DcmLongString::checkStringValue(value, "1") : EC_Normal;

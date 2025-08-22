@@ -168,6 +168,12 @@ public:
      */
     virtual OFCondition getSoftwareVersions(OFString& value, const signed long pos = 0) const;
 
+    /** Get a copy altogether as EquipmentInfo
+     *  @return EquipmentInfo object containing all relevant information
+     *    If some data is not available, it will contain an empty string
+     */
+    virtual IODGeneralEquipmentModule::EquipmentInfo getEquipmentInfo() const;
+
     /** Set Manufacturer
      *  @param  value Value to be set (single value only) or "" for no value
      *  @param  checkValue Check 'value' for conformance with VR (LO) and VM (1)

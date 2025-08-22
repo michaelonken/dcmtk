@@ -41,6 +41,11 @@ makeOFConditionConst(SG_EC_NotEnoughData, OFM_dcmseg, 5, OF_error, "Not enough d
 makeOFConditionConst(SG_EC_MaxFramesReached, OFM_dcmseg, 6, OF_error, "Maximum Number of Frames reached");
 makeOFConditionConst(SG_EC_InvalidBitDepth, OFM_dcmseg, 7, OF_error, "Invalid bit depth for given Segmentation Type");
 makeOFConditionConst(SG_EC_FramesNotParallel, OFM_dcmseg, 8, OF_error, "Frames are not parallel");
+makeOFConditionConst(SG_EC_NoSegmentationBasedSOPClass, OFM_dcmseg, 9, OF_error, "No segmentation SOP class (Segmentation or Label Map Segmentation SOP Class)");
+makeOFConditionConst(SG_EC_NoConversionRequired, OFM_dcmseg, 10, OF_ok, "Segmentation-based object does not require requested conversion");
+makeOFConditionConst(SG_EC_AlreadyLabelMap, OFM_dcmseg, 11, OF_error, "Segmentation-based object is already a label map");
+makeOFConditionConst(SG_EC_CannotConvertFractionalToLabelmap, OFM_dcmseg, 12, OF_error, "Cannot convert fractional to label map segmentations");
+makeOFConditionConst(SG_EC_OverlappingSegments, OFM_dcmseg, 13, OF_error, "Binary segmentation contains overlapping segments");
 
 DcmSegTypes::E_SegmentationType DcmSegTypes::OFString2Segtype(const OFString& value)
 {

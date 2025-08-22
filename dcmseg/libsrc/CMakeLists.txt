@@ -1,5 +1,6 @@
 # create library from source files
 DCMTK_ADD_LIBRARY(dcmseg
+  bin2label.cc
   overlaputil.cc
   segdoc.cc
   segment.cc

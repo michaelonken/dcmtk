@@ -47,7 +47,9 @@
 class FGSegmentation;
 class FGDerivationImage;
 class DcmFileFormat;
-/** Class representing an object of the "Segmentation SOP Class".
+
+/** Class representing an object of the "Segmentation IOD"
+ *  or "Label Map Segmentation IOD".
  */
 
 class DCMTK_DCMSEG_EXPORT DcmSegmentation : public DcmIODImage<IODImagePixelModule<Uint16>, IODImagePixelModule<Uint8> >

@@ -85,6 +85,16 @@ extern DCMTK_DCMSEG_EXPORT const OFConditionConst SG_EC_MaxFramesReached;
 extern DCMTK_DCMSEG_EXPORT const OFConditionConst SG_EC_InvalidBitDepth;
 /// error: frames are not parallel
 extern DCMTK_DCMSEG_EXPORT const OFConditionConst SG_EC_FramesNotParallel;
+/// error: no segmentation SOP class (Segmentation or Label Map Segmentation SOP Class)
+extern DCMTK_DCMSEG_EXPORT const OFConditionConst SG_EC_NoSegmentationBasedSOPClass;
+/// error: segmentation-based object does not require conversion
+extern DCMTK_DCMSEG_EXPORT const OFConditionConst SG_EC_NoConversionRequired;
+/// error: cannot convert fractional to labelmap segmentations
+extern DCMTK_DCMSEG_EXPORT const OFConditionConst SG_EC_CannotConvertFractionalToLabelmap;
+/// error: segmentation-based object is already a label map
+extern DCMTK_DCMSEG_EXPORT const OFConditionConst SG_EC_AlreadyLabelMap;
+/// error: binary segmentation contains overlapping segments
+extern DCMTK_DCMSEG_EXPORT const OFConditionConst SG_EC_OverlappingSegments;
 
 ///@}
 
