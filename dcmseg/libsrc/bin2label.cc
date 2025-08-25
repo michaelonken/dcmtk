@@ -19,19 +19,19 @@
  *
  */
 
-
-#include "dcmtk/config/osconfig.h" // include OS configuration first
 #include "dcmtk/dcmseg/bin2label.h"
-#include "dcmtk/dcmseg/segtypes.h"
+#include "dcmtk/config/osconfig.h" // include OS configuration first
 #include "dcmtk/dcmdata/dcuid.h"
-
+#include "dcmtk/dcmseg/segtypes.h"
 
 DcmBinToLabelConverter::DcmBinToLabelConverter(const DcmSegmentation::LoadingFlags& loadFlags,
                                                const DcmBinToLabelConverter::ConversionFlags& convFlags)
-    : m_loadFlags(loadFlags),
-      m_convFlags(convFlags),
-      m_inputSeg(nullptr),
-      m_outputSeg(nullptr)
+    : m_loadFlags(loadFlags)
+    , m_convFlags(convFlags)
+    , m_inputSeg(nullptr)
+    , m_outputSeg(nullptr)
+    , m_use16Bit(OFFalse)
+    , m_overlapUtil()
 {
 }
 
@@ -42,27 +42,39 @@ OFCondition DcmBinToLabelConverter::convertDataset(DcmDataset& dataset,
 {
     DcmBinToLabelConverter converter(loadFlags, convFlags);
     // Check whether SOP Class and Segmentation Type are suitable for conversion
-    OFCondition result  = converter.checkSOPClassAndSegtype(dataset);
+    OFCondition result = converter.checkSOPClassAndSegtype(dataset);
     // If this is not a binary segmentation, already a label map, or has invalid
     // data in SOP Class UID and/or Segmentation Type, return here.
-    if (result != EC_Normal) return result;
+    if (result != EC_Normal)
+        return result;
 
     DcmSegmentation* temp = NULL;
-    result =  DcmSegmentation::loadDataset(dataset, temp, loadFlags);
+    result                = DcmSegmentation::loadDataset(dataset, temp, loadFlags);
     if (result.good())
     {
-        converter.m_inputSeg.reset(temp); temp = NULL;
+        converter.m_inputSeg.reset(temp);
         // Check for overlaps which would prevent conversion
         converter.m_overlapUtil.setSegmentationObject(converter.m_inputSeg.get());
         if (converter.m_overlapUtil.hasOverlappingSegments())
         {
             return SG_EC_OverlappingSegments;
         }
+        // Get number of segments to find out whether we need 16 bit data.
+        // We will use MONOCHROME2 color model (palette is not supported during conversion for now).
+        size_t numSegments = converter.m_inputSeg->getNumberOfSegments();
+        converter.m_use16Bit    = (numSegments > 65534);
         ContentIdentificationMacro content;
         result = copyComponent(&(converter.m_inputSeg->getContentIdentification()), &content);
         if (result.good())
         {
-            result = DcmSegmentation::createLabelmapSegmentation(temp, converter.m_inputSeg->getRows(), converter.m_inputSeg->getColumns(), converter.m_inputSeg->getEquipment().getEquipmentInfo(), content, OFTrue);
+            result
+                = DcmSegmentation::createLabelmapSegmentation(temp,
+                                                              converter.m_inputSeg->getRows(),
+                                                              converter.m_inputSeg->getColumns(),
+                                                              converter.m_inputSeg->getEquipment().getEquipmentInfo(),
+                                                              content,
+                                                              converter.m_use16Bit,
+                                                              DcmSegTypes::SLCM_MONOCHROME2);
             if (result.good())
             {
                 converter.m_outputSeg.reset(temp);
@@ -74,11 +86,10 @@ OFCondition DcmBinToLabelConverter::convertDataset(DcmDataset& dataset,
     return result;
 }
 
-
 OFCondition DcmBinToLabelConverter::convertFile(const OFString& filename,
-                                             DcmSegmentation*& segmentation,
-                                             const DcmSegmentation::LoadingFlags& loadFlags,
-                                             const DcmBinToLabelConverter::ConversionFlags& convFlags)
+                                                DcmSegmentation*& segmentation,
+                                                const DcmSegmentation::LoadingFlags& loadFlags,
+                                                const DcmBinToLabelConverter::ConversionFlags& convFlags)
 {
     // Load the segmentation object from the file
     DcmFileFormat fileformat;
@@ -96,7 +107,6 @@ DcmBinToLabelConverter::~DcmBinToLabelConverter()
     // Nothing to do here, no dynamic memory allocated
 }
 
-
 OFCondition DcmBinToLabelConverter::checkSOPClassAndSegtype(DcmDataset& dataset)
 {
     // Check if the SOP Class UID is correct
@@ -104,7 +114,7 @@ OFCondition DcmBinToLabelConverter::checkSOPClassAndSegtype(DcmDataset& dataset)
     OFCondition result;
     if (dataset.findAndGetOFString(DCM_SOPClassUID, sopClassUID).good())
     {
-        if ( (sopClassUID != UID_SegmentationStorage) || (sopClassUID != UID_LabelMapSegmentationStorage) )
+        if ((sopClassUID != UID_SegmentationStorage) || (sopClassUID != UID_LabelMapSegmentationStorage))
         {
             return SG_EC_NoSegmentationBasedSOPClass;
         }
@@ -135,13 +145,15 @@ OFCondition DcmBinToLabelConverter::checkSOPClassAndSegtype(DcmDataset& dataset)
 
     // Check if the Segmentation Type is valid
     OFString segType;
-    if (dataset.findAndGetOFString(DCM_SegmentationType, segType).bad() || DcmSegTypes::OFString2Segtype(segType) == DcmSegTypes::ST_UNKNOWN)
+    if (dataset.findAndGetOFString(DCM_SegmentationType, segType).bad()
+        || DcmSegTypes::OFString2Segtype(segType) == DcmSegTypes::ST_UNKNOWN)
     {
         return IOD_EC_InvalidObject;
     }
 
     // check whether sop class and segmentation type match
-    if (sopClassUID == UID_LabelMapSegmentationStorage && DcmSegTypes::OFString2Segtype(segType) == DcmSegTypes::ST_LABELMAP)
+    if (sopClassUID == UID_LabelMapSegmentationStorage
+        && DcmSegTypes::OFString2Segtype(segType) == DcmSegTypes::ST_LABELMAP)
     {
         // result is already set to SG_EC_NoConversionRequired
         DCMSEG_DEBUG("Segmentation object for conversion is a label map");
@@ -150,7 +162,8 @@ OFCondition DcmBinToLabelConverter::checkSOPClassAndSegtype(DcmDataset& dataset)
     {
         DCMSEG_DEBUG("Segmentation object for conversion is a binary segmentation");
     }
-    else if (sopClassUID == UID_SegmentationStorage && DcmSegTypes::OFString2Segtype(segType) == DcmSegTypes::ST_FRACTIONAL)
+    else if (sopClassUID == UID_SegmentationStorage
+             && DcmSegTypes::OFString2Segtype(segType) == DcmSegTypes::ST_FRACTIONAL)
     {
         DCMSEG_DEBUG("Segmentation object for conversion is a fractional segmentation");
         result = SG_EC_CannotConvertFractionalToLabelmap;
@@ -158,16 +171,16 @@ OFCondition DcmBinToLabelConverter::checkSOPClassAndSegtype(DcmDataset& dataset)
     else
     {
         DCMSEG_ERROR("SOP Class UID " << sopClassUID << " does not match Segmentation Type " << segType);
-        result =  IOD_EC_InvalidObject;
+        result = IOD_EC_InvalidObject;
     }
     return result;
 }
 
-template<typename T>
-OFCondition DcmBinToLabelConverter::copyComponent (T* src, T* dest)
+template <typename T>
+OFCondition DcmBinToLabelConverter::copyComponent(T* src, T* dest)
 {
     OFCondition result;
-    if ( (src && dest) && (src != dest) )
+    if ((src && dest) && (src != dest))
     {
         DcmItem item;
         result = src->write(item);
@@ -182,7 +195,6 @@ OFCondition DcmBinToLabelConverter::copyComponent (T* src, T* dest)
     }
     return result;
 }
-
 
 OFCondition DcmBinToLabelConverter::copyCommonModules(DcmSegmentation* src, DcmSegmentation* dest)
 {
@@ -218,7 +230,8 @@ OFCondition DcmBinToLabelConverter::copyCommonModules(DcmSegmentation* src, DcmS
         {
             result = copyComponent(&(src->getGeneralImage()), &dest->getGeneralImage());
         }
-        if (result.bad()) return result;
+        if (result.bad())
+            return result;
 
         // Continue with all others:
         // - Segmentation Series Module
@@ -233,7 +246,8 @@ OFCondition DcmBinToLabelConverter::copyCommonModules(DcmSegmentation* src, DcmS
         {
             result = copyComponent(&(src->getCommonInstanceReference()), &dest->getCommonInstanceReference());
         }
-        if (result.bad()) return result;
+        if (result.bad())
+            return result;
 
         // Multi-frame Functional Group Module
         FGInterface& fg = src->getFunctionalGroups();
@@ -248,16 +262,34 @@ OFCondition DcmBinToLabelConverter::copyCommonModules(DcmSegmentation* src, DcmS
     return result;
 }
 
-
-OFCondition DcmBinToLabelConverter::copyPixelData(DcmSegmentation* src, DcmSegmentation* dest)
+OFCondition DcmBinToLabelConverter::copyPixelDataFrom(DcmSegmentation* src)
 {
     OFCondition result;
 
-    if (src && dest)
+    if (src)
     {
         // Walk through segments, and for each segments, get all the related frames
         // and construct a new destination frame if we dont have a corresponding one
-        // at the same position in space
+        // at the same position in space. So input frames at the same position will
+        // result in a new destination frame being created.
+        OverlapUtil::DistinctFramePositions framesAtPositions;
+        result = m_overlapUtil.getFramesByPosition(framesAtPositions);
+        if (result.good())
+        {
+            // Iterate over all positions, and create a new destination frame
+            OFVector<OverlapUtil::LogicalFrame>::iterator it = framesAtPositions.begin();
+            while (it != framesAtPositions.end())
+            {
+                // create a new destination frame
+                if (m_use16Bit)
+                {
+                    DcmIODTypes::Frame<Uint16>* newFrame = new DcmIODTypes::Frame<Uint16>(src->getRows() * src->getColumns());
+                    // Initialize newFrame with appropriate values
+                    m_outputSeg->addFrame(newFrame);
+                }
+                it++;
+            }
+        }
     }
     else
     {

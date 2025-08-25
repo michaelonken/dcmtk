@@ -95,7 +95,7 @@ protected:
     template<typename T>
     static OFCondition copyComponent (T* src, T* dest);
     static OFCondition copyCommonModules(DcmSegmentation* src, DcmSegmentation* dest);
-    static OFCondition copyPixelData(DcmSegmentation* src, DcmSegmentation* dest);
+    OFCondition copyPixelDataFrom(DcmSegmentation* src);
 
 private:
 
@@ -110,6 +110,7 @@ private:
     ConversionFlags m_convFlags;
     OFunique_ptr<DcmSegmentation> m_inputSeg;
     OFunique_ptr<DcmSegmentation> m_outputSeg;
+    OFBool m_use16Bit;
     OverlapUtil m_overlapUtil;
 };
 
