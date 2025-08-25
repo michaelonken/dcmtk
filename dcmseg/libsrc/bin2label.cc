@@ -22,7 +22,9 @@
 #include "dcmtk/dcmseg/bin2label.h"
 #include "dcmtk/config/osconfig.h" // include OS configuration first
 #include "dcmtk/dcmdata/dcuid.h"
+#include "dcmtk/dcmfg/fgfact.h"
 #include "dcmtk/dcmseg/segtypes.h"
+#include <zconf.h>
 
 DcmBinToLabelConverter::DcmBinToLabelConverter(const DcmSegmentation::LoadingFlags& loadFlags,
                                                const DcmBinToLabelConverter::ConversionFlags& convFlags)
@@ -49,11 +51,13 @@ OFCondition DcmBinToLabelConverter::convertDataset(DcmDataset& dataset,
         return result;
 
     DcmSegmentation* temp = NULL;
+    DCMSEG_DEBUG("Loading input dataset into segmentation object");
     result                = DcmSegmentation::loadDataset(dataset, temp, loadFlags);
     if (result.good())
     {
         converter.m_inputSeg.reset(temp);
         // Check for overlaps which would prevent conversion
+        DCMSEG_DEBUG("Checking for overlapping segments");
         converter.m_overlapUtil.setSegmentationObject(converter.m_inputSeg.get());
         if (converter.m_overlapUtil.hasOverlappingSegments())
         {
@@ -61,12 +65,23 @@ OFCondition DcmBinToLabelConverter::convertDataset(DcmDataset& dataset,
         }
         // Get number of segments to find out whether we need 16 bit data.
         // We will use MONOCHROME2 color model (palette is not supported during conversion for now).
+        DCMSEG_DEBUG("Checking number of segments to decide whether to use 8 or 16 bit pixel data");
         size_t numSegments = converter.m_inputSeg->getNumberOfSegments();
-        converter.m_use16Bit    = (numSegments > 65534);
+        converter.m_use16Bit    = (numSegments > 256);
+        DCMSEG_DEBUG("Using " << (converter.m_use16Bit ? "16" : "8") << " bit pixel data for " << numSegments << " segments");
+
+
+        OFString TODO;
+        ContentIdentificationMacro& tempc = converter.m_inputSeg->getContentIdentification();
+        tempc.getInstanceNumber(TODO);
+        std::cout << "TODO Instance Number: " << TODO << std::endl;
+
         ContentIdentificationMacro content;
         result = copyComponent(&(converter.m_inputSeg->getContentIdentification()), &content);
+
         if (result.good())
         {
+            DCMSEG_DEBUG("Creating labelmap output segmentation object");
             result
                 = DcmSegmentation::createLabelmapSegmentation(temp,
                                                               converter.m_inputSeg->getRows(),
@@ -79,7 +94,13 @@ OFCondition DcmBinToLabelConverter::convertDataset(DcmDataset& dataset,
             {
                 converter.m_outputSeg.reset(temp);
                 // Copy all components except pixel data
+                DCMSEG_DEBUG("Copying common modules from input to output segmentation");
                 result = copyCommonModules(converter.m_inputSeg.get(), converter.m_outputSeg.get());
+            }
+            if (result.good())
+            {
+                DCMSEG_DEBUG("Copying per-frame information (pixel data and FGs) to output segmentation");
+                result = converter.copyPerFrameInfo(converter.m_inputSeg.get());
             }
         }
     }
@@ -109,12 +130,13 @@ DcmBinToLabelConverter::~DcmBinToLabelConverter()
 
 OFCondition DcmBinToLabelConverter::checkSOPClassAndSegtype(DcmDataset& dataset)
 {
+    DCMSEG_DEBUG("Checking SOP Class and Segmentation Type");
     // Check if the SOP Class UID is correct
     OFString sopClassUID;
     OFCondition result;
     if (dataset.findAndGetOFString(DCM_SOPClassUID, sopClassUID).good())
     {
-        if ((sopClassUID != UID_SegmentationStorage) || (sopClassUID != UID_LabelMapSegmentationStorage))
+        if ((sopClassUID != UID_SegmentationStorage) && (sopClassUID != UID_LabelMapSegmentationStorage))
         {
             return SG_EC_NoSegmentationBasedSOPClass;
         }
@@ -144,6 +166,7 @@ OFCondition DcmBinToLabelConverter::checkSOPClassAndSegtype(DcmDataset& dataset)
     }
 
     // Check if the Segmentation Type is valid
+    DCMSEG_DEBUG("SOP Class acceptable for conversion to labelmap, checking Segmentation Type");
     OFString segType;
     if (dataset.findAndGetOFString(DCM_SegmentationType, segType).bad()
         || DcmSegTypes::OFString2Segtype(segType) == DcmSegTypes::ST_UNKNOWN)
@@ -183,9 +206,12 @@ OFCondition DcmBinToLabelConverter::copyComponent(T* src, T* dest)
     if ((src && dest) && (src != dest))
     {
         DcmItem item;
+        DCMSEG_DEBUG("Writing component into temporary item");
         result = src->write(item);
         if (result.good())
         {
+
+            DCMSEG_DEBUG("Reading temporary item component into destination");
             result = dest->read(item);
         }
     }
@@ -208,26 +234,32 @@ OFCondition DcmBinToLabelConverter::copyCommonModules(DcmSegmentation* src, DcmS
         // Patient Module, General Study Module, General Equipment Module,
         // General Series Module, Frame of Reference Module.
         // This skips Image Pixel Module and SOP Common
+        DCMSEG_DEBUG("Copying Patient Module from input to output segmentation");
         result = copyComponent(&(src->getPatient()), &dest->getPatient());
         if (result.good())
         {
+            DCMSEG_DEBUG("Copying General Study Module from input to output segmentation");
             result = copyComponent(&(src->getStudy()), &dest->getStudy());
         }
         if (result.good())
         {
+            DCMSEG_DEBUG("Copying General Equipment Module from input to output segmentation");
             result = copyComponent(&(src->getEquipment()), &dest->getEquipment());
         }
         if (result.good())
         {
             // TODO fix series instance UID?
+            DCMSEG_DEBUG("Copying General Series Module from input to output segmentation");
             result = copyComponent(&(src->getSeries()), &dest->getSeries());
         }
         if (result.good())
         {
+            DCMSEG_DEBUG("Copying Frame of Reference Module from input to output segmentation");
             result = copyComponent(&(src->getFrameOfReference()), &dest->getFrameOfReference());
         }
         if (result.good())
         {
+            DCMSEG_DEBUG("Copying General Image Module from input to output segmentation");
             result = copyComponent(&(src->getGeneralImage()), &dest->getGeneralImage());
         }
         if (result.bad())
@@ -241,19 +273,34 @@ OFCondition DcmBinToLabelConverter::copyCommonModules(DcmSegmentation* src, DcmS
         // This skips:
         // - Palette Color LUT Module (not set in binary segmentations)
         // - Segmentation Image Module (rewritten for labelmaps)
+        DCMSEG_DEBUG("Copying Dimension Module from input to output segmentation");
         result = copyComponent(&(src->getDimensions()), &dest->getDimensions());
         if (result.good())
         {
+            DCMSEG_DEBUG("Copying Common Instance Reference Module from input to output segmentation");
             result = copyComponent(&(src->getCommonInstanceReference()), &dest->getCommonInstanceReference());
         }
         if (result.bad())
             return result;
 
-        // Multi-frame Functional Group Module
-        FGInterface& fg = src->getFunctionalGroups();
-        // remove Segmentation FG from perFrame functional groups, since its not permitted in labelmaps
-        fg.deletePerFrame(DcmFGTypes::EFG_SEGMENTATION);
-        result = copyComponent(&fg, &dest->getFunctionalGroups());
+        // Copy shared Functional Groups
+        DCMSEG_DEBUG("Copying shared Functional Groups from input to output segmentation");
+        const FunctionalGroups* sharedFGs = src->getFunctionalGroups().getShared();
+        FunctionalGroups::const_iterator it = sharedFGs->begin();
+        while (result.good() && it != sharedFGs->end())
+        {
+            FGBase* sharedDest = FGFactory::instance().create(it->second->getType());
+            if (sharedDest)
+            {
+                result = copyComponent(it->second, sharedDest);
+                if (result.good())
+                {
+                    result = dest->getFunctionalGroups().addShared(*sharedDest);
+                }
+            }
+            delete sharedDest;
+            ++it;
+        }
     }
     else
     {
@@ -262,7 +309,7 @@ OFCondition DcmBinToLabelConverter::copyCommonModules(DcmSegmentation* src, DcmS
     return result;
 }
 
-OFCondition DcmBinToLabelConverter::copyPixelDataFrom(DcmSegmentation* src)
+OFCondition DcmBinToLabelConverter::copyPerFrameInfo(DcmSegmentation* src)
 {
     OFCondition result;
 
@@ -277,15 +324,37 @@ OFCondition DcmBinToLabelConverter::copyPixelDataFrom(DcmSegmentation* src)
         if (result.good())
         {
             // Iterate over all positions, and create a new destination frame
+            DCMSEG_DEBUG("Creating new destination frames for each input frame position");
             OFVector<OverlapUtil::LogicalFrame>::iterator it = framesAtPositions.begin();
-            while (it != framesAtPositions.end())
+            while (result.good()&& (it != framesAtPositions.end()))
             {
-                // create a new destination frame
+                // Delete Segmentation Functional group (not permitted as per-frame)
+                src->getFunctionalGroups().deletePerFrame(DcmFGTypes::EFG_SEGMENTATION);
+                // use per-frame information of first frame. We need them in a vector...
+                OFVector<FGBase*> perFrameInfo;
+                const FunctionalGroups* sourceFGs = src->getFunctionalGroups().getPerFrame(it->at(0));
+                FunctionalGroups::const_iterator fgIt = sourceFGs->begin();
+                while (fgIt != sourceFGs->end())
+                {
+                    perFrameInfo.push_back(fgIt->second);
+                    fgIt++;
+                }
+                // addFrame() will copy functional groups. Memory is still handled by source object, so
+                // no need to delete them.
                 if (m_use16Bit)
                 {
-                    DcmIODTypes::Frame<Uint16>* newFrame = new DcmIODTypes::Frame<Uint16>(src->getRows() * src->getColumns());
-                    // Initialize newFrame with appropriate values
-                    m_outputSeg->addFrame(newFrame);
+                    DCMSEG_DEBUG("Creating new 16 bit destination frame");
+                    // create a new destination frame
+                    Uint16* newFrame = new Uint16[src->getRows() * src->getColumns()];
+                    if (newFrame) result = m_outputSeg->addFrame(newFrame, 0 /* ignored for labelmaps */, perFrameInfo);
+                    else result = EC_MemoryExhausted;
+                }
+                else // 8 bit
+                {
+                    DCMSEG_DEBUG("Creating new 8 bit destination frame");
+                    Uint8* newFrame = new Uint8[src->getRows() * src->getColumns()];
+                    if (newFrame) result = m_outputSeg->addFrame(newFrame, 0 /* ignored for labelmaps */, perFrameInfo);
+                    else result = EC_MemoryExhausted;
                 }
                 it++;
             }

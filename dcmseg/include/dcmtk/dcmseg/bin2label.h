@@ -25,7 +25,7 @@
 #include "dcmtk/config/osconfig.h" // include OS configuration first
 
 #include "dcmtk/dcmseg/segdoc.h" // for DcmSegmentation
-#include "overlaputil.h"
+#include "dcmtk/dcmseg/overlaputil.h"
 
 /** Class representing an object of the "Segmentation SOP Class".
  */
@@ -54,7 +54,7 @@ public:
      *  @param  flags Flags to configure the loading of the segmentation object
      *  @return EC_Normal if reading was successful, error otherwise
      */
-    OFCondition convertFile(const OFString& filename,
+    static OFCondition convertFile(const OFString& filename,
                             DcmSegmentation*& segmentation,
                             const DcmSegmentation::LoadingFlags& loadFlags            = DcmSegmentation::LoadingFlags(),
                             const DcmBinToLabelConverter::ConversionFlags& convFlags = ConversionFlags());
@@ -95,7 +95,7 @@ protected:
     template<typename T>
     static OFCondition copyComponent (T* src, T* dest);
     static OFCondition copyCommonModules(DcmSegmentation* src, DcmSegmentation* dest);
-    OFCondition copyPixelDataFrom(DcmSegmentation* src);
+    OFCondition copyPerFrameInfo(DcmSegmentation* src);
 
 private:
 

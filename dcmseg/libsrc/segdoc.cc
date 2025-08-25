@@ -330,6 +330,10 @@ OFCondition DcmSegmentation::createCommon(DcmSegmentation*& segmentation,
     segmentation->getImagePixel().setRows(rows);
     segmentation->getImagePixel().setColumns(columns);
 
+    DCMSEG_DEBUG("Setting segmentation content identification");
+    OFString TODO;
+    contentIdentification.getInstanceNumber(TODO);
+    std::cout << "Instance Number: " << TODO << std::endl;
     result = segmentation->setContentIdentification(contentIdentification);
     if (result.good())
     {
@@ -344,6 +348,7 @@ OFCondition DcmSegmentation::createCommon(DcmSegmentation*& segmentation,
         }
 
         DcmIODUtil::setContentDateAndTimeNow(segmentation->getGeneralImage());
+        DCMSEG_DEBUG("Setting segmentation equipment information");
         result = segmentation->setEquipmentInfo(equipmentInfo, OFTrue /* check */);
     }
 
