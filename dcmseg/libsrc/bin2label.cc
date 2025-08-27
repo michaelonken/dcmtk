@@ -75,6 +75,8 @@ OFCondition DcmBinToLabelConverter::convertDataset(DcmDataset& dataset,
         ContentIdentificationMacro& tempc = converter.m_inputSeg->getContentIdentification();
         tempc.getInstanceNumber(TODO);
         std::cout << "TODO Instance Number: " << TODO << std::endl;
+        tempc.getContentLabel(TODO);
+        std::cout << "TODO Content Label: " << TODO << std::endl;
 
         ContentIdentificationMacro content;
         result = copyComponent(&(converter.m_inputSeg->getContentIdentification()), &content);

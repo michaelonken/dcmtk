@@ -331,14 +331,12 @@ OFCondition DcmSegmentation::createCommon(DcmSegmentation*& segmentation,
     segmentation->getImagePixel().setColumns(columns);
 
     DCMSEG_DEBUG("Setting segmentation content identification");
-    OFString TODO;
-    contentIdentification.getInstanceNumber(TODO);
-    std::cout << "Instance Number: " << TODO << std::endl;
     result = segmentation->setContentIdentification(contentIdentification);
     if (result.good())
     {
         OFString tempstr;
         contentIdentification.getInstanceNumber(tempstr);
+        std::cout << "TODO Instance Number in createCommon(): " << tempstr << std::endl;
         result = segmentation->getGeneralImage().setInstanceNumber(tempstr);
         if (result.bad())
         {
