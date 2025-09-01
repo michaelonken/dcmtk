@@ -171,9 +171,9 @@ OFCondition OverlapUtil::ensureFramesAreParallel()
                                                    m_imageOrientation[3],
                                                    m_imageOrientation[4],
                                                    m_imageOrientation[5]);
-            std::cout << "Image Orientation Patient set to : " << m_imageOrientation[0] << ", " << m_imageOrientation[1]
+            DCMSEG_DEBUG("Image Orientation Patient set to : " << m_imageOrientation[0] << ", " << m_imageOrientation[1]
                       << ", " << m_imageOrientation[2] << ", " << m_imageOrientation[3] << ", " << m_imageOrientation[4]
-                      << ", " << m_imageOrientation[5] << std::endl;
+                      << ", " << m_imageOrientation[5]);
             return cond;
         }
         else
@@ -551,7 +551,7 @@ OFCondition OverlapUtil::buildOverlapMatrix()
     index1 = index2 = 0;
     for (size_t i = 0; i < m_segmentsByPosition.size(); ++i)
     {
-        DCMSEG_DEBUG("getOverlappingSegments(): Comparing segments at logical frame position " << i);
+        DCMSEG_TRACE("getOverlappingSegments(): Comparing segments at logical frame position " << i);
         // Compare all segments at this position
         for (std::set<SegNumAndFrameNum>::iterator it = m_segmentsByPosition[i].begin();
              it != m_segmentsByPosition[i].end();
@@ -641,7 +641,7 @@ OFCondition OverlapUtil::checkFramesOverlap(const Uint32& f1, const Uint32& f2, 
     }
     if (result.good() && !overlap)
     {
-        DCMSEG_DEBUG("checkFramesOverlap(): Frames " << f1 << " and " << f2 << " don't overlap");
+        DCMSEG_TRACE("checkFramesOverlap(): Frames " << f1 << " and " << f2 << " don't overlap");
     }
     return result;
 }
@@ -654,7 +654,7 @@ OFCondition OverlapUtil::checkFramesOverlapBinary(const Uint32& f1,
                                                   const Uint16 cols,
                                                   OFBool& overlap)
 {
-    DCMSEG_DEBUG("checkFramesOverlap(): Comparing frames " << f1 << " and " << f2 << " for overlap (fast binary mode)");
+    DCMSEG_TRACE("checkFramesOverlap(): Comparing frames " << f1 << " and " << f2 << " for overlap (fast binary mode)");
     if (!f1_data || !f2_data)
     {
         DCMSEG_ERROR("checkFramesOverlap(): Cannot access binary frames " << f1 << " and " << f2 << " for comparison");
@@ -689,7 +689,7 @@ OFCondition OverlapUtil::checkFramesOverlapUnpacked(const Uint32& f1,
                                                     const Uint16 cols,
                                                     OFBool& overlap)
 {
-    DCMSEG_DEBUG("checkFramesOverlap(): Comparing frames " << f1 << " and " << f2
+    DCMSEG_TRACE("checkFramesOverlap(): Comparing frames " << f1 << " and " << f2
                                                            << " for overlap (slow unpacked mode)");
     OFunique_ptr<DcmIODTypes::Frame<Uint8> > f1_unpacked(DcmSegUtils::unpackBinaryFrame(f1_data, rows, cols));
     OFunique_ptr<DcmIODTypes::Frame<Uint8> > f2_unpacked(DcmSegUtils::unpackBinaryFrame(f2_data, rows, cols));
@@ -705,7 +705,7 @@ OFCondition OverlapUtil::checkFramesOverlapUnpacked(const Uint32& f1,
         return EC_IllegalCall;
     }
     // Compare pixels of both frames and check whether at least one has the same value
-    DCMSEG_DEBUG("checkFramesOverlap(): Comparing frames " << f1 << " and " << f2 << " for overlap");
+    DCMSEG_TRACE("checkFramesOverlap(): Comparing frames " << f1 << " and " << f2 << " for overlap");
     for (size_t n = 0; n < f1_unpacked->getLengthInBytes(); ++n)
     {
         if (f1_unpacked->m_pixData[n] != 0 && (f1_unpacked->m_pixData[n] == f2_unpacked->m_pixData[n]))

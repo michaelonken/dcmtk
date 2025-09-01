@@ -19,108 +19,167 @@
  *
  */
 
-#include "dcmtk/dcmseg/bin2label.h"
+
 #include "dcmtk/config/osconfig.h" // include OS configuration first
+#include "dcmtk/dcmseg/bin2label.h"
 #include "dcmtk/dcmdata/dcuid.h"
 #include "dcmtk/dcmfg/fgfact.h"
 #include "dcmtk/dcmseg/segtypes.h"
 #include <zconf.h>
 
-DcmBinToLabelConverter::DcmBinToLabelConverter(const DcmSegmentation::LoadingFlags& loadFlags,
-                                               const DcmBinToLabelConverter::ConversionFlags& convFlags)
-    : m_loadFlags(loadFlags)
-    , m_convFlags(convFlags)
-    , m_inputSeg(nullptr)
-    , m_outputSeg(nullptr)
+DcmBinToLabelConverter::DcmBinToLabelConverter()
+    : m_loadFlags()
+    , m_convFlags()
+    , m_inputDataset(OFnullptr)
+    , m_inputFileName()
+    , m_inputSeg(OFnullptr)
+    , m_inputXfer(E_TransferSyntax::EXS_Unknown)
+    , m_outputSeg(OFnullptr)
     , m_use16Bit(OFFalse)
     , m_overlapUtil()
 {
 }
 
-OFCondition DcmBinToLabelConverter::convertDataset(DcmDataset& dataset,
-                                                   DcmSegmentation*& segmentation,
-                                                   const DcmSegmentation::LoadingFlags& loadFlags,
-                                                   const DcmBinToLabelConverter::ConversionFlags& convFlags)
-{
-    DcmBinToLabelConverter converter(loadFlags, convFlags);
-    // Check whether SOP Class and Segmentation Type are suitable for conversion
-    OFCondition result = converter.checkSOPClassAndSegtype(dataset);
-    // If this is not a binary segmentation, already a label map, or has invalid
-    // data in SOP Class UID and/or Segmentation Type, return here.
-    if (result != EC_Normal)
-        return result;
 
-    DcmSegmentation* temp = NULL;
-    DCMSEG_DEBUG("Loading input dataset into segmentation object");
-    result                = DcmSegmentation::loadDataset(dataset, temp, loadFlags);
+void DcmBinToLabelConverter::setInput(const DcmSegmentation* inputSeg)
+{
+   clear();
+   if (inputSeg)
+   {
+       m_inputSeg.reset(new DcmSegmentation(*inputSeg));
+   }
+}
+
+
+void DcmBinToLabelConverter::setInput(DcmDataset* inputDataset, const DcmSegmentation::LoadingFlags& loadFlags)
+{
+    clear();
+    m_inputDataset = inputDataset;
+    m_loadFlags = loadFlags;
+}
+
+
+void DcmBinToLabelConverter::setInput(OFFilename filename, const DcmSegmentation::LoadingFlags& loadFlags)
+{
+    clear();
+    m_inputFileName = filename;
+    m_loadFlags = loadFlags;
+}
+
+
+void DcmBinToLabelConverter::clear()
+{
+    m_inputSeg.reset();
+    m_inputDataset = OFnullptr;
+    m_inputFileName.clear();
+    m_loadFlags.clear();
+    m_convFlags.clear();
+    m_outputSeg.reset();
+    m_use16Bit = OFFalse;
+    m_overlapUtil.clear();
+}
+
+
+OFCondition DcmBinToLabelConverter::convert(const ConversionFlags& convFlags)
+{
+    // Check whether input is set appropriately; loads input segmentation (if necessary)
+    // and checks whether its a binary segmentation object
+    m_convFlags = convFlags;
+    OFCondition result = loadInput();
+    if (result.bad())
+    {
+        return result;
+    }
+
+    // Check for overlaps which would prevent conversion
+    m_overlapUtil.setSegmentationObject(m_inputSeg.get());
+    if (m_overlapUtil.hasOverlappingSegments())
+    {
+        return SG_EC_OverlappingSegments;
+    }
+    // Get number of segments to find out whether we need 16 bit data.
+    // We will use MONOCHROME2 color model (palette is not supported during conversion for now).
+    size_t numSegments = m_inputSeg->getNumberOfSegments();
+    m_use16Bit    = (numSegments > 256);
+    DCMSEG_DEBUG("Using " << (m_use16Bit ? "16" : "8") << " bit pixel data for " << numSegments << " segments");
+
+    // Copy Content Identification Macro required for labelmap creation call
+    ContentIdentificationMacro content;
+    result = copyComponent(&(m_inputSeg->getContentIdentification()), &content);
+
+    // Create Labelmap
     if (result.good())
     {
-        converter.m_inputSeg.reset(temp);
-        // Check for overlaps which would prevent conversion
-        DCMSEG_DEBUG("Checking for overlapping segments");
-        converter.m_overlapUtil.setSegmentationObject(converter.m_inputSeg.get());
-        if (converter.m_overlapUtil.hasOverlappingSegments())
-        {
-            return SG_EC_OverlappingSegments;
-        }
-        // Get number of segments to find out whether we need 16 bit data.
-        // We will use MONOCHROME2 color model (palette is not supported during conversion for now).
-        DCMSEG_DEBUG("Checking number of segments to decide whether to use 8 or 16 bit pixel data");
-        size_t numSegments = converter.m_inputSeg->getNumberOfSegments();
-        converter.m_use16Bit    = (numSegments > 256);
-        DCMSEG_DEBUG("Using " << (converter.m_use16Bit ? "16" : "8") << " bit pixel data for " << numSegments << " segments");
-
-
-        OFString TODO;
-        ContentIdentificationMacro& tempc = converter.m_inputSeg->getContentIdentification();
-        tempc.getInstanceNumber(TODO);
-        std::cout << "TODO Instance Number: " << TODO << std::endl;
-        tempc.getContentLabel(TODO);
-        std::cout << "TODO Content Label: " << TODO << std::endl;
-
-        ContentIdentificationMacro content;
-        result = copyComponent(&(converter.m_inputSeg->getContentIdentification()), &content);
-
-        if (result.good())
-        {
-            DCMSEG_DEBUG("Creating labelmap output segmentation object");
-            result
-                = DcmSegmentation::createLabelmapSegmentation(temp,
-                                                              converter.m_inputSeg->getRows(),
-                                                              converter.m_inputSeg->getColumns(),
-                                                              converter.m_inputSeg->getEquipment().getEquipmentInfo(),
-                                                              content,
-                                                              converter.m_use16Bit,
-                                                              DcmSegTypes::SLCM_MONOCHROME2);
-            if (result.good())
-            {
-                converter.m_outputSeg.reset(temp);
-                // Copy all components except pixel data
-                DCMSEG_DEBUG("Copying common modules from input to output segmentation");
-                result = copyCommonModules(converter.m_inputSeg.get(), converter.m_outputSeg.get());
-            }
-            if (result.good())
-            {
-                DCMSEG_DEBUG("Copying per-frame information (pixel data and FGs) to output segmentation");
-                result = converter.copyPerFrameInfo(converter.m_inputSeg.get());
-            }
-        }
+        DcmSegmentation* temp = NULL;
+        DCMSEG_DEBUG("Creating labelmap output segmentation object");
+        result
+            = DcmSegmentation::createLabelmapSegmentation(temp,
+                                                            m_inputSeg->getRows(),
+                                                            m_inputSeg->getColumns(),
+                                                            m_inputSeg->getEquipment().getEquipmentInfo(),
+                                                            content,
+                                                            m_use16Bit,
+                                                            DcmSegTypes::SLCM_MONOCHROME2);
+        // Remember output segmentation in converter but also return in parameter
+        m_outputSeg = temp;
     }
+    // Copy all common information (patient, study, series and some instance level data)
+    if (result.good())
+    {
+        DCMSEG_DEBUG("Copying common modules from input to output segmentation");
+        result = copyCommonModules(m_inputSeg.get(), m_outputSeg.get());
+    }
+    // Copy Segments
+    if (result.good())
+    {
+        DCMSEG_DEBUG("Copying segments from input to output segmentation");
+        result = copySegments(m_inputSeg.get(), m_outputSeg.get());
+    }
+    // Copy pixel data and per-frame functional groups (excluding some that cannot be migrated)
+    if (result.good())
+    {
+        DCMSEG_DEBUG("Copying per-frame information (pixel data and FGs) to output segmentation");
+        result = copyPerFrameInfo(m_inputSeg.get());
+    }
+
     return result;
 }
 
-OFCondition DcmBinToLabelConverter::convertFile(const OFString& filename,
-                                                DcmSegmentation*& segmentation,
-                                                const DcmSegmentation::LoadingFlags& loadFlags,
-                                                const DcmBinToLabelConverter::ConversionFlags& convFlags)
+OFCondition DcmBinToLabelConverter::copySegments(DcmSegmentation* src, DcmSegmentation* dest)
 {
-    // Load the segmentation object from the file
-    DcmFileFormat fileformat;
-    OFCondition result = fileformat.loadFile(filename);
-    if (result.good())
+    OFCondition result;
+    DCMSEG_DEBUG("Copying segments from source to destination");
+    // Iterate over all segments in the source segmentation
+    OFMap<Uint16, DcmSegment*>::iterator srcSegment = src->getSegments().begin();
+    while (srcSegment != src->getSegments().end() && result.good())
     {
-        // Convert the loaded dataset to a segmentation object
-        result = convertDataset(*fileformat.getDataset(), segmentation, loadFlags, convFlags);
+        // Get segment from source segmentation
+        // Note that segment number is not relevant for labelmaps, so we don't pass it to addSegment
+        // (it will be assigned automatically in addSegment)
+        DCMSEG_DEBUG("Copying segment number " << srcSegment->first);
+        if (srcSegment->second)
+        {
+            // Clone the segment and add it to the destination segmentation
+            DcmSegment* clonedSegment = srcSegment->second->clone();
+            if (clonedSegment)
+            {
+                Uint16 segNumber = srcSegment->first;
+                result = dest->addSegment(clonedSegment, segNumber);
+                if (result.bad())
+                {
+                    DCMSEG_ERROR("Failed to add cloned segment to destination");
+                    delete clonedSegment;
+                    break;
+                }
+            }
+            else
+            {
+                DCMSEG_ERROR("Failed to clone source segment");
+                result = EC_MemoryExhausted;
+                break;
+            }
+        }
+        srcSegment++;
     }
     return result;
 }
@@ -130,49 +189,41 @@ DcmBinToLabelConverter::~DcmBinToLabelConverter()
     // Nothing to do here, no dynamic memory allocated
 }
 
-OFCondition DcmBinToLabelConverter::checkSOPClassAndSegtype(DcmDataset& dataset)
+OFCondition DcmBinToLabelConverter::checkSOPClassAndSegtype(const OFString& sopClassUID,
+                                                            const OFString& segType)
 {
     DCMSEG_DEBUG("Checking SOP Class and Segmentation Type");
     // Check if the SOP Class UID is correct
-    OFString sopClassUID;
     OFCondition result;
-    if (dataset.findAndGetOFString(DCM_SOPClassUID, sopClassUID).good())
+    if ((sopClassUID != UID_SegmentationStorage) && (sopClassUID != UID_LabelMapSegmentationStorage))
     {
-        if ((sopClassUID != UID_SegmentationStorage) && (sopClassUID != UID_LabelMapSegmentationStorage))
+        return SG_EC_NoSegmentationBasedSOPClass;
+    }
+    else if (sopClassUID == UID_LabelMapSegmentationStorage)
+    {
+        if (m_convFlags.m_errorIfAlreadyLabelMap)
         {
-            return SG_EC_NoSegmentationBasedSOPClass;
-        }
-        else if (sopClassUID == UID_LabelMapSegmentationStorage)
-        {
-            if (m_convFlags.m_errorIfAlreadyLabelMap)
-            {
-                return SG_EC_AlreadyLabelMap;
-            }
-            else
-            {
-                result = SG_EC_NoConversionRequired;
-            }
-        }
-        else if (sopClassUID == UID_SegmentationStorage)
-        {
-            result = EC_Normal;
+            return SG_EC_AlreadyLabelMap;
         }
         else
         {
-            return SG_EC_NoSegmentationBasedSOPClass;
+            result = SG_EC_NoConversionRequired;
         }
+    }
+    else if (sopClassUID == UID_SegmentationStorage)
+    {
+        result = EC_Normal;
     }
     else
     {
-        return IOD_EC_InvalidObject;
+        return SG_EC_NoSegmentationBasedSOPClass;
     }
 
     // Check if the Segmentation Type is valid
     DCMSEG_DEBUG("SOP Class acceptable for conversion to labelmap, checking Segmentation Type");
-    OFString segType;
-    if (dataset.findAndGetOFString(DCM_SegmentationType, segType).bad()
-        || DcmSegTypes::OFString2Segtype(segType) == DcmSegTypes::ST_UNKNOWN)
+    if (DcmSegTypes::OFString2Segtype(segType) == DcmSegTypes::ST_UNKNOWN)
     {
+        DCMSEG_ERROR("Segmentation Type is unknown");
         return IOD_EC_InvalidObject;
     }
 
@@ -323,6 +374,7 @@ OFCondition DcmBinToLabelConverter::copyPerFrameInfo(DcmSegmentation* src)
         // result in a new destination frame being created.
         OverlapUtil::DistinctFramePositions framesAtPositions;
         result = m_overlapUtil.getFramesByPosition(framesAtPositions);
+        Uint32 frameNum = 1; // for log ouptut
         if (result.good())
         {
             // Iterate over all positions, and create a new destination frame
@@ -330,8 +382,6 @@ OFCondition DcmBinToLabelConverter::copyPerFrameInfo(DcmSegmentation* src)
             OFVector<OverlapUtil::LogicalFrame>::iterator it = framesAtPositions.begin();
             while (result.good()&& (it != framesAtPositions.end()))
             {
-                // Delete Segmentation Functional group (not permitted as per-frame)
-                src->getFunctionalGroups().deletePerFrame(DcmFGTypes::EFG_SEGMENTATION);
                 // use per-frame information of first frame. We need them in a vector...
                 OFVector<FGBase*> perFrameInfo;
                 const FunctionalGroups* sourceFGs = src->getFunctionalGroups().getPerFrame(it->at(0));
@@ -345,7 +395,7 @@ OFCondition DcmBinToLabelConverter::copyPerFrameInfo(DcmSegmentation* src)
                 // no need to delete them.
                 if (m_use16Bit)
                 {
-                    DCMSEG_DEBUG("Creating new 16 bit destination frame");
+                    DCMSEG_DEBUG("Creating new 16 bit destination frame #" << frameNum << "/" << framesAtPositions.size());
                     // create a new destination frame
                     Uint16* newFrame = new Uint16[src->getRows() * src->getColumns()];
                     if (newFrame) result = m_outputSeg->addFrame(newFrame, 0 /* ignored for labelmaps */, perFrameInfo);
@@ -353,12 +403,13 @@ OFCondition DcmBinToLabelConverter::copyPerFrameInfo(DcmSegmentation* src)
                 }
                 else // 8 bit
                 {
-                    DCMSEG_DEBUG("Creating new 8 bit destination frame");
+                    DCMSEG_DEBUG("Creating new 8 bit destination frame #" << frameNum << "/" << framesAtPositions.size());
                     Uint8* newFrame = new Uint8[src->getRows() * src->getColumns()];
                     if (newFrame) result = m_outputSeg->addFrame(newFrame, 0 /* ignored for labelmaps */, perFrameInfo);
                     else result = EC_MemoryExhausted;
                 }
                 it++;
+                frameNum++;
             }
         }
     }
@@ -368,3 +419,85 @@ OFCondition DcmBinToLabelConverter::copyPerFrameInfo(DcmSegmentation* src)
     }
     return result;
 }
+
+
+E_TransferSyntax DcmBinToLabelConverter::getInputTransferSyntax() const
+{
+    return m_inputXfer;
+}
+
+OFCondition DcmBinToLabelConverter::loadInput()
+{
+    OFCondition result;
+    // Check whether we have a segmentation object as input
+    if (m_inputSeg.get() == OFnullptr)
+    {
+        // If not, check if we have a dataset to load from
+        if (m_inputDataset == OFnullptr)
+        {
+            // If not, check if we can load it from file
+            if (m_inputFileName.isEmpty())
+            {
+                return EC_InvalidFilename;
+            }
+            else
+            {
+                // Load file into dataset
+                DCMSEG_DEBUG("Loading potential segmentation file into a dataset");
+                DcmFileFormat dcmff;
+                result = dcmff.loadFile(m_inputFileName);
+                if (result.good())
+                {
+                    // make sure dataset pointer is not freed by DcmFileFormat
+                    m_inputDataset = dcmff.getAndRemoveDataset();
+                }
+                else
+                {
+                    return result;
+                }
+            }
+        }
+        // At this point we have an input dataset, load it into segmentation
+        DCMSEG_DEBUG("Loading dataset into DcmSegmentation object");
+        DcmSegmentation *loaded = OFnullptr;
+        result = DcmSegmentation::loadDataset(*m_inputDataset, loaded, m_loadFlags);
+        if (result.good())
+        {
+            m_inputSeg.reset(loaded);
+        }
+        else
+        {
+            return result;
+        }
+    }
+
+    OFString sop, segtype;
+    m_inputDataset->findAndGetOFString(DCM_SOPClassUID, sop);
+    m_inputDataset->findAndGetOFString(DCM_SegmentationType, segtype);
+    return checkSOPClassAndSegtype(sop, segtype);
+}
+
+
+OFCondition DcmBinToLabelConverter::getOutputSegmentation(OFshared_ptr<DcmSegmentation>& outputSeg)
+{
+   outputSeg = m_outputSeg;
+   return outputSeg ? EC_Normal : EC_IllegalParameter;
+}
+
+
+OFCondition DcmBinToLabelConverter::getOutputDataset(DcmItem& outputDataset)
+{
+    outputDataset.clear();
+    if (m_outputSeg)
+    {
+        m_outputSeg->getFunctionalGroups().setUseThreads(m_convFlags.m_numThreads);
+        OFCondition result = m_outputSeg->writeDataset(outputDataset);
+        if (result.bad())
+        {
+            outputDataset.clear();
+            return result;
+        }
+    }
+    return EC_Normal;
+}
+

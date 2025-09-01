@@ -125,6 +125,7 @@ DcmSegmentation::DcmSegmentation(OFin_place_type_t(ImagePixel))
     , m_MaximumFractionalValue(DCM_MaximumFractionalValue)
     , m_Segments()
     , m_FGInterface()
+    , m_inputXfer(E_TransferSyntax::EXS_Unknown)
 {
     DcmSegmentation::initIODRules();
 }
@@ -163,9 +164,6 @@ void DcmSegmentation::initIODRules()
                                                    OFTrue);
     DcmSegmentation::IODImage::getRules()->addRule(
         new IODRule(DCM_SeriesNumber, "1", "1", "SegmentationSeriesModule", DcmIODTypes::IE_SERIES), OFTrue);
-
-    // Instance Number is also used within Content Identification Macro, disable it there
-    m_ContentIdentificationMacro.getIODRules().deleteRule(DCM_InstanceNumber);
 }
 
 DcmSegmentation::~DcmSegmentation()
@@ -178,7 +176,7 @@ OFCondition DcmSegmentation::loadFile(const OFString& filename, DcmSegmentation*
 {
     DcmFileFormat dcmff;
     DcmDataset* dataset = NULL;
-    OFCondition result  = loadFile(dcmff, filename, dataset);
+    OFCondition result  = loadFile(dcmff, filename, dataset, flags.m_readTransferSyntax);
     if (result.bad())
         return result;
 
@@ -207,6 +205,7 @@ OFCondition DcmSegmentation::loadDataset(DcmDataset& dataset, DcmSegmentation*& 
     if (result.good())
     {
         segmentation = temp;
+        segmentation->m_inputXfer = dataset.getOriginalXfer();
     }
     else
     {
@@ -234,6 +233,10 @@ OFCondition DcmSegmentation::loadConcatenation(ConcatenationLoader& cl,
                 if (result.good())
                 {
                     segmentation->m_Frames = frames;
+                    // We don't check the transfer syntax in the input files,
+                    // so even all files had the same transfer syntax, we always
+                    // set it to EXS_Unknown.
+                    segmentation->m_inputXfer = EXS_Unknown;
                 }
             }
             else
@@ -334,17 +337,6 @@ OFCondition DcmSegmentation::createCommon(DcmSegmentation*& segmentation,
     result = segmentation->setContentIdentification(contentIdentification);
     if (result.good())
     {
-        OFString tempstr;
-        contentIdentification.getInstanceNumber(tempstr);
-        std::cout << "TODO Instance Number in createCommon(): " << tempstr << std::endl;
-        result = segmentation->getGeneralImage().setInstanceNumber(tempstr);
-        if (result.bad())
-        {
-            delete segmentation;
-            segmentation = NULL;
-            return EC_InvalidValue;
-        }
-
         DcmIODUtil::setContentDateAndTimeNow(segmentation->getGeneralImage());
         DCMSEG_DEBUG("Setting segmentation equipment information");
         result = segmentation->setEquipmentInfo(equipmentInfo, OFTrue /* check */);
@@ -501,6 +493,11 @@ void DcmSegmentation::setCheckDimensionsOnWrite(const OFBool doCheck)
 OFBool DcmSegmentation::getCheckDimensionsOnWrite()
 {
     return m_DimensionModule.getCheckOnWrite();
+}
+
+E_TransferSyntax DcmSegmentation::getInputTransferSyntax() const
+{
+    return m_inputXfer;
 }
 
 OFCondition DcmSegmentation::writeWithSeparatePixelData(DcmItem& dataset, Uint8*& pixData, size_t& pixDataLength)
@@ -1669,10 +1666,10 @@ OFCondition DcmSegmentation::getTotalBytesRequired(const Uint16& rows,
     return EC_Normal;
 }
 
-OFCondition DcmSegmentation::loadFile(DcmFileFormat& dcmff, const OFString& filename, DcmDataset*& dset)
+OFCondition DcmSegmentation::loadFile(DcmFileFormat& dcmff, const OFString& filename, DcmDataset*& dset, const E_TransferSyntax xfer)
 {
     dset               = NULL;
-    OFCondition result = dcmff.loadFile(filename.c_str());
+    OFCondition result = dcmff.loadFile(filename.c_str(), xfer);
     if (result.bad())
     {
         DCMSEG_ERROR("Could not load file " << filename << ": " << result.text());

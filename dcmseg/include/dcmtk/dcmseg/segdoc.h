@@ -78,7 +78,6 @@ public:
      */
     static OFCondition loadFile(const OFString& filename, DcmSegmentation*& segmentation, const DcmSegmentation::LoadingFlags& flags = LoadingFlags());
 
-
     /** Static method to load a Segmentation object from a file.
      *  The memory of the resulting Segmentation object has to be freed by the
      *  caller.
@@ -178,6 +177,14 @@ public:
      *  @return OFTrue if checking is performed, OFFalse otherwise
      */
     virtual OFBool getCheckDimensionsOnWrite();
+
+    /** Get input transfer syntax. Returns EXS_Unknown if object has been
+     *  created from scratch (and not from file or dataset).  If the
+     *  segmentation has been loaded from a concatenation, the value
+     *  will be EXS_Unknown.
+     *  @return Input transfer syntax
+     */
+    virtual E_TransferSyntax getInputTransferSyntax() const;
 
     // -------------------- creation ---------------------
 
@@ -531,8 +538,19 @@ public:
         // (will also be applied to writing, if applicable later on)
         Uint32 m_numThreads;
 
-        // Constructor to initialize the flags
-        LoadingFlags() : m_numThreads(1) {}
+        // Transfer syntax to use for reading/writing.
+        // transfer syntax used to read the data (auto detection if EXS_Unknown)
+        E_TransferSyntax m_readTransferSyntax;
+
+        /** Constructor to initialize the flags */
+        LoadingFlags() : m_numThreads(1), m_readTransferSyntax(EXS_Unknown) {}
+
+        /** Clear all flags to their default values */
+        void clear()
+        {
+            m_numThreads = 1;
+            m_readTransferSyntax = EXS_Unknown;
+        }
     };
 
 
@@ -811,6 +829,12 @@ private:
     /// Multi-frame Functional Groups high level interface
     FGInterface m_FGInterface;
 
+    /// Input transfer syntax; can be EXS_Unknown if object has been
+    /// created from scratch (and not from file or dataset). If the
+    /// segmentation has been loaded from a concatenation, the value
+    /// will be EXS_Unknown.
+    E_TransferSyntax m_inputXfer;
+
     // --------------- private helper functions -------------------
 
     /** Clear old data
@@ -834,7 +858,7 @@ private:
      *  @param  dset Pointer to dataset after loading
      *  @return EC_Normal if loading was successful, error otherwise
      */
-    static OFCondition loadFile(DcmFileFormat& dcmff, const OFString& filename, DcmDataset*& dset);
+    static OFCondition loadFile(DcmFileFormat& dcmff, const OFString& filename, DcmDataset*& dset, const E_TransferSyntax xfer);
 
     /** Computes the number of total bytes required for the frame data of this
      *  segmentation object. Takes into account dimensions and number of frames,

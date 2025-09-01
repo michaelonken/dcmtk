@@ -76,6 +76,12 @@ public:
                               const DcmSegTypes::E_SegmentAlgoType algoType,
                               const OFString& algoName = "");
 
+    /** Make a clone of this segment.
+     *  Note that the reference to DcmSegmentation is copied as well.
+     *  @return Pointer to the cloned segment if successful, OFnullptr otherwise
+     */
+    DcmSegment* clone();
+
     // ---------------- writing --------------------
 
     /** Write segment to given item which is usually contained within

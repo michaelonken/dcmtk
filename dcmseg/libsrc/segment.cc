@@ -68,6 +68,28 @@ OFCondition DcmSegment::create(DcmSegment*& segment,
     return result;
 }
 
+
+
+DcmSegment* DcmSegment::clone()
+{
+    DcmSegment* newSegment = new DcmSegment();
+    if (newSegment)
+    {
+        // Copy all member variables to the new segment
+        newSegment->m_SegmentationDoc = m_SegmentationDoc; // note: shallow copy
+        newSegment->m_SegmentNumber = m_SegmentNumber;
+        newSegment->m_SegmentDescription = m_SegmentDescription;
+        newSegment->m_SegmentAlgorithmName = m_SegmentAlgorithmName;
+        newSegment->m_SegmentationAlgorithmIdentification = m_SegmentationAlgorithmIdentification;
+        newSegment->m_RecommendedDisplayGrayscaleValue = m_RecommendedDisplayGrayscaleValue;
+        newSegment->m_RecommendedDisplayCIELabValue = m_RecommendedDisplayCIELabValue;
+        newSegment->m_TrackingID = m_TrackingID;
+        newSegment->m_TrackingUID = m_TrackingUID;
+        newSegment->m_Rules = m_Rules;
+    }
+    return newSegment;
+}
+
 OFCondition DcmSegment::read(DcmItem& item, const OFBool clearOldData)
 {
     if (clearOldData)

@@ -31,7 +31,6 @@
 #include "dcmtk/dcmdata/dcrledrg.h"  /* for DcmRLEDecoderRegistration */
 #include "dcmtk/dcmdata/dcrleccd.h"  /* for DcmRLECompressorRegistration */
 #include "dcmtk/dcmdata/dcdict.h"      /* for dcmDataDict.rdlock() */
-#include <netinet/in.h>
 
 #ifdef WITH_ZLIB
 #include <zlib.h>                      /* for zlibVersion() */
@@ -58,15 +57,15 @@ int main(int argc, char *argv[])
 
   E_FileReadMode opt_readMode = ERM_autoDetect;
   E_FileWriteMode opt_writeMode = EWM_createNewMeta;
-  E_TransferSyntax opt_ixfer = EXS_Unknown;
   E_TransferSyntax opt_oxfer = EXS_Unknown;
   E_GrpLenEncoding opt_oglenc = EGL_recalcGL;
   E_EncodingType opt_oenctype = EET_ExplicitLength;
   E_PaddingEncoding opt_opadenc = EPD_noChange;
+  DcmSegmentation::LoadingFlags opt_loadFlags;
+  DcmBinToLabelConverter::ConversionFlags opt_convFlags;
 #ifdef WITH_ZLIB
   OFCmdUnsignedInt opt_compressionLevel = 0;
 #endif
-  OFBool opt_noInvalidGroups = OFFalse;
 
   OFConsoleApplication app(OFFIS_CONSOLE_APPLICATION , "Convert DICOM segmentation objects", rcsid);
   OFCommandLine cmd;
@@ -98,18 +97,11 @@ int main(int argc, char *argv[])
       cmd.addOption("--bitstream-zlib",      "+bz",    "expect deflated zlib bitstream");
 #endif
 
-//   cmd.addGroup("processing options:");
-//     cmd.addSubGroup("specific character set:");
-//       cmd.addOption("--convert-to-utf8",     "+U8",    "convert all element values that are affected\nby Specific Character Set (0008,0005) to UTF-8");
-//       cmd.addOption("--convert-to-latin1",   "+L1",    "convert affected element values to ISO 8859-1");
-//       cmd.addOption("--convert-to-ascii",    "+A7",    "convert affected element values to 7-bit ASCII");
-//       cmd.addOption("--convert-to-charset",  "+C",  1, "[c]harset: string",
-//                                                        "convert affected element values to the character\nset specified by the DICOM defined term c");
-//       cmd.addOption("--transliterate",       "-Ct",    "try to approximate characters that cannot be\nrepresented through similar looking characters");
-//       cmd.addOption("--discard-illegal",     "-Cd",    "discard characters that cannot be represented\nin destination character set");
-//     cmd.addSubGroup("other processing options:");
-//       cmd.addOption("--no-invalid-groups",   "-ig",    "remove elements with invalid group number");
-
+  cmd.addGroup("processing options:");
+    cmd.addOption("--num-threads",                           "+j",      1, "[n]um threads: integer (default: 1)",
+                                                                                                          "use n threads if possible");
+    cmd.addOption("--disable-fg-check",        "-fgc",   "disable checking of functional groups\nwhen writing");
+    cmd.addOption("--disable-value-check",      "-vc",   "disable checking of values\nwhen writing");
   cmd.addGroup("output options:");
     cmd.addSubGroup("output file format:");
       cmd.addOption("--write-new-meta-info", "+Fm",    "write file format\nwith new meta information (default)");
@@ -173,23 +165,23 @@ int main(int argc, char *argv[])
 
       cmd.beginOptionBlock();
       if (cmd.findOption("--read-xfer-auto"))
-        opt_ixfer = EXS_Unknown;
+        opt_loadFlags.m_readTransferSyntax = EXS_Unknown;
       if (cmd.findOption("--read-xfer-detect"))
         dcmAutoDetectDatasetXfer.set(OFTrue);
       if (cmd.findOption("--read-xfer-little"))
       {
         app.checkDependence("--read-xfer-little", "--read-dataset", opt_readMode == ERM_dataset);
-        opt_ixfer = EXS_LittleEndianExplicit;
+        opt_loadFlags.m_readTransferSyntax = EXS_LittleEndianExplicit;
       }
       if (cmd.findOption("--read-xfer-big"))
       {
         app.checkDependence("--read-xfer-big", "--read-dataset", opt_readMode == ERM_dataset);
-        opt_ixfer = EXS_BigEndianExplicit;
+        opt_loadFlags.m_readTransferSyntax = EXS_BigEndianExplicit;
       }
       if (cmd.findOption("--read-xfer-implicit"))
       {
         app.checkDependence("--read-xfer-implicit", "--read-dataset", opt_readMode == ERM_dataset);
-        opt_ixfer = EXS_LittleEndianImplicit;
+        opt_loadFlags.m_readTransferSyntax = EXS_LittleEndianImplicit;
       }
       cmd.endOptionBlock();
 
@@ -205,6 +197,17 @@ int main(int argc, char *argv[])
       }
       cmd.endOptionBlock();
 #endif
+
+      /* processing options */
+      cmd.beginOptionBlock();
+      if (cmd.findOption("--num-threads"))
+      {
+        OFCmdUnsignedInt opt_numThreads = 1;
+        cmd.getValueAndCheckMinMax(opt_numThreads, 1, 255);
+        opt_loadFlags.m_numThreads = OFstatic_cast(Uint32, opt_numThreads); // safe
+        opt_convFlags.m_numThreads = OFstatic_cast(Uint32, opt_numThreads); // safe
+      }
+      cmd.endOptionBlock();
 
       /* output options */
       cmd.beginOptionBlock();
@@ -254,6 +257,8 @@ int main(int argc, char *argv[])
     }
 
     /* open input file */
+
+    /* open input file */
     if ((opt_ifname == NULL) || (strlen(opt_ifname) == 0))
     {
         OFLOG_FATAL(segconvLogger, "invalid filename: <empty string>");
@@ -262,19 +267,39 @@ int main(int argc, char *argv[])
 
     OFLOG_INFO(segconvLogger, "open input file " << opt_ifname);
 
-    DcmSegmentation* labelMap;
-    OFCondition error = DcmBinToLabelConverter::convertFile(opt_ifname, labelMap);
+    DcmBinToLabelConverter converter;
+    converter.setInput(opt_ifname, opt_loadFlags);
+    OFCondition error = converter.convert(opt_convFlags);
     if (error.bad())
     {
         OFLOG_FATAL(segconvLogger, error.text() << ": converting file: " <<  opt_ifname);
         return 1;
     }
 
-    DcmFileFormat fileformat;
-    DcmDataset *dataset = fileformat.getDataset();
-    error = labelMap->writeDataset(*dataset);
+    // write output file
+
+    DcmDataset* labelMap = new DcmDataset();
+    error = converter.getOutputDataset(*labelMap);
+    if (error.bad())
+    {
+        OFLOG_FATAL(segconvLogger, error.text() << ": writing segmentation into dataset");
+        return 1;
+    }
+    if (opt_oxfer == EXS_Unknown)
+    {
+        // use input transfer syntax
+        opt_oxfer = converter.getInputTransferSyntax();
+        if (opt_oxfer == EXS_Unknown)
+        {
+          // can theoretically be returned in case of concatenations in the underlying API,
+          // but those are not yet supported by this tool. Add it already to not forget it later
+          // in case support gets added in the future.
+          OFLOG_DEBUG(segconvLogger, "cannot determine transfer syntax of input file, using " << DcmXfer(EXS_LittleEndianExplicit).getXferName());
+          opt_oxfer = EXS_LittleEndianExplicit;
+        }
+    }
     DcmXfer opt_oxferSyn(opt_oxfer);
-    if (error.good() && dataset->canWriteXfer(opt_oxfer))
+    if (error.good())
     {
         OFLOG_INFO(segconvLogger, "output transfer syntax " << opt_oxferSyn.getXferName() << " can be written");
     } else {
@@ -282,8 +307,9 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    // actually write output file
     OFLOG_INFO(segconvLogger, "create output file " << opt_ofname);
-
+    DcmFileFormat fileformat(labelMap);
     error = fileformat.saveFile(opt_ofname, opt_oxfer, opt_oenctype, opt_oglenc, opt_opadenc,
         0, 0, opt_writeMode);
 
