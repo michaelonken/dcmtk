@@ -56,7 +56,7 @@ void DcmBinToLabelConverter::setInput(const DcmSegmentation* inputSeg)
 void DcmBinToLabelConverter::setInput(DcmDataset* inputDataset, const DcmSegmentation::LoadingFlags& loadFlags)
 {
     clear();
-    m_inputDataset = inputDataset;
+    m_inputDataset.reset(inputDataset);
     m_loadFlags = loadFlags;
 }
 
@@ -72,7 +72,7 @@ void DcmBinToLabelConverter::setInput(OFFilename filename, const DcmSegmentation
 void DcmBinToLabelConverter::clear()
 {
     m_inputSeg.reset();
-    m_inputDataset = OFnullptr;
+    m_inputDataset.reset();
     m_inputFileName.clear();
     m_loadFlags.clear();
     m_convFlags.clear();
@@ -130,6 +130,18 @@ OFCondition DcmBinToLabelConverter::convert(const ConversionFlags& convFlags)
     {
         DCMSEG_DEBUG("Copying common modules from input to output segmentation");
         result = copyCommonModules(m_inputSeg.get(), m_outputSeg.get());
+        if (result.good())
+        {
+            // Generate new Series Instance UID and SOP Instance UID for output segmentation
+            char sop[100];
+            char series[100];
+            // Generate new Series Instance UID
+            dcmGenerateUniqueIdentifier(series, SITE_SERIES_UID_ROOT);
+            m_outputSeg->getSeries().setSeriesInstanceUID(series);
+            // Generate new SOP Instance UID
+            dcmGenerateUniqueIdentifier(sop, SITE_INSTANCE_UID_ROOT);
+            m_outputSeg->getSOPCommon().setSOPInstanceUID(sop);
+        }
     }
     // Copy Segments
     if (result.good())
@@ -414,7 +426,7 @@ OFCondition DcmBinToLabelConverter::copyPerFrameInfo(DcmSegmentation* src)
                 if (!planePos)
                 {
                     DCMSEG_DEBUG("No Plane Position (Patient) FG found for frame #" << it->at(0));
-                    result = EC_IllegalParameter; // TODO better code
+                    result = EC_IllegalParameter; // TODO better error code
                     break;
                 }
                 // Create Frame Content FG for the frame, TODO: refactor into separate method
@@ -435,11 +447,11 @@ OFCondition DcmBinToLabelConverter::copyPerFrameInfo(DcmSegmentation* src)
                     {
                         OFOStringStream s;
                         s << "Created from original frame numbers: ";
-                        OverlapUtil::DistinctFramePositions::iterator frameAtPos = framesAtPositions.begin();
-                        while (frameAtPos != framesAtPositions.end())
+                        OFVector<Uint32>::iterator physFramesAtPos = (*it).begin();
+                        while (physFramesAtPos != (*it).end())
                         {
-                            s << frameAtPos->at(0) << ", ";
-                            ++frameAtPos;
+                            s << *physFramesAtPos << ", ";
+                            ++physFramesAtPos;
                         }
                         OFString frameComments = s.str().c_str();
                         // cut off last comma, if applicable
@@ -519,7 +531,7 @@ OFCondition DcmBinToLabelConverter::loadInput()
     if (m_inputSeg.get() == OFnullptr)
     {
         // If not, check if we have a dataset to load from
-        if (m_inputDataset == OFnullptr)
+        if (!m_inputDataset)
         {
             // If not, check if we can load it from file
             if (m_inputFileName.isEmpty())
@@ -535,7 +547,7 @@ OFCondition DcmBinToLabelConverter::loadInput()
                 if (result.good())
                 {
                     // make sure dataset pointer is not freed by DcmFileFormat
-                    m_inputDataset = dcmff.getAndRemoveDataset();
+                    m_inputDataset.reset(dcmff.getAndRemoveDataset());
                 }
                 else
                 {

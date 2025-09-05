@@ -28,8 +28,8 @@
 #include "dcmtk/dcmdata/dcuid.h"       /* for dcmtk version name */
 #include "dcmtk/dcmdata/dcostrmz.h"    /* for dcmZlibCompressionLevel */
 #include "dcmtk/dcmdata/dcistrmz.h"    /* for dcmZlibExpectRFC1950Encoding */
-#include "dcmtk/dcmdata/dcrledrg.h"  /* for DcmRLEDecoderRegistration */
-#include "dcmtk/dcmdata/dcrleccd.h"  /* for DcmRLECompressorRegistration */
+#include "dcmtk/dcmdata/dcrledrg.h"    /* for DcmRLEDecoderRegistration */
+#include "dcmtk/dcmdata/dcrleerg.h"    /* for DcmRLEEncoderRegistration */
 #include "dcmtk/dcmdata/dcdict.h"      /* for dcmDataDict.rdlock() */
 
 #ifdef WITH_ZLIB
@@ -91,6 +91,7 @@ int main(int argc, char *argv[])
       cmd.addOption("--read-xfer-little",    "-te",    "read with explicit VR little endian TS");
       cmd.addOption("--read-xfer-big",       "-tb",    "read with explicit VR big endian TS");
       cmd.addOption("--read-xfer-implicit",  "-ti",    "read with implicit VR little endian TS");
+      cmd.addOption("--read-xfer-rle",       "-tr",    "read with RLE lossless TS");
 #ifdef WITH_ZLIB
     cmd.addSubGroup("bitstream format of deflated input:");
       cmd.addOption("--bitstream-deflated",  "+bd",    "expect deflated bitstream (default)");
@@ -112,6 +113,7 @@ int main(int argc, char *argv[])
       cmd.addOption("--write-xfer-little",   "+te",    "write with explicit VR little endian TS");
       cmd.addOption("--write-xfer-big",      "+tb",    "write with explicit VR big endian TS");
       cmd.addOption("--write-xfer-implicit", "+ti",    "write with implicit VR little endian TS");
+      cmd.addOption("--write-xfer-rle",      "+tr",    "write with RLE lossless TS");
 #ifdef WITH_ZLIB
       cmd.addOption("--write-xfer-deflated", "+td",    "write with deflated explicit VR little endian TS");
 #endif
@@ -183,6 +185,12 @@ int main(int argc, char *argv[])
         app.checkDependence("--read-xfer-implicit", "--read-dataset", opt_readMode == ERM_dataset);
         opt_loadFlags.m_readTransferSyntax = EXS_LittleEndianImplicit;
       }
+      if (cmd.findOption("--read-xfer-rle"))
+      {
+        app.checkDependence("--read-xfer-rle", "--read-dataset", opt_readMode == ERM_dataset);
+        opt_loadFlags.m_readTransferSyntax = EXS_RLELossless;
+        DcmRLEDecoderRegistration::registerCodecs();
+      }
       cmd.endOptionBlock();
 
 #ifdef WITH_ZLIB
@@ -229,6 +237,11 @@ int main(int argc, char *argv[])
       if (cmd.findOption("--write-xfer-little")) opt_oxfer = EXS_LittleEndianExplicit;
       if (cmd.findOption("--write-xfer-big")) opt_oxfer = EXS_BigEndianExplicit;
       if (cmd.findOption("--write-xfer-implicit")) opt_oxfer = EXS_LittleEndianImplicit;
+      if (cmd.findOption("--write-xfer-rle"))
+      {
+          opt_oxfer = EXS_RLELossless;
+          DcmRLEEncoderRegistration::registerCodecs();
+      }
 #ifdef WITH_ZLIB
       if (cmd.findOption("--write-xfer-deflated")) opt_oxfer = EXS_DeflatedLittleEndianExplicit;
 #endif
@@ -286,7 +299,7 @@ int main(int argc, char *argv[])
 
     // write output file
 
-    DcmDataset* labelMap = new DcmDataset();
+    OFunique_ptr<DcmDataset> labelMap(new DcmDataset());
     error = converter.getOutputDataset(*labelMap);
     if (error.bad())
     {
@@ -306,6 +319,11 @@ int main(int argc, char *argv[])
           opt_oxfer = EXS_LittleEndianExplicit;
         }
     }
+    if (labelMap->chooseRepresentation(opt_oxfer, NULL).bad() || !labelMap->canWriteXfer(opt_oxfer))
+    {
+        OFLOG_FATAL(segconvLogger, "no conversion to transfer syntax " << DcmXfer(opt_oxfer).getXferName() << " possible!");
+        return 1;
+    }
     DcmXfer opt_oxferSyn(opt_oxfer);
     if (error.good())
     {
@@ -317,7 +335,7 @@ int main(int argc, char *argv[])
 
     // actually write output file
     OFLOG_INFO(segconvLogger, "create output file " << opt_ofname);
-    DcmFileFormat fileformat(labelMap);
+    DcmFileFormat fileformat(labelMap.release(), OFFalse /* no deep copy */);
     error = fileformat.saveFile(opt_ofname, opt_oxfer, opt_oenctype, opt_oglenc, opt_opadenc,
         0, 0, opt_writeMode);
 

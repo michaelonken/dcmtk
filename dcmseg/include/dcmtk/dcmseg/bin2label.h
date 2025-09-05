@@ -208,7 +208,7 @@ private:
     ConversionFlags m_convFlags;
 
     // Input sources
-    DcmDataset* m_inputDataset;
+    OFunique_ptr<DcmDataset> m_inputDataset;
     OFFilename m_inputFileName;
     OFunique_ptr<DcmSegmentation> m_inputSeg;
     E_TransferSyntax m_inputXfer;
