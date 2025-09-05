@@ -153,8 +153,8 @@ protected:
         if (result.good())
         {
             // Get the segments for the current frame
-            std::set<OverlapUtil::SegNumAndFrameNum>::const_iterator seg = segs[logicalPos].begin();
-            std::set<OverlapUtil::SegNumAndFrameNum>::const_iterator endSeg = segs[logicalPos].end();
+            OFVector<OverlapUtil::SegNumAndFrameNum>::const_iterator seg = segs[logicalPos].begin();
+            OFVector<OverlapUtil::SegNumAndFrameNum>::const_iterator endSeg = segs[logicalPos].end();
             while (result.good() && (seg != endSeg))
             {
                 const DcmIODTypes::FrameBase* srcFrame = src->getFrame( (*seg).m_frameNumber);

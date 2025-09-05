@@ -302,7 +302,21 @@ OFCondition OverlapUtil::getSegmentsByPosition(SegmentsByPosition& result)
                 cond          = segFG->getReferencedSegmentNumber(segNum);
                 if (cond.good() && segNum > 0 && (segNum <= numSegments))
                 {
-                    m_segmentsByPosition[l].insert(SegNumAndFrameNum(segNum, frameNumber));
+                    // check if segment is already in the list for this position
+                    // (may happen if multiple frames for same segment are at same position?)
+                    OFBool found = OFFalse;
+                    for (size_t s = 0; s < m_segmentsByPosition[l].size(); ++s)
+                    {
+                        if (m_segmentsByPosition[l][s].m_segmentNumber == segNum)
+                        {
+                            found = OFTrue;
+                            break;
+                        }
+                    }
+                    if (!found)
+                    {
+                        m_segmentsByPosition[l].push_back(SegNumAndFrameNum(segNum, frameNumber));
+                    }
                 }
                 else if (segNum == 0)
                 {
@@ -484,7 +498,7 @@ void OverlapUtil::printSegmentsByPosition(OFStringStream& ss)
     for (size_t i = 0; i < m_segmentsByPosition.size(); ++i)
     {
         OFStringStream tempSS;
-        for (std::set<SegNumAndFrameNum>::iterator it = m_segmentsByPosition[i].begin();
+        for (OFVector<SegNumAndFrameNum>::iterator it = m_segmentsByPosition[i].begin();
              it != m_segmentsByPosition[i].end();
              ++it)
         {
@@ -553,12 +567,12 @@ OFCondition OverlapUtil::buildOverlapMatrix()
     {
         DCMSEG_TRACE("getOverlappingSegments(): Comparing segments at logical frame position " << i);
         // Compare all segments at this position
-        for (std::set<SegNumAndFrameNum>::iterator it = m_segmentsByPosition[i].begin();
+        for (OFVector<SegNumAndFrameNum>::iterator it = m_segmentsByPosition[i].begin();
              it != m_segmentsByPosition[i].end();
              ++it)
         {
             index1++;
-            for (std::set<SegNumAndFrameNum>::iterator it2 = m_segmentsByPosition[i].begin();
+            for (OFVector<SegNumAndFrameNum>::iterator it2 = m_segmentsByPosition[i].begin();
                  it2 != m_segmentsByPosition[i].end();
                  ++it2)
             {

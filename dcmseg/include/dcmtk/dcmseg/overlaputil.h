@@ -26,7 +26,6 @@
 #include "dcmtk/ofstd/ofcond.h"
 #include "dcmtk/ofstd/oftypes.h"
 #include "dcmtk/ofstd/ofvector.h"
-#include <set>
 
 class DcmSegmentation;
 
@@ -128,23 +127,26 @@ public:
             , m_frameNumber(f)
         {
         }
+        /** Default constructor
+         */
+        SegNumAndFrameNum()
+            : m_segmentNumber(0)
+            , m_frameNumber(0)
+        {
+        }
+
         /// Segment number as used in DICOM segmentation object (1-n)
         Uint16 m_segmentNumber;
         /// Logical frame number (number of frame in DistinctFramePositions vector)
         Uint16 m_frameNumber;
-        /** Comparison operator
-         *  @param  rhs Right-hand side of comparison
-         *  @return OFTrue if left-hand side is smaller than right-hand side
-         */
-        bool operator<(const SegNumAndFrameNum& rhs) const
-        {
-            return m_segmentNumber < rhs.m_segmentNumber;
-        }
     };
 
     /// Segments and their phyiscal frame number (inner set), grouped by their
-    /// respective logical frame number (outer vector)
-    typedef OFVector<std::set<SegNumAndFrameNum>> SegmentsByPosition;
+    /// respective logical frame number (outer vector) .The inner vector is not
+    // sorted by segment number but will uniquely contain each segment only once.
+    // A std::set would be more appropriate, but since this is not supported by all
+    // compilers used for DCMTK, we use a vector and check for duplicates manually.
+    typedef OFVector<OFVector<SegNumAndFrameNum> > SegmentsByPosition;
 
     // ------------------------------------------ Methods ------------------------------------------
 
@@ -156,9 +158,6 @@ public:
     ~OverlapUtil();
 
     /** Set the segmentation object to work with and clears all old data.
-     *  TODO: In the future, maybe have DcmSegmentation->getOverlapUtil() to access
-     *  the OverlapUtil object, so that the user does not have to care about
-     *  feeding the segmentation object to the OverlapUtil object.
      */
     void setSegmentationObject(DcmSegmentation* seg);
 
