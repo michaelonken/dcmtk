@@ -70,24 +70,48 @@ OFCondition DcmSegment::create(DcmSegment*& segment,
 
 
 
-DcmSegment* DcmSegment::clone()
+DcmSegment* DcmSegment::clone(DcmSegmentation* seg)
 {
-    DcmSegment* newSegment = new DcmSegment();
-    if (newSegment)
+    DcmSegment* newSegment = new DcmSegment(*this);
+    if (newSegment != NULL)
     {
-        // Copy all member variables to the new segment
-        newSegment->m_SegmentationDoc = m_SegmentationDoc; // note: shallow copy
-        newSegment->m_SegmentNumber = m_SegmentNumber;
-        newSegment->m_SegmentDescription = m_SegmentDescription;
-        newSegment->m_SegmentAlgorithmName = m_SegmentAlgorithmName;
-        newSegment->m_SegmentationAlgorithmIdentification = m_SegmentationAlgorithmIdentification;
-        newSegment->m_RecommendedDisplayGrayscaleValue = m_RecommendedDisplayGrayscaleValue;
-        newSegment->m_RecommendedDisplayCIELabValue = m_RecommendedDisplayCIELabValue;
-        newSegment->m_TrackingID = m_TrackingID;
-        newSegment->m_TrackingUID = m_TrackingUID;
-        newSegment->m_Rules = m_Rules;
+        if (seg != NULL)
+            newSegment->m_SegmentationDoc = seg;
+        // else: keep reference to same DcmSegmentation document
     }
     return newSegment;
+}
+
+DcmSegment::DcmSegment(const DcmSegment& rhs)
+    : m_SegmentationDoc(rhs.m_SegmentationDoc)
+    , m_SegmentNumber(rhs.m_SegmentNumber)
+    , m_SegmentDescription(rhs.m_SegmentDescription)
+    , m_SegmentAlgorithmName(rhs.m_SegmentAlgorithmName)
+    , m_SegmentationAlgorithmIdentification(rhs.m_SegmentationAlgorithmIdentification)
+    , m_RecommendedDisplayGrayscaleValue(rhs.m_RecommendedDisplayGrayscaleValue)
+    , m_RecommendedDisplayCIELabValue(rhs.m_RecommendedDisplayCIELabValue)
+    , m_TrackingID(rhs.m_TrackingID)
+    , m_TrackingUID(rhs.m_TrackingUID)
+    , m_Rules(rhs.m_Rules)
+{
+}
+
+DcmSegment& DcmSegment::operator=(const DcmSegment& rhs)
+{
+    if (this != &rhs)
+    {
+        m_SegmentationDoc                        = rhs.m_SegmentationDoc;
+        m_SegmentNumber                          = rhs.m_SegmentNumber;
+        m_SegmentDescription                     = rhs.m_SegmentDescription;
+        m_SegmentAlgorithmName                   = rhs.m_SegmentAlgorithmName;
+        m_SegmentationAlgorithmIdentification    = rhs.m_SegmentationAlgorithmIdentification;
+        m_RecommendedDisplayGrayscaleValue       = rhs.m_RecommendedDisplayGrayscaleValue;
+        m_RecommendedDisplayCIELabValue          = rhs.m_RecommendedDisplayCIELabValue;
+        m_TrackingID                             = rhs.m_TrackingID;
+        m_TrackingUID                            = rhs.m_TrackingUID;
+        m_Rules                                  = rhs.m_Rules;
+    }
+    return *this;
 }
 
 OFCondition DcmSegment::read(DcmItem& item, const OFBool clearOldData)

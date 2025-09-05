@@ -98,7 +98,7 @@ int main(int argc, char *argv[])
 #endif
 
   cmd.addGroup("processing options:");
-    cmd.addOption("--num-threads",                           "+j",      1, "[n]um threads: integer (default: 1)",
+    cmd.addOption("--num-threads",                           "-j",      1, "[n]um threads: integer (default: 1)",
                                                                                                           "use n threads if possible");
     cmd.addOption("--disable-fg-check",        "-fgc",   "disable checking of functional groups\nwhen writing");
     cmd.addOption("--disable-value-check",      "-vc",   "disable checking of values\nwhen writing");
@@ -208,6 +208,14 @@ int main(int argc, char *argv[])
         opt_convFlags.m_numThreads = OFstatic_cast(Uint32, opt_numThreads); // safe
       }
       cmd.endOptionBlock();
+      if (cmd.findOption("--disable-fg-check"))
+      {
+          opt_convFlags.m_checkExportFG = OFTrue;
+      }
+      if (cmd.findOption("--disable-value-check"))
+      {
+          opt_convFlags.m_checkExportValues= OFTrue;
+      }
 
       /* output options */
       cmd.beginOptionBlock();

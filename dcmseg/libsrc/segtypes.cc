@@ -164,6 +164,27 @@ SegmentDescriptionMacro::~SegmentDescriptionMacro()
 {
 }
 
+SegmentDescriptionMacro& SegmentDescriptionMacro::operator=(const SegmentDescriptionMacro& rhs)
+{
+    if (this != &rhs)
+    {
+        m_SegmentLabel = rhs.m_SegmentLabel;
+        m_SegmentDescription = rhs.m_SegmentDescription;
+        m_SegmentAlgorithmType = rhs.m_SegmentAlgorithmType;
+        m_GeneralAnatomyCode = rhs.m_GeneralAnatomyCode;
+        m_SegmentedPropertyCategoryCode = rhs.m_SegmentedPropertyCategoryCode;
+        m_SegmentedPropertyType = rhs.m_SegmentedPropertyType;
+    }
+    return *this;
+}
+
+
+SegmentDescriptionMacro* SegmentDescriptionMacro::clone()
+{
+    return new SegmentDescriptionMacro(*this);
+}
+
+
 void SegmentDescriptionMacro::clearData()
 {
     m_SegmentLabel.clear();
@@ -313,6 +334,28 @@ SegmentedPropertyTypeCodeItem::SegmentedPropertyTypeCodeItem()
     : m_SegmentedPropertyTypeCode()
     , m_SegmentedPropertyTypeModifierCode()
 {
+}
+
+SegmentedPropertyTypeCodeItem& SegmentedPropertyTypeCodeItem::operator=(const SegmentedPropertyTypeCodeItem& rhs)
+{
+    if (this != &rhs)
+    {
+        m_SegmentedPropertyTypeCode = rhs.m_SegmentedPropertyTypeCode;
+        DcmIODUtil::copyContainer(rhs.m_SegmentedPropertyTypeModifierCode, m_SegmentedPropertyTypeModifierCode);
+    }
+    return *this;
+}
+
+SegmentedPropertyTypeCodeItem* SegmentedPropertyTypeCodeItem::clone()
+{
+    return new SegmentedPropertyTypeCodeItem(*this);
+}
+
+SegmentedPropertyTypeCodeItem::SegmentedPropertyTypeCodeItem(const SegmentedPropertyTypeCodeItem& rhs)
+    : m_SegmentedPropertyTypeCode(rhs.m_SegmentedPropertyTypeCode)
+    , m_SegmentedPropertyTypeModifierCode()
+{
+    DcmIODUtil::copyContainer(rhs.m_SegmentedPropertyTypeModifierCode, m_SegmentedPropertyTypeModifierCode);
 }
 
 SegmentedPropertyTypeCodeItem::~SegmentedPropertyTypeCodeItem()

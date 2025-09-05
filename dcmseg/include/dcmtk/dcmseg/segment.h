@@ -77,10 +77,23 @@ public:
                               const OFString& algoName = "");
 
     /** Make a clone of this segment.
-     *  Note that the reference to DcmSegmentation is copied as well.
+     *  Note that the reference to DcmSegmentation is copied, if not provided in the parameter.
+     *  @param seg Pointer to the DcmSegmentation object to associate with the cloned segment,
+     *         copied from the original segment if not provided
      *  @return Pointer to the cloned segment if successful, OFnullptr otherwise
      */
-    DcmSegment* clone();
+    DcmSegment* clone(DcmSegmentation* seg = NULL);
+
+    /** Assignment operator, performs deep copy
+     *  @param  rhs The right-hand side segment to assign from
+     *  @return Reference to this segment
+     */
+    DcmSegment& operator=(const DcmSegment& rhs);
+
+    /** Copy constructor
+     *  @param  rhs The right-hand side segment to copy from
+     */
+    DcmSegment(const DcmSegment& rhs);
 
     // ---------------- writing --------------------
 
@@ -293,14 +306,6 @@ protected:
     void referenceSegmentationDoc(DcmSegmentation* doc);
 
 private:
-    /** Private undefined copy constructor
-     */
-    DcmSegment(const DcmSegment&);
-
-    /** Private undefined assignment operator
-     *  @return Reference to "this" class
-     */
-    DcmSegment& operator=(const DcmSegment&);
 
     /// The segmentation document where this segment is located in
     DcmSegmentation* m_SegmentationDoc;

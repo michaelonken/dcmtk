@@ -26,6 +26,8 @@
 
 #include "dcmtk/dcmseg/overlaputil.h"
 #include "dcmtk/dcmseg/segdoc.h" // for DcmSegmentation
+#include "segtypes.h"
+#include "segutils.h"
 
 /** Class representing an object of the "Segmentation SOP Class".
  */
@@ -130,6 +132,69 @@ protected:
     OFCondition copyPerFrameInfo(DcmSegmentation* src);
     OFCondition copySegments(DcmSegmentation* src, DcmSegmentation* dest);
     OFCondition loadInput();
+
+    /** Set pixel data for a specific frame in the output segmentation.
+     *  @param  src        Source segmentation object
+     *  @param  logicalPos Logical position of the frame (0 is first)
+     *  @param  destFrame  Pointer to the destination frame
+     *  @param  numPixels  Number of pixels in the frame
+     *  @return EC_Normal if successful, error otherwise
+     */
+    template<typename PixelType>
+    inline OFCondition setPixelDataForFrame(DcmSegmentation* src, Uint32 logicalPos, PixelType* destFrame, const size_t numPixels)
+    {
+        // For the current logical frame position we have one or more segments in the source data.
+        // Get those segments, get the related original source frame they refer to, and
+        // then loop over the pixels of the source frame. If the source frame pixel is > 0,
+        // then set at the same coordinates in the destination frame the pixel to the
+        // segment number.
+        OverlapUtil::SegmentsByPosition segs;
+        OFCondition result = m_overlapUtil.getSegmentsByPosition(segs);
+        if (result.good())
+        {
+            // Get the segments for the current frame
+            std::set<OverlapUtil::SegNumAndFrameNum>::const_iterator seg = segs[logicalPos].begin();
+            std::set<OverlapUtil::SegNumAndFrameNum>::const_iterator endSeg = segs[logicalPos].end();
+            while (result.good() && (seg != endSeg))
+            {
+                const DcmIODTypes::FrameBase* srcFrame = src->getFrame( (*seg).m_frameNumber);
+                if (srcFrame)
+                {
+                    // unpack binary segmentation frame
+                    DcmIODTypes::Frame<Uint8>* unpackedFrame = DcmSegUtils::unpackBinaryFrame(OFstatic_cast(const DcmIODTypes::Frame<Uint8>*, srcFrame), src->getRows(), src->getColumns());
+                    if (unpackedFrame)
+                    {
+                        for (size_t p=0; (p < numPixels) && result.good(); p++)
+                        {
+                            Uint8 val;
+                            result = unpackedFrame->getUint8AtIndex(val, p); // either 0 or 1
+                            if (result.good())
+                            {
+                                // cast is safe in case of 8 bit since this is checked beforehand
+                                if (val > 0) destFrame[p] = OFstatic_cast(PixelType, seg->m_segmentNumber);
+                            }
+                            else {
+                                DCMSEG_ERROR("Cannot get pixel from source frame: " << result.text());
+                            }
+                        }
+                    }
+                    else
+                    {
+                        DCMSEG_ERROR("Cannot unpack binary source frame");
+                        result = IOD_EC_InvalidPixelData;
+                    }
+                    delete unpackedFrame;
+                    unpackedFrame = NULL;
+                }
+                else {
+                    DCMSEG_ERROR("Cannot get pixel data for source frame");
+                    result = IOD_EC_InvalidPixelData;
+                }
+                seg++;
+            }
+        }
+        return result;
+    }
 
 private:
     // Disable copy constructor and assignment operator

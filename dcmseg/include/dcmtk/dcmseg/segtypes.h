@@ -228,6 +228,24 @@ public:
      */
     virtual ~SegmentedPropertyTypeCodeItem();
 
+    /** Clone method, creates a new instance of this class and performs
+     *  a deep copy of all data.
+     *  @return Pointer to newly created SegmentedPropertyTypeCodeItem object. The
+     *          caller is responsible for deleting the object after use.
+     */
+    virtual SegmentedPropertyTypeCodeItem* clone();
+
+    /** Assignment operator, performs deep copy
+     *  @param  rhs The right-hand side SegmentedPropertyTypeCodeItem to assign from
+     *  @return Reference to this SegmentedPropertyTypeCodeItem
+     */
+    SegmentedPropertyTypeCodeItem& operator=(const SegmentedPropertyTypeCodeItem& rhs);
+
+    /** Copy constructor
+     *  @param  rhs The right-hand side SegmentedPropertyTypeCodeItem to copy from
+     */
+    SegmentedPropertyTypeCodeItem(const SegmentedPropertyTypeCodeItem& rhs);
+
     /** Clear all data
      */
     virtual void clearData();
@@ -282,6 +300,19 @@ public:
     /** Virtual destructor, frees memory
      */
     virtual ~SegmentDescriptionMacro();
+
+    /** Clone method, creates a new instance of this class and performs
+     *  a deep copy of all data.
+     *  @return Pointer to newly created SegmentDescriptionMacro object. The
+     *          caller is responsible for deleting the object after use.
+     */
+    virtual SegmentDescriptionMacro* clone();
+
+    /** Assignment operator, performs deep copy
+     *  @param  rhs The right-hand side SegmentDescriptionMacro to assign from
+     *  @return Reference to this SegmentDescriptionMacro
+     */
+    SegmentDescriptionMacro& operator=(const SegmentDescriptionMacro& rhs);
 
     /** Clear all data
      */

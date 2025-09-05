@@ -22,8 +22,10 @@
 
 #include "dcmtk/config/osconfig.h" // include OS configuration first
 #include "dcmtk/dcmseg/bin2label.h"
+#include "dcmtk/dcmiod/iodutil.h"
 #include "dcmtk/dcmdata/dcuid.h"
 #include "dcmtk/dcmfg/fgfact.h"
+#include "dcmtk/dcmfg/fgfracon.h"
 #include "dcmtk/dcmseg/segtypes.h"
 #include <zconf.h>
 
@@ -150,7 +152,7 @@ OFCondition DcmBinToLabelConverter::copySegments(DcmSegmentation* src, DcmSegmen
     OFCondition result;
     DCMSEG_DEBUG("Copying segments from source to destination");
     // Iterate over all segments in the source segmentation
-    OFMap<Uint16, DcmSegment*>::iterator srcSegment = src->getSegments().begin();
+    OFMap<Uint16, DcmSegment*>::const_iterator srcSegment = src->getSegments().begin();
     while (srcSegment != src->getSegments().end() && result.good())
     {
         // Get segment from source segmentation
@@ -160,7 +162,7 @@ OFCondition DcmBinToLabelConverter::copySegments(DcmSegmentation* src, DcmSegmen
         if (srcSegment->second)
         {
             // Clone the segment and add it to the destination segmentation
-            DcmSegment* clonedSegment = srcSegment->second->clone();
+            DcmSegment* clonedSegment = srcSegment->second->clone(dest);
             if (clonedSegment)
             {
                 Uint16 segNumber = srcSegment->first;
@@ -301,9 +303,14 @@ OFCondition DcmBinToLabelConverter::copyCommonModules(DcmSegmentation* src, DcmS
         }
         if (result.good())
         {
-            // TODO fix series instance UID?
+            // TODO fix series instance UID and Series Number?
             DCMSEG_DEBUG("Copying General Series Module from input to output segmentation");
             result = copyComponent(&(src->getSeries()), &dest->getSeries());
+        }
+        if (result.good())
+        {
+            DCMSEG_DEBUG("Copying Segmentation Series Module from input to output segmentation");
+            result = copyComponent(&(src->getSegmentationSeriesModule()), &dest->getSegmentationSeriesModule());
         }
         if (result.good())
         {
@@ -319,15 +326,15 @@ OFCondition DcmBinToLabelConverter::copyCommonModules(DcmSegmentation* src, DcmS
             return result;
 
         // Continue with all others:
-        // - Segmentation Series Module
-        // - Multi-Frame Dimension Module
-        // - Common Instance Reference Module
-        // - Multi-frame Functional Group Module
-        // This skips:
+        // - Multi-frame Functional Group Module (recreate)
+        // - Common Instance Reference Module (probably invalid)
+        // Skipping:
         // - Palette Color LUT Module (not set in binary segmentations)
         // - Segmentation Image Module (rewritten for labelmaps)
-        DCMSEG_DEBUG("Copying Dimension Module from input to output segmentation");
-        result = copyComponent(&(src->getDimensions()), &dest->getDimensions());
+        // - Multi-Frame Dimension Module (probably invalid)
+
+        // TODO: Shall we copy Common Instance Reference module with its original references or just empty?
+        // (Referenced Series Sequence must be there at least empty)
         if (result.good())
         {
             DCMSEG_DEBUG("Copying Common Instance Reference Module from input to output segmentation");
@@ -335,6 +342,24 @@ OFCondition DcmBinToLabelConverter::copyCommonModules(DcmSegmentation* src, DcmS
         }
         if (result.bad())
             return result;
+
+        // Multi-frame Functional Groups Module (through the attributes in General Image Module):
+        // Set Instance Number
+        if (result.good())
+        {
+            result = dest->getGeneralImage().setInstanceNumber("1");
+        }
+
+        // Multi-frame Dimension Module, re-create:
+        // Two artificial dimensions based on Stack ID and In Stack Position Number
+        if (result.good())
+        {
+            // Create new Dimension UID
+            char uid[100];
+            dcmGenerateUniqueIdentifier(uid, SITE_INSTANCE_UID_ROOT);
+            result = dest->getDimensions().addDimensionIndex(DCM_StackID, uid, DCM_FrameContentSequence, "Stack ID");
+            if (result.good()) result = dest->getDimensions().addDimensionIndex(DCM_InStackPositionNumber, uid, DCM_FrameContentSequence, "In Stack Position Number");
+        }
 
         // Copy shared Functional Groups
         DCMSEG_DEBUG("Copying shared Functional Groups from input to output segmentation");
@@ -374,7 +399,7 @@ OFCondition DcmBinToLabelConverter::copyPerFrameInfo(DcmSegmentation* src)
         // result in a new destination frame being created.
         OverlapUtil::DistinctFramePositions framesAtPositions;
         result = m_overlapUtil.getFramesByPosition(framesAtPositions);
-        Uint32 frameNum = 1; // for log ouptut
+        Uint32 outputFrameNum = 1; // for log output
         if (result.good())
         {
             // Iterate over all positions, and create a new destination frame
@@ -382,34 +407,95 @@ OFCondition DcmBinToLabelConverter::copyPerFrameInfo(DcmSegmentation* src)
             OFVector<OverlapUtil::LogicalFrame>::iterator it = framesAtPositions.begin();
             while (result.good()&& (it != framesAtPositions.end()))
             {
-                // use per-frame information of first frame. We need them in a vector...
-                OFVector<FGBase*> perFrameInfo;
-                const FunctionalGroups* sourceFGs = src->getFunctionalGroups().getPerFrame(it->at(0));
-                FunctionalGroups::const_iterator fgIt = sourceFGs->begin();
-                while (fgIt != sourceFGs->end())
+                // Create per-frame functional groups.
+                // Re-use Plane Position (Patient) FG from first frame at this position.
+                // Create Frame Content FG for the frame
+                FGBase* planePos = src->getFunctionalGroups().get(it->at(0), DcmFGTypes::EFG_PLANEPOSPATIENT);
+                if (!planePos)
                 {
-                    perFrameInfo.push_back(fgIt->second);
-                    fgIt++;
+                    DCMSEG_DEBUG("No Plane Position (Patient) FG found for frame #" << it->at(0));
+                    result = EC_IllegalParameter; // TODO better code
+                    break;
                 }
+                // Create Frame Content FG for the frame, TODO: refactor into separate method
+                FGFrameContent* frameContent = OFstatic_cast(FGFrameContent*, FGFactory::instance().create(DcmFGTypes::EFG_FRAMECONTENT));
+                if (frameContent)
+                {
+                    frameContent->setStackID("Frame Position");
+                    frameContent->setInStackPositionNumber(outputFrameNum);
+                    result = frameContent->setDimensionIndexValues(1, 0);
+                    if (result.good())
+                    {
+                        result = frameContent->setDimensionIndexValues(outputFrameNum, 1);
+                    }
+
+                    // Create list of source frames that has been used for this frame and insert them as a comment
+                    // in the form "Original frames at this position: x, y, ..."
+                    if (result.good())
+                    {
+                        OFOStringStream s;
+                        s << "Created from original frame numbers: ";
+                        OverlapUtil::DistinctFramePositions::iterator frameAtPos = framesAtPositions.begin();
+                        while (frameAtPos != framesAtPositions.end())
+                        {
+                            s << frameAtPos->at(0) << ", ";
+                            ++frameAtPos;
+                        }
+                        OFString frameComments = s.str().c_str();
+                        // cut off last comma, if applicable
+                        if (frameComments.length() > 2) frameComments = frameComments.substr(0, frameComments.length() - 2);
+                        frameContent->setFrameComments(frameComments);
+                        result = m_outputSeg->getFunctionalGroups().addPerFrame(OFstatic_cast(Uint32, outputFrameNum - 1), *frameContent);
+                    }
+                    delete frameContent;
+                }
+                else
+                {
+                    result = EC_MemoryExhausted;
+                }
+                if (result.bad()) break;;
+
+                OFVector<FGBase*> perFrameInfo;
+                if (planePos) perFrameInfo.push_back(planePos);
                 // addFrame() will copy functional groups. Memory is still handled by source object, so
                 // no need to delete them.
                 if (m_use16Bit)
                 {
-                    DCMSEG_DEBUG("Creating new 16 bit destination frame #" << frameNum << "/" << framesAtPositions.size());
+                    DCMSEG_DEBUG("Creating new 16 bit destination frame #" << outputFrameNum << "/" << framesAtPositions.size());
                     // create a new destination frame
                     Uint16* newFrame = new Uint16[src->getRows() * src->getColumns()];
-                    if (newFrame) result = m_outputSeg->addFrame(newFrame, 0 /* ignored for labelmaps */, perFrameInfo);
+                    if (newFrame)
+                    {
+                        // Initialize new frame with zeros
+                        memset(newFrame, 0, src->getRows() * src->getColumns() * sizeof(Uint16));
+                        result = setPixelDataForFrame(src, outputFrameNum-1 /* aka current position */, newFrame, src->getRows() * src->getColumns());
+                        if (result.good())
+                        {
+                            result = m_outputSeg->addFrame(newFrame, 0 /* ignored for labelmaps */, perFrameInfo);
+                        }
+                        delete[] newFrame;
+                    }
                     else result = EC_MemoryExhausted;
                 }
                 else // 8 bit
                 {
-                    DCMSEG_DEBUG("Creating new 8 bit destination frame #" << frameNum << "/" << framesAtPositions.size());
+                    DCMSEG_DEBUG("Creating new 8 bit destination frame #" << outputFrameNum << "/" << framesAtPositions.size());
                     Uint8* newFrame = new Uint8[src->getRows() * src->getColumns()];
-                    if (newFrame) result = m_outputSeg->addFrame(newFrame, 0 /* ignored for labelmaps */, perFrameInfo);
+                    if (newFrame)
+                    {
+                        // Initialize new frame with zeros
+                        memset(newFrame, 0, src->getRows() * src->getColumns() * sizeof(Uint8));
+                        result = setPixelDataForFrame(src, outputFrameNum-1 /* aka current position */, newFrame, src->getRows() * src->getColumns());
+                        if (result.good())
+                        {
+                            result = m_outputSeg->addFrame(newFrame, 0 /* ignored for labelmaps */, perFrameInfo);
+                        }
+                        delete[] newFrame;
+                    }
                     else result = EC_MemoryExhausted;
                 }
                 it++;
-                frameNum++;
+                outputFrameNum++;
             }
         }
     }
@@ -491,6 +577,8 @@ OFCondition DcmBinToLabelConverter::getOutputDataset(DcmItem& outputDataset)
     if (m_outputSeg)
     {
         m_outputSeg->getFunctionalGroups().setUseThreads(m_convFlags.m_numThreads);
+        m_outputSeg->getFunctionalGroups().setCheckOnWrite(m_convFlags.m_checkExportFG);
+        m_outputSeg->setValueCheckOnWrite(m_convFlags.m_checkExportValues);
         OFCondition result = m_outputSeg->writeDataset(outputDataset);
         if (result.bad())
         {
