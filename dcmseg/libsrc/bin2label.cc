@@ -22,7 +22,6 @@
 
 #include "dcmtk/config/osconfig.h" // include OS configuration first
 #include "dcmtk/dcmseg/bin2label.h"
-#include "dcmtk/dcmiod/iodutil.h"
 #include "dcmtk/dcmdata/dcuid.h"
 #include "dcmtk/dcmfg/fgfact.h"
 #include "dcmtk/dcmfg/fgfracon.h"
