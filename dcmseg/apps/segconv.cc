@@ -104,6 +104,10 @@ int main(int argc, char *argv[])
     cmd.addOption("--disable-fg-check",        "-fgc",   "disable checking of functional groups\nwhen writing");
     cmd.addOption("--disable-value-check",      "-vc",   "disable checking of values\nwhen writing");
   cmd.addGroup("output options:");
+    cmd.addSubGroup("output color model:");
+      cmd.addOption("--color-mono2",            "+cm",   "use monochrome2 color model (default)");
+      cmd.addOption("--color-palette",          "+cp",   "use palette color model");
+      cmd.addOption("--color-palette-force",    "+cpf",  "use palette color model, even if not all\nsegments contain CIELab colors");
     cmd.addSubGroup("output file format:");
       cmd.addOption("--write-new-meta-info", "+Fm",    "write file format\nwith new meta information (default)");
       cmd.addOption("--write-file",          "+F",     "write file format");
@@ -218,14 +222,23 @@ int main(int argc, char *argv[])
       cmd.endOptionBlock();
       if (cmd.findOption("--disable-fg-check"))
       {
-          opt_convFlags.m_checkExportFG = OFTrue;
+          opt_convFlags.m_checkExportFG = OFFalse;
       }
       if (cmd.findOption("--disable-value-check"))
       {
-          opt_convFlags.m_checkExportValues= OFTrue;
+          opt_convFlags.m_checkExportValues= OFFalse;
       }
 
       /* output options */
+      cmd.beginOptionBlock();
+            if (cmd.findOption("--color-mono2")) opt_convFlags.m_outputColorModel = DcmSegTypes::SLCM_MONOCHROME2;
+            if (cmd.findOption("--color-palette")) opt_convFlags.m_outputColorModel = DcmSegTypes::SLCM_PALETTE;
+            if (cmd.findOption("--color-palette-force"))
+            {
+                opt_convFlags.m_outputColorModel = DcmSegTypes::SLCM_PALETTE;
+                opt_convFlags.m_forcePalette = OFTrue;
+            }
+      cmd.endOptionBlock();
       cmd.beginOptionBlock();
       if (cmd.findOption("--write-file")) opt_writeMode = EWM_fileformat;
       if (cmd.findOption("--write-new-meta-info")) opt_writeMode = EWM_createNewMeta;

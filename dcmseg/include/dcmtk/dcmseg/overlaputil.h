@@ -295,7 +295,7 @@ protected:
      *  @param  overlap Resulting overlap (overlaps if OFTrue, otherwise not)
      *  @return EC_Normal if successful, error otherwise
      */
-    OFCondition checkFramesOverlapBinary(const Uint32& f1,
+    static OFCondition checkFramesOverlapBinary(const Uint32& f1,
                                          const Uint32& f2,
                                          const DcmIODTypes::Frame<Uint8>* f1_data,
                                          const DcmIODTypes::Frame<Uint8>* f2_data,
@@ -315,7 +315,7 @@ protected:
      *  @param  overlap Resulting overlap (overlaps if OFTrue, otherwise not)
      *  @return EC_Normal if successful, error otherwise
      */
-    OFCondition checkFramesOverlapUnpacked(const Uint32& f1,
+    static OFCondition checkFramesOverlapUnpacked(const Uint32& f1,
                                            const Uint32& f2,
                                            const DcmIODTypes::Frame<Uint8>* f1_data,
                                            const DcmIODTypes::Frame<Uint8>* f2_data,

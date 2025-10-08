@@ -286,6 +286,8 @@ public:
      */
     virtual Uint16 getSegmentNumberRead();
 
+    OFshared_ptr<IODRules> getIODRules();
+
     /// The utility class must access the protected default constructor
     friend class DcmIODUtil;
 
@@ -341,7 +343,7 @@ private:
     DcmUniqueIdentifier m_TrackingUID;
 
     /// Rules for data elements within this IOD
-    IODRules m_Rules;
+    OFshared_ptr<IODRules> m_Rules;
 };
 
 #endif // SEGMENT_H

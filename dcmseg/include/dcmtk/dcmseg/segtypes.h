@@ -95,6 +95,10 @@ extern DCMTK_DCMSEG_EXPORT const OFConditionConst SG_EC_CannotConvertFractionalT
 extern DCMTK_DCMSEG_EXPORT const OFConditionConst SG_EC_AlreadyLabelMap;
 /// error: binary segmentation contains overlapping segments
 extern DCMTK_DCMSEG_EXPORT const OFConditionConst SG_EC_OverlappingSegments;
+/// error: cannot convert to PALETTE color model since not all segments contain Recommended Display CIELab Value Macro
+extern DCMTK_DCMSEG_EXPORT const OFConditionConst SG_EC_CannotConvertMissingCIELab;
+/// error: missing Plane Position (Patient) Functional Group
+extern DCMTK_DCMSEG_EXPORT const OFConditionConst SG_EC_MissingPlanePositionPatient;
 
 ///@}
 

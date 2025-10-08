@@ -26,6 +26,7 @@
 #include "dcmtk/dcmfg/fgfact.h"
 #include "dcmtk/dcmfg/fgfracon.h"
 #include "dcmtk/dcmseg/segtypes.h"
+#include "dcmtk/dcmiod/cielabutil.h"
 #include <zconf.h>
 
 DcmBinToLabelConverter::DcmBinToLabelConverter()
@@ -38,6 +39,7 @@ DcmBinToLabelConverter::DcmBinToLabelConverter()
     , m_outputSeg(OFnullptr)
     , m_use16Bit(OFFalse)
     , m_overlapUtil()
+    , m_cielabColors()
 {
 }
 
@@ -78,6 +80,7 @@ void DcmBinToLabelConverter::clear()
     m_outputSeg.reset();
     m_use16Bit = OFFalse;
     m_overlapUtil.clear();
+    m_cielabColors.clear();
 }
 
 
@@ -92,6 +95,15 @@ OFCondition DcmBinToLabelConverter::convert(const ConversionFlags& convFlags)
         return result;
     }
 
+    // Check whether user wants to convert to PALETTE color model. For now we
+    // rely on Recommended Display CIELab Value Macro to be present in the segments;
+    // and if not, we cannot convert to PALETTE.
+    if ( (m_convFlags.m_outputColorModel == DcmSegTypes::SLCM_PALETTE) && !checkCIELabColorsPresent() )
+    {
+        DCMSEG_ERROR("Cannot convert to PALETTE color model since not all segments contain Recommended Display CIELab Value Macro");
+        return SG_EC_CannotConvertMissingCIELab;
+    }
+
     // Check for overlaps which would prevent conversion
     m_overlapUtil.setSegmentationObject(m_inputSeg.get());
     if (m_overlapUtil.hasOverlappingSegments())
@@ -99,7 +111,6 @@ OFCondition DcmBinToLabelConverter::convert(const ConversionFlags& convFlags)
         return SG_EC_OverlappingSegments;
     }
     // Get number of segments to find out whether we need 16 bit data.
-    // We will use MONOCHROME2 color model (palette is not supported during conversion for now).
     size_t numSegments = m_inputSeg->getNumberOfSegments();
     m_use16Bit    = (numSegments > 256);
     DCMSEG_DEBUG("Using " << (m_use16Bit ? "16" : "8") << " bit pixel data for " << numSegments << " segments");
@@ -120,7 +131,7 @@ OFCondition DcmBinToLabelConverter::convert(const ConversionFlags& convFlags)
                                                             m_inputSeg->getEquipment().getEquipmentInfo(),
                                                             content,
                                                             m_use16Bit,
-                                                            DcmSegTypes::SLCM_MONOCHROME2);
+                                                            m_convFlags.m_outputColorModel);
         // Remember output segmentation in converter but also return in parameter
         m_outputSeg = temp;
     }
@@ -155,6 +166,12 @@ OFCondition DcmBinToLabelConverter::convert(const ConversionFlags& convFlags)
         result = copyPerFrameInfo(m_inputSeg.get());
     }
 
+    // Create palette color lookup table if necessary
+    if (result.good() && (m_convFlags.m_outputColorModel == DcmSegTypes::SLCM_PALETTE))
+    {
+        result = createPaletteColorLUT();
+    }
+
     return result;
 }
 
@@ -176,6 +193,13 @@ OFCondition DcmBinToLabelConverter::copySegments(DcmSegmentation* src, DcmSegmen
             DcmSegment* clonedSegment = srcSegment->second->clone(dest);
             if (clonedSegment)
             {
+                // If we write palette color model, we need to make sure that the
+                // Recommended Display CIELab Value Macro will not be written
+                // for each segment, as this is not allowed in labelmaps with PALETTE color model.
+                if (m_convFlags.m_outputColorModel == DcmSegTypes::SLCM_PALETTE)
+                {
+                    clonedSegment->getIODRules()->deleteRule(DCM_RecommendedDisplayCIELabValue);
+                }
                 Uint16 segNumber = srcSegment->first;
                 result = dest->addSegment(clonedSegment, segNumber);
                 if (result.bad())
@@ -405,7 +429,7 @@ OFCondition DcmBinToLabelConverter::copyPerFrameInfo(DcmSegmentation* src)
     if (src)
     {
         // Walk through segments, and for each segments, get all the related frames
-        // and construct a new destination frame if we dont have a corresponding one
+        // and construct a new destination frame if we don't have a corresponding one
         // at the same position in space. So input frames at the same position will
         // result in a new destination frame being created.
         OverlapUtil::DistinctFramePositions framesAtPositions;
@@ -425,46 +449,13 @@ OFCondition DcmBinToLabelConverter::copyPerFrameInfo(DcmSegmentation* src)
                 if (!planePos)
                 {
                     DCMSEG_DEBUG("No Plane Position (Patient) FG found for frame #" << it->at(0));
-                    result = EC_IllegalParameter; // TODO better error code
+                    result = SG_EC_MissingPlanePositionPatient;
                     break;
                 }
-                // Create Frame Content FG for the frame, TODO: refactor into separate method
-                FGFrameContent* frameContent = OFstatic_cast(FGFrameContent*, FGFactory::instance().create(DcmFGTypes::EFG_FRAMECONTENT));
-                if (frameContent)
-                {
-                    frameContent->setStackID("Frame Position");
-                    frameContent->setInStackPositionNumber(outputFrameNum);
-                    result = frameContent->setDimensionIndexValues(1, 0);
-                    if (result.good())
-                    {
-                        result = frameContent->setDimensionIndexValues(outputFrameNum, 1);
-                    }
-
-                    // Create list of source frames that has been used for this frame and insert them as a comment
-                    // in the form "Original frames at this position: x, y, ..."
-                    if (result.good())
-                    {
-                        OFOStringStream s;
-                        s << "Created from original frame numbers: ";
-                        OFVector<Uint32>::iterator physFramesAtPos = (*it).begin();
-                        while (physFramesAtPos != (*it).end())
-                        {
-                            s << *physFramesAtPos << ", ";
-                            ++physFramesAtPos;
-                        }
-                        OFString frameComments = s.str().c_str();
-                        // cut off last comma, if applicable
-                        if (frameComments.length() > 2) frameComments = frameComments.substr(0, frameComments.length() - 2);
-                        frameContent->setFrameComments(frameComments);
-                        result = m_outputSeg->getFunctionalGroups().addPerFrame(OFstatic_cast(Uint32, outputFrameNum - 1), *frameContent);
-                    }
-                    delete frameContent;
-                }
-                else
-                {
-                    result = EC_MemoryExhausted;
-                }
-                if (result.bad()) break;;
+                // Create Frame Content FG for the frame
+                FGFrameContent* frameContent = OFnullptr;
+                result = createFrameContentFG(outputFrameNum, it, frameContent);
+                if (result.bad()) break;
 
                 OFVector<FGBase*> perFrameInfo;
                 if (planePos) perFrameInfo.push_back(planePos);
@@ -522,6 +513,67 @@ E_TransferSyntax DcmBinToLabelConverter::getInputTransferSyntax() const
 {
     return m_inputXfer;
 }
+
+
+OFBool DcmBinToLabelConverter::checkCIELabColorsPresent()
+{
+    size_t numSegments = m_inputSeg->getNumberOfSegments();
+    OFBool result = OFTrue;
+    OFCondition cond;
+    if (m_convFlags.m_outputColorModel == DcmSegTypes::SLCM_PALETTE)
+    {
+        if (!m_cielabColors.resize(numSegments))
+        {
+            DCMSEG_ERROR("Cannot allocate memory for CIELab colors of " << numSegments << " segments");
+            return OFFalse;
+        }
+
+        // Check whether all segments have Recommended Display CIELab Value Macro
+        size_t idx = 0;
+        OFMap<Uint16, DcmSegment*>::const_iterator segIt = m_inputSeg->getSegments().begin();
+        while (segIt != m_inputSeg->getSegments().end())
+        {
+            if (segIt->second)
+            {
+                Uint16 L,a,b;
+                L = 0; a = 0; b = 0;
+                cond = segIt->second->getRecommendedDisplayCIELabValue(L,a,b);
+                if (cond.good())
+                {
+                    DCMSEG_DEBUG("Segment #" << segIt->first << " has CIELab color: L=" << L << ", a=" << a << ", b=" << b);
+                    m_cielabColors.m_L[idx] = L;
+                    m_cielabColors.m_a[idx] = a;
+                    m_cielabColors.m_b[idx] = b;
+                }
+                else
+                {
+                    if (m_convFlags.m_forcePalette)
+                    {
+                        // Create random color, L, a and b are still in DICOM range 0..65535
+                        L = OFstatic_cast(Uint16, rand() % 65536);
+                        a = OFstatic_cast(Uint16, rand() % 65536);
+                        b = OFstatic_cast(Uint16, rand() % 65536);
+                        m_cielabColors.m_L[idx] = L;
+                        m_cielabColors.m_a[idx] = a;
+                        m_cielabColors.m_b[idx] = b;
+                        DCMSEG_DEBUG("Segment #" << segIt->first << " has no CIELab color, using random color: L=" << L << ", a=" << a << ", b=" << b);
+                    }
+                    else
+                    {
+                        DCMSEG_ERROR("No Display Recommended Display CIELab Value in segment #" << segIt->first);
+                        result = OFFalse;
+                        m_cielabColors.clear();
+                        break;
+                    }
+                }
+            }
+            segIt++;
+            idx++;
+        }
+    }
+    return result;
+}
+
 
 OFCondition DcmBinToLabelConverter::loadInput()
 {
@@ -587,6 +639,8 @@ OFCondition DcmBinToLabelConverter::getOutputDataset(DcmItem& outputDataset)
     outputDataset.clear();
     if (m_outputSeg)
     {
+        std::cout << "checkExportFG: " << (m_convFlags.m_checkExportFG ? "enabled" : "disabled") << std::endl;
+        std::cout << "checkExportValues: " << (m_convFlags.m_checkExportValues ? "enabled" : "disabled") << std::endl;
         m_outputSeg->getFunctionalGroups().setUseThreads(m_convFlags.m_numThreads);
         m_outputSeg->getFunctionalGroups().setCheckOnWrite(m_convFlags.m_checkExportFG);
         m_outputSeg->setValueCheckOnWrite(m_convFlags.m_checkExportValues);
@@ -600,3 +654,125 @@ OFCondition DcmBinToLabelConverter::getOutputDataset(DcmItem& outputDataset)
     return EC_Normal;
 }
 
+
+OFCondition DcmBinToLabelConverter::createPaletteColorLUT()
+{
+    DCMSEG_DEBUG("Creating palette color lookup table for output segmentation");
+    IODPaletteColorLUTModule& lutModule = m_outputSeg->getPaletteColorLUT();
+    OFCondition result;
+    // Create LUT from CIELab colors stored during segment copying
+    size_t numSegments = m_outputSeg->getNumberOfSegments();
+    if (m_cielabColors.m_numSegments == numSegments)
+    {
+        result = lutModule.setRedPaletteColorLookupTableDescriptor(numSegments, 1, (m_use16Bit ? 16 : 8));
+        if (result.good()) result = lutModule.setGreenPaletteColorLookupTableDescriptor(numSegments, 1, (m_use16Bit ? 16 : 8));
+        if (result.good()) result = lutModule.setBluePaletteColorLookupTableDescriptor(numSegments, 1, (m_use16Bit ? 16 : 8));
+        if (result.good())
+        {
+            Uint16 maxRange = (m_use16Bit ? 65535 : 255);
+            for (size_t idx = 0; idx < m_cielabColors.m_numSegments; idx++)
+            {
+                // Scale to full 16 bit range
+                double R, G, B;
+                IODCIELabUtil::dicomLab2RGB(R, G, B, m_cielabColors.m_L[idx], m_cielabColors.m_a[idx], m_cielabColors.m_b[idx]);
+                IODCIELabUtil::dicomLab2RGB(R, G, B, m_cielabColors.m_L[idx], m_cielabColors.m_a[idx], m_cielabColors.m_b[idx]);
+                IODCIELabUtil::dicomLab2RGB(R, G, B, m_cielabColors.m_L[idx], m_cielabColors.m_a[idx], m_cielabColors.m_b[idx]);
+                R = R*maxRange;
+                G = G*maxRange;
+                B = B*maxRange;
+                if (R < 0) R = 0;
+                if (R > maxRange) R = maxRange;
+                if (G < 0) G = 0;
+                if (G > maxRange) G = maxRange;
+                if (B < 0) B = 0;
+                if (B > maxRange) B = maxRange;
+                m_cielabColors.m_L[idx] = OFstatic_cast(Uint16, R);
+                m_cielabColors.m_a[idx] = OFstatic_cast(Uint16, G);
+                m_cielabColors.m_b[idx] = OFstatic_cast(Uint16, B);
+                // Print RGB values
+                std::cout << "Segment #" << (idx+1) << " uses RGB color: R=" << m_cielabColors.m_L[idx] << ", G=" << m_cielabColors.m_a[idx] << ", B=" << m_cielabColors.m_b[idx] << std::endl;
+            }
+            result = lutModule.setRedPaletteColorLookupTableData(m_cielabColors.m_L, numSegments);
+            if (result.good()) result = lutModule.setGreenPaletteColorLookupTableData(m_cielabColors.m_a, numSegments);
+            if (result.good()) result = lutModule.setBluePaletteColorLookupTableData(m_cielabColors.m_b, numSegments);
+
+        }
+    }
+    else
+    {
+        DCMSEG_ERROR("Cannot create palette color lookup table: Number of CIELab colors does not match number of segments");
+        result = SG_EC_CannotConvertMissingCIELab;
+    }
+    if (result.good())
+    {
+        // Set default profile to our sample ICC profile
+        result = m_outputSeg->getICCProfile().setDefaultProfile(OFTrue /* also set color space description */);
+        // m_cieLabColors now contains RGB values, dump then out
+        for (size_t idx = 0; idx < m_cielabColors.m_numSegments; idx++)
+        {
+            DCMSEG_DEBUG("Segment #" << (idx+1) << " uses RGB color: R=" << m_cielabColors.m_L[idx] << ", G=" << m_cielabColors.m_a[idx] << ", B=" << m_cielabColors.m_b[idx]);
+        }
+    }
+    if (result.good())
+    {
+        DCMSEG_DEBUG("Successfully created palette color lookup table and ICC profile for output segmentation");
+    }
+    return result;
+}
+
+
+OFCondition DcmBinToLabelConverter::createFrameContentFG(Uint32 outputFrameNum /* will start with 1 */, OFVector<OverlapUtil::LogicalFrame>::iterator logicalFrame, FGFrameContent*& frameContent)
+{
+    OFCondition result;
+    frameContent = OFstatic_cast(FGFrameContent*, FGFactory::instance().create(DcmFGTypes::EFG_FRAMECONTENT));
+    if (frameContent)
+    {
+        frameContent->setStackID("Frame Position");
+        frameContent->setInStackPositionNumber(outputFrameNum);
+        result = frameContent->setDimensionIndexValues(1, 0);
+        if (result.good())
+        {
+            result = frameContent->setDimensionIndexValues(outputFrameNum, 1);
+        }
+
+        // Create list of source frames that has been used for this frame and insert them as a comment
+        // in the form "Original frames at this position: x, y, ..."
+        if (result.good())
+        {
+            OverlapUtil::SegmentsByPosition segmentsAtPos;
+            result = m_overlapUtil.getSegmentsByPosition(segmentsAtPos);
+            if (result.good() && (segmentsAtPos.size() >= outputFrameNum) && !segmentsAtPos[outputFrameNum - 1].empty())
+            {
+                OverlapUtil::SegNumAndFrameNum* seg = segmentsAtPos[outputFrameNum - 1].begin();
+                OFString frameComments;
+                while (seg != segmentsAtPos[outputFrameNum - 1].end())
+                {
+                    OFString label;
+                    m_inputSeg->getSegment(seg->m_segmentNumber)->getSegmentLabel(label, OFFalse /* no long labels */);
+                    // max length for frame comments is 10240 characters
+                    if (frameComments.length() + label.length() + 4 > 10240)
+                    {
+                        frameComments += "...";
+                        break;
+                    }
+                    else
+                    {
+                        frameComments += label;
+                        frameComments += "; ";
+                        ++seg;
+                    }
+                }
+                // cut off last comma, if applicable
+                if (frameComments.length() > 2) frameComments = frameComments.substr(0, frameComments.length() - 2);
+                frameContent->setFrameComments(frameComments);
+                result = m_outputSeg->getFunctionalGroups().addPerFrame(OFstatic_cast(Uint32, outputFrameNum - 1), *frameContent);
+            }
+        }
+        delete frameContent;
+    }
+    else
+    {
+        result = EC_MemoryExhausted;
+    }
+    return result;
+}

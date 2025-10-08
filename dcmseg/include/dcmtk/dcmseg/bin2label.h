@@ -26,6 +26,7 @@
 
 #include "dcmtk/dcmseg/overlaputil.h"
 #include "dcmtk/dcmseg/segdoc.h" // for DcmSegmentation
+#include "dcmtk/dcmfg/fgfracon.h"
 #include "segtypes.h"
 #include "segutils.h"
 
@@ -86,6 +87,13 @@ public:
         /// Enables/disables checking of values on dataset export (default: on)
         OFBool m_checkExportValues;
 
+        /// Output color model for label map segmentations (default: MONOCHROME2)
+        DcmSegTypes::E_SegmentationLabelmapColorModel m_outputColorModel;
+
+        /// Force conversion to PALETTE color model even if not all segments contain CIELab colors
+        /// (default: OFFalse)
+        OFBool m_forcePalette;
+
         /// Constructor to initialize the flags
         ConversionFlags()
         {
@@ -99,6 +107,9 @@ public:
             m_numThreads = 1;
             m_checkExportFG = OFTrue;
             m_checkExportValues = OFTrue;
+            m_outputColorModel = DcmSegTypes::SLCM_MONOCHROME2;
+            m_forcePalette = OFFalse;
+
         }
     };
 
@@ -131,6 +142,8 @@ protected:
     static OFCondition copyCommonModules(DcmSegmentation* src, DcmSegmentation* dest);
     OFCondition copyPerFrameInfo(DcmSegmentation* src);
     OFCondition copySegments(DcmSegmentation* src, DcmSegmentation* dest);
+    OFBool checkCIELabColorsPresent();
+    OFCondition createPaletteColorLUT();
     OFCondition loadInput();
 
     /** Set pixel data for a specific frame in the output segmentation.
@@ -196,7 +209,10 @@ protected:
         return result;
     }
 
+    OFCondition createFrameContentFG(Uint32 outputFrameNum, OFVector<OverlapUtil::LogicalFrame>::iterator logicalFrame, FGFrameContent*& frameContent);
+
 private:
+
     // Disable copy constructor and assignment operator
     DcmBinToLabelConverter(const DcmBinToLabelConverter&);
     DcmBinToLabelConverter& operator=(const DcmBinToLabelConverter&);
@@ -213,10 +229,52 @@ private:
     OFunique_ptr<DcmSegmentation> m_inputSeg;
     E_TransferSyntax m_inputXfer;
     // Remember output segmentation in converter but also return in parameter,
-    // so the caller is responsible for destroying itresult = copySegments(m_inputSeg.get(), m_outputSeg.get());
+    // so the caller is responsible for destroying it
     OFshared_ptr<DcmSegmentation> m_outputSeg;
     OFBool m_use16Bit;
     OverlapUtil m_overlapUtil;
+    struct CIELabColor
+    {
+        Uint16* m_L;
+        Uint16* m_a;
+        Uint16* m_b;
+        size_t m_numSegments;
+
+        CIELabColor() : m_L(OFnullptr), m_a(OFnullptr), m_b(OFnullptr) {}
+        OFBool resize(size_t numSegments)
+        {
+            clear();
+            m_L = new Uint16[numSegments];
+            m_a = new Uint16[numSegments];
+            m_b = new Uint16[numSegments];
+            if ((numSegments > 0) && (!m_L || !m_a || !m_b))
+            {
+                DCMSEG_ERROR("Cannot resize CIELab color arrays");
+                clear();
+                return OFFalse;
+            }
+            m_numSegments = numSegments;
+            return OFTrue;
+        }
+
+        ~CIELabColor()
+        {
+            clear();
+        }
+
+        void clear()
+        {
+            delete[] m_L; m_L = OFnullptr;
+            delete[] m_a; m_a = OFnullptr;
+            delete[] m_b; m_b = OFnullptr;
+            m_numSegments = 0;
+        }
+    };
+    // Remember CIELab colors for segments, as optionally provided in
+    // Recommended Display CIELab Value Macro for each segment.
+    // Each contained array has a size of numSegments. Segment number N
+    // has its color at index N-1.
+    CIELabColor m_cielabColors;
 };
 
 #endif // BIN2LABEL

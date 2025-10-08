@@ -46,6 +46,8 @@ makeOFConditionConst(SG_EC_NoConversionRequired, OFM_dcmseg, 10, OF_ok, "Segment
 makeOFConditionConst(SG_EC_AlreadyLabelMap, OFM_dcmseg, 11, OF_error, "Segmentation-based object is already a label map");
 makeOFConditionConst(SG_EC_CannotConvertFractionalToLabelmap, OFM_dcmseg, 12, OF_error, "Cannot convert fractional to label map segmentations");
 makeOFConditionConst(SG_EC_OverlappingSegments, OFM_dcmseg, 13, OF_error, "Binary segmentation contains overlapping segments");
+makeOFConditionConst(SG_EC_CannotConvertMissingCIELab, OFM_dcmseg, 14, OF_error, "Cannot convert to PALETTE color model since not all segments contain Recommended Display CIELab Value Macro");
+makeOFConditionConst(SG_EC_MissingPlanePositionPatient, OFM_dcmseg, 15, OF_error, "Missing Plane Position (Patient) Functional Group");
 
 DcmSegTypes::E_SegmentationType DcmSegTypes::OFString2Segtype(const OFString& value)
 {
