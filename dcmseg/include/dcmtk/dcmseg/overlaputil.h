@@ -50,7 +50,7 @@ public:
     typedef OFVector<Float64> ImagePosition; // might be defined in respective functional group
 
     /// Physical Frame number with its respective position
-    DCMTK_DCMSEG_EXPORT struct FramePositionAndNumber
+    struct DCMTK_DCMSEG_EXPORT FramePositionAndNumber
     {
         /** Default constructor required for vector initialization
          */
@@ -89,7 +89,7 @@ public:
 
     /// Implements comparison operator to be used for sorting of frame positions,
     /// making the sorting order depend on the coordinate given in the constructor
-    DCMTK_DCMSEG_EXPORT struct ComparePositions
+    struct DCMTK_DCMSEG_EXPORT ComparePositions
     {
         /** Constructor, used to configure coordinate position to be used for sorting
          *  @param  c Coordinate position to be used for sorting
@@ -121,7 +121,7 @@ public:
 
     /** Represents a segment number and a logical frame number it is found at
      */
-    DCMTK_DCMSEG_EXPORT struct SegNumAndFrameNum
+    struct DCMTK_DCMSEG_EXPORT SegNumAndFrameNum
     {
         /** Constructor
          *  @param  s Segment number
